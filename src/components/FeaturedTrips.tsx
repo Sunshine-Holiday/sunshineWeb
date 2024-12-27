@@ -1,34 +1,34 @@
-import React from 'react';
-import { motion } from 'framer-motion';
-import { MapPin, Clock, Star } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-import { fadeInUp, staggerChildren, scaleOnHover } from '../utils/animations';
+import React from "react";
+import { motion } from "framer-motion";
+import { MapPin, Clock, Star } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { fadeInUp, staggerChildren, scaleOnHover } from "../utils/animations";
 
 const trips = [
   {
     id: 1,
-    title: 'Mumbai to Bangalore',
-    image: 'https://images.unsplash.com/photo-1537996194471-e657df975ab4',
-    location: 'Express Bus',
-    duration: '12 Hours',
+    title: "Mumbai to Bangalore",
+    image: "https://images.unsplash.com/photo-1537996194471-e657df975ab4",
+    location: "Express Bus",
+    duration: "12 Hours",
     rating: 4.8,
     price: 1499,
   },
   {
     id: 2,
-    title: 'Delhi to Jaipur',
-    image: 'https://images.unsplash.com/photo-1531366936337-7c912a4589a7',
-    location: 'AC Sleeper',
-    duration: '5 Hours',
+    title: "Delhi to Jaipur",
+    image: "https://images.unsplash.com/photo-1531366936337-7c912a4589a7",
+    location: "AC Sleeper",
+    duration: "5 Hours",
     rating: 4.9,
     price: 899,
   },
   {
     id: 3,
-    title: 'Chennai to Bangalore',
-    image: 'https://images.unsplash.com/photo-1570077188670-e3a8d69ac5ff',
-    location: 'Luxury Bus',
-    duration: '6 Hours',
+    title: "Chennai to Bangalore",
+    image: "https://images.unsplash.com/photo-1570077188670-e3a8d69ac5ff",
+    location: "Luxury Bus",
+    duration: "6 Hours",
     rating: 4.7,
     price: 1299,
   },
@@ -36,25 +36,26 @@ const trips = [
 
 export const FeaturedTrips = () => {
   const navigate = useNavigate();
-
+  const handletripDetail = (trip: number) => {
+    // navigate(`/trips/${trip.id||1}`, { state: { trip } });
+  };
   const handleBookNow = (tripId: number) => {
-    navigate('/booking', { state: { tripId } });
+    navigate("/booking", { state: { tripId } });
   };
 
   return (
     <section className="py-20 bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <motion.div
-          {...fadeInUp}
-          className="text-center mb-12"
-        >
-          <h2 className="text-3xl font-bold text-gray-900 mb-4">Featured Routes</h2>
+        <motion.div {...fadeInUp} className="text-center mb-12">
+          <h2 className="text-3xl font-bold text-gray-900 mb-4">
+            Featured Routes
+          </h2>
           <p className="text-gray-600 max-w-2xl mx-auto">
             Book your journey with comfort and convenience
           </p>
         </motion.div>
 
-        <motion.div 
+        <motion.div
           variants={staggerChildren}
           initial="initial"
           whileInView="animate"
@@ -67,10 +68,11 @@ export const FeaturedTrips = () => {
               variants={fadeInUp}
               className="bg-white rounded-xl shadow-sm overflow-hidden hover:shadow-lg transition-shadow duration-300"
             >
-              <motion.div 
+              <motion.div
                 className="relative h-48 overflow-hidden"
                 whileHover={{ scale: 1.05 }}
                 transition={{ duration: 0.3 }}
+                onClick={()=>handletripDetail("1")}
               >
                 <img
                   src={trip.image}
@@ -79,7 +81,9 @@ export const FeaturedTrips = () => {
                 />
               </motion.div>
               <div className="p-6">
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">{trip.title}</h3>
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                  {trip.title}
+                </h3>
                 <div className="flex items-center space-x-2 text-gray-500 mb-2">
                   <MapPin className="h-4 w-4" />
                   <span>{trip.location}</span>

@@ -13,6 +13,7 @@ const GalleryPage = React.lazy(() => import("./pages/gallery/GalleryPage"));
 const ContactPage = React.lazy(() => import("./pages/contact/ContactPage"));
 const SignInPage = React.lazy(() => import("./pages/auth/SignInPage"));
 const SignUpPage = React.lazy(() => import("./pages/auth/SignUpPage"));
+const ForgotPasswordPage = React.lazy(() => import("./pages/auth/ForgotPasswordPage"));
 const BookingPage = React.lazy(() => import("./pages/booking/BookingPage"));
 const HomePage = React.lazy(() => import("./pages/Home"));
 
@@ -41,6 +42,7 @@ export const App = () => {
             <Route path="/contact" element={<ContactPage />} />
             <Route path="/signin" element={<SignInPage />} />
             <Route path="/signup" element={<SignUpPage />} />
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/booking" element={<BookingPage />} />
           </Routes>
         </React.Suspense>

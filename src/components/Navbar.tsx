@@ -16,7 +16,7 @@ export const Navbar: React.FC = () => {
     <motion.nav
       initial={{ y: -100 }}
       animate={{ y: 0 }}
-      className="fixed w-full bg-white/80 backdrop-blur-md z-50 shadow-sm"
+      className="fixed w-full bg-white/70 backdrop-blur-sm z-50 shadow-sm" // Changed blur to 'backdrop-blur-sm'
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
@@ -33,7 +33,7 @@ export const Navbar: React.FC = () => {
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              className="bg-blue-600 text-white px-4 py-2 rounded-full flex items-center space-x-2"
+              className="bg-blue-600 text-white px-4 py-2 rounded-full flex items-center space-x-2 shadow-md"
               onClick={() => navigate("/signin")}
             >
               <User className="h-4 w-4" />
@@ -55,7 +55,7 @@ export const Navbar: React.FC = () => {
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="md:hidden bg-white/100 backdrop-blur-md shadow-md absolute top-16 w-full"
+            className="md:hidden bg-white/90 backdrop-blur-sm shadow-md absolute top-16 w-full" // Lighter blur for mobile menu
           >
             <div className="flex flex-col space-y-4 p-4">
               <NavLink to="/trips" onClick={handleMobileMenuToggle}>Trips</NavLink>
@@ -65,7 +65,7 @@ export const Navbar: React.FC = () => {
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                className="bg-blue-600 text-white px-4 py-2 rounded-full flex items-center space-x-2"
+                className="bg-blue-600 text-white px-4 py-2 rounded-full flex items-center space-x-2 shadow-md"
                 onClick={() => {
                   navigate("/signin");
                   handleMobileMenuToggle();
@@ -87,9 +87,7 @@ export const Navbar: React.FC = () => {
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: -50 }}
           transition={{ duration: 0.3 }}
-        >
-  
-        </motion.div>
+        ></motion.div>
       </AnimatePresence>
     </motion.nav>
   );

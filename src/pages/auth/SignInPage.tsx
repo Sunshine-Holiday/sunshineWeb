@@ -38,65 +38,70 @@ const SignInPage = () => {
   };
 
   return (
-    <AuthCard 
-      title="Welcome Back"
-      subtitle="Sign in to your account to continue booking"
+    <div 
+      className="min-h-screen bg-cover bg-center flex items-center justify-center"
+      style={{ backgroundImage: "url('https://images.unsplash.com/photo-1530789253388-582c481c54b0')" }}
     >
-      <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-        {errors.form && (
-          <div className="text-red-600 text-sm text-center">{errors.form}</div>
-        )}
-        
-        <div className="space-y-4">
-          <FormInput
-            id="email"
-            label="Email address"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            error={errors.email}
-          />
-
-          <FormInput
-            id="password"
-            label="Password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            error={errors.password}
-          />
-        </div>
-
-        <div className="flex items-center justify-between">
-          <div className="flex items-center">
-            <input
-              id="remember-me"
-              type="checkbox"
-              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+      <AuthCard 
+        title="Welcome Back"
+        subtitle="Sign in to your account to continue booking"
+      >
+        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+          {errors.form && (
+            <div className="text-red-600 text-sm text-center">{errors.form}</div>
+          )}
+          
+          <div className="space-y-4">
+            <FormInput
+              id="email"
+              label="Email address"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              error={errors.email}
             />
-            <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900">
-              Remember me
-            </label>
+
+            <FormInput
+              id="password"
+              label="Password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              error={errors.password}
+            />
           </div>
 
-          <div className="text-sm">
-            <Link to="/forgot-password" className="font-medium text-blue-600 hover:text-blue-500">
-              Forgot password?
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <input
+                id="remember-me"
+                type="checkbox"
+                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+              />
+              <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900">
+                Remember me
+              </label>
+            </div>
+
+            <div className="text-sm">
+              <Link to="/forgot-password" className="font-medium text-blue-600 hover:text-blue-500">
+                Forgot password?
+              </Link>
+            </div>
+          </div>
+
+          <SubmitButton loading={loading}>Sign in</SubmitButton>
+
+          <div className="text-center text-sm">
+            <span className="text-gray-600">Don't have an account?</span>{' '}
+            <Link to="/signup" className="font-medium text-blue-600 hover:text-blue-500">
+              Sign up
             </Link>
           </div>
-        </div>
-
-        <SubmitButton loading={loading}>Sign in</SubmitButton>
-
-        <div className="text-center text-sm">
-          <span className="text-gray-600">Don't have an account?</span>{' '}
-          <Link to="/signup" className="font-medium text-blue-600 hover:text-blue-500">
-            Sign up
-          </Link>
-        </div>
-      </form>
-    </AuthCard>
+        </form>
+      </AuthCard>
+    </div>
   );
 };
 
-export default SignInPage
+export default SignInPage;

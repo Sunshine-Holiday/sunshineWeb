@@ -5,7 +5,7 @@ import { FormInput } from './components/FormInput';
 import { SubmitButton } from './components/SubmitButton';
 import { useAuth } from '../../hooks/useAuth';
 
- const SignUpPage = () => {
+const SignUpPage = () => {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -57,72 +57,78 @@ import { useAuth } from '../../hooks/useAuth';
   };
 
   return (
-    <AuthCard 
-      title="Create Account"
-      subtitle="Join us to start booking your bus tickets"
+    <div
+      className="min-h-screen bg-cover bg-center flex items-center justify-center"
+      style={{ backgroundImage: "url('https://images.unsplash.com/photo-1530789253388-582c481c54b0')" }}
     >
-      <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-        {errors.form && (
-          <div className="text-red-600 text-sm text-center">{errors.form}</div>
-        )}
-        
-        <div className="space-y-4">
-          <FormInput
-            id="name"
-            label="Full name"
-            type="text"
-            value={formData.name}
-            onChange={handleChange}
-            error={errors.name}
-          />
+      <AuthCard 
+        title="Create Account"
+        subtitle="Join us to start booking your bus tickets"
+      >
+        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+          {errors.form && (
+            <div className="text-red-600 text-sm text-center">{errors.form}</div>
+          )}
+          
+          <div className="space-y-4">
+            <FormInput
+              id="name"
+              label="Full name"
+              type="text"
+              value={formData.name}
+              onChange={handleChange}
+              error={errors.name}
+            />
 
-          <FormInput
-            id="email"
-            label="Email address"
-            type="email"
-            value={formData.email}
-            onChange={handleChange}
-            error={errors.email}
-          />
+            <FormInput
+              id="email"
+              label="Email address"
+              type="email"
+              value={formData.email}
+              onChange={handleChange}
+              error={errors.email}
+            />
 
-          <FormInput
-            id="phone"
-            label="Phone number"
-            type="tel"
-            value={formData.phone}
-            onChange={handleChange}
-            error={errors.phone}
-          />
+            <FormInput
+              id="phone"
+              label="Phone number"
+              type="tel"
+              value={formData.phone}
+              onChange={handleChange}
+              error={errors.phone}
+            />
 
-          <FormInput
-            id="password"
-            label="Password"
-            type="password"
-            value={formData.password}
-            onChange={handleChange}
-            error={errors.password}
-          />
+            <FormInput
+              id="password"
+              label="Password"
+              type="password"
+              value={formData.password}
+              onChange={handleChange}
+              error={errors.password}
+            />
 
-          <FormInput
-            id="confirmPassword"
-            label="Confirm password"
-            type="password"
-            value={formData.confirmPassword}
-            onChange={handleChange}
-            error={errors.confirmPassword}
-          />
-        </div>
+            <FormInput
+              id="confirmPassword"
+              label="Confirm password"
+              type="password"
+              value={formData.confirmPassword}
+              onChange={handleChange}
+              error={errors.confirmPassword}
+            />
+          </div>
 
-        <SubmitButton loading={loading}>Create Account</SubmitButton>
+          <SubmitButton loading={loading}>Create Account</SubmitButton>
 
-        <div className="text-center text-sm">
-          <span className="text-gray-600">Already have an account?</span>{' '}
-          <Link to="/signin" className="font-medium text-blue-600 hover:text-blue-500">
-            Sign in
-          </Link>
-        </div>
-      </form>
-    </AuthCard>
+          <div className="text-center text-sm">
+            <span className="text-gray-600">Already have an account?</span>{' '}
+            <Link to="/signin" className="font-medium text-blue-600 hover:text-blue-500">
+              Sign in
+            </Link>
+          </div>
+        </form>
+      </AuthCard>
+    </div>
   );
 };
-export default SignUpPage
+
+export default SignUpPage;
