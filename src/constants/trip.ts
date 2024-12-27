@@ -110,3 +110,58 @@ export const allTrips = [
       category: "National",
     },
   ];
+
+
+
+
+  export const images = [
+    {
+      id: 1,
+      src: "https://images.unsplash.com/photo-1469474968028-56623f02e42e",
+      location: "Yosemite, USA",
+      date: "28-12-24", // Random date
+    },
+    {
+      id: 2,
+      src: "https://images.unsplash.com/photo-1506748686214-e9df14d4d9d0",
+      location: "Grand Canyon, USA",
+      date: "15-11-23", // Random date
+    },
+    {
+      id: 3,
+      src: "https://plus.unsplash.com/premium_photo-1664368832311-7fe635e32c7c",
+      location: "Banff, Canada",
+      date: "05-09-23", // Random date
+    },
+    {
+      id: 4,
+      src: "https://images.unsplash.com/photo-1500835556837-99ac94a94552",
+      location: "Great Barrier Reef, Australia",
+      date: "12-07-24", // Random date
+    },
+    {
+      id: 5,
+      src: "https://images.unsplash.com/photo-1504598318550-17eba1008a68",
+      location: "Machu Picchu, Peru",
+      date: "03-03-23", // Random date
+    },
+    {
+      id: 6,
+      src: "https://images.unsplash.com/photo-1470074558764-4e577e98bc85",
+      location: "Machu Picchu, Peru",
+      date: "03-03-23", // Random date
+    },
+    {
+      id: 7,
+      src: "https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1",
+      location: "Great Barrier Reef, Australia",
+      date: "12-07-24", // Random date
+    },
+    {
+      id: 8,
+      src: "https://plus.unsplash.com/premium_photo-1681487906725-ecd65970ac66",
+      location: "Great Barrier Reef, Australia",
+      date: "12-07-24", // Random date
+    },
+  ];
+  
