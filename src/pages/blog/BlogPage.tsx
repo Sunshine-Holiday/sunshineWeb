@@ -2,21 +2,10 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { BlogCard } from './BlogCard';
 import { fadeInUp, staggerChildren } from '../../utils/animations';
+import { posts } from '../../constants/trip';
+import { Link } from 'react-router-dom';
 
-const posts = [
-  {
-    id: 1,
-    title: 'Top 10 Hidden Gems in Southeast Asia',
-    excerpt: 'Discover the unexplored wonders of Southeast Asia...',
-    image: 'https://images.unsplash.com/photo-1552733407-5d5c46c3bb3b',
-    date: 'Feb 28, 2024',
-    author: 'Sarah Johnson',
-    category: 'Travel Tips',
-  },
-  // Add more posts...
-];
-
- const BlogPage = () => {
+const BlogPage = () => {
   return (
     <div className="min-h-screen bg-gray-50 pt-24 pb-16">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -42,7 +31,9 @@ const posts = [
         >
           {posts.map((post) => (
             <motion.div key={post.id} variants={fadeInUp}>
-              <BlogCard post={post} />
+              <Link to={`/blog/${post.id}`}>
+                <BlogCard post={post} />
+              </Link>
             </motion.div>
           ))}
         </motion.div>
@@ -51,4 +42,4 @@ const posts = [
   );
 };
 
-export default BlogPage
+export default BlogPage;

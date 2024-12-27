@@ -5,6 +5,7 @@ import { useSmooth } from "./utils/scrollUtils";
 import React from "react";
 import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
+import BlogDetailPage from "./pages/blog/BlogDetailPage";
 // Lazy load components
 const TripsPage = React.lazy(() => import("./pages/trips/TripsPage"));
 const TripDetails = React.lazy(() => import("./pages/trips/TripDetails"));
@@ -13,10 +14,11 @@ const GalleryPage = React.lazy(() => import("./pages/gallery/GalleryPage"));
 const ContactPage = React.lazy(() => import("./pages/contact/ContactPage"));
 const SignInPage = React.lazy(() => import("./pages/auth/SignInPage"));
 const SignUpPage = React.lazy(() => import("./pages/auth/SignUpPage"));
-const ForgotPasswordPage = React.lazy(() => import("./pages/auth/ForgotPasswordPage"));
+const ForgotPasswordPage = React.lazy(
+  () => import("./pages/auth/ForgotPasswordPage")
+);
 const BookingPage = React.lazy(() => import("./pages/booking/BookingPage"));
 const HomePage = React.lazy(() => import("./pages/Home"));
-
 
 // Skeleton Loader using Tailwind CSS
 const LoadingSkeleton = () => (
@@ -38,6 +40,7 @@ export const App = () => {
             <Route path="/trips" element={<TripsPage />} />
             <Route path="/trips/:id" element={<TripDetails />} />
             <Route path="/blog" element={<BlogPage />} />
+            <Route path="/blog/:id" element={<BlogDetailPage />} />
             <Route path="/gallery" element={<GalleryPage />} />
             <Route path="/contact" element={<ContactPage />} />
             <Route path="/signin" element={<SignInPage />} />
