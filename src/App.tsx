@@ -2,9 +2,6 @@ import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { Navbar } from "./components/Navbar";
 import { Footer } from "./components/footer/Footer";
 import { useSmooth } from "./utils/scrollUtils";
-import { Hero } from "./components/Hero";
-import { FeaturedTrips } from "./components/FeaturedTrips";
-import GlobalTraveler from "./components/InternationalPresence";
 import React from "react";
 import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
@@ -17,27 +14,13 @@ const ContactPage = React.lazy(() => import("./pages/contact/ContactPage"));
 const SignInPage = React.lazy(() => import("./pages/auth/SignInPage"));
 const SignUpPage = React.lazy(() => import("./pages/auth/SignUpPage"));
 const BookingPage = React.lazy(() => import("./pages/booking/BookingPage"));
+const HomePage = React.lazy(() => import("./pages/Home"));
 
-// Define HomePage component
-const HomePage = () => (
-  <main>
-    <Hero />
-    <FeaturedTrips />
-    <GlobalTraveler />
-  </main>
-);
 
 // Skeleton Loader using Tailwind CSS
 const LoadingSkeleton = () => (
-  <div className="space-y-4 p-6">
-    <div className="h-48 bg-gray-300 animate-pulse rounded-lg"></div> {/* Skeleton for images */}
-    <div className="h-8 bg-gray-300 animate-pulse rounded-md"></div> {/* Skeleton for title */}
-    <div className="h-6 bg-gray-300 animate-pulse rounded-md"></div> {/* Skeleton for subtitle */}
-    <div className="space-y-2">
-      <div className="h-4 bg-gray-300 animate-pulse rounded-md"></div>
-      <div className="h-4 bg-gray-300 animate-pulse rounded-md"></div>
-      <div className="h-4 bg-gray-300 animate-pulse rounded-md"></div>
-    </div>
+  <div className="flex items-center justify-center min-h-screen bg-gray-100">
+    <div className="h-44 w-44 bg-gray-300 animate-pulse rounded-full"></div>
   </div>
 );
 

@@ -1,13 +1,13 @@
-import React, { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
-import { Search, MapPin, Calendar } from 'lucide-react';
+import React, { useEffect, useState } from "react";
+import { motion } from "framer-motion";
+import CustomButton from "../components/CustomButton";
 
 const travelImages: string[] = [
-  'https://images.unsplash.com/photo-1682687220742-aba13b6e50ba',
-  'https://images.unsplash.com/photo-1530789253388-582c481c54b0',
-  'https://images.unsplash.com/photo-1506748686214-e9df14d4d9d0',
-  'https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1',
-  'https://images.unsplash.com/photo-1496950866446-3253e1470e8e',
+  "https://images.unsplash.com/photo-1682687220742-aba13b6e50ba",
+  "https://images.unsplash.com/photo-1530789253388-582c481c54b0",
+  "https://images.unsplash.com/photo-1506748686214-e9df14d4d9d0",
+  "https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1",
+  "https://images.unsplash.com/photo-1496950866446-3253e1470e8e",
 ];
 
 type MousePosition = {
@@ -15,29 +15,43 @@ type MousePosition = {
   y: number;
 };
 
-export const Hero: React.FC = () => {
+const Hero: React.FC = () => {
   const [currentImage, setCurrentImage] = useState<number>(0);
-  const [mousePosition, setMousePosition] = useState<MousePosition>({ x: 0, y: 0 });
+  const [mousePosition, setMousePosition] = useState<MousePosition>({
+    x: 0,
+    y: 0,
+  });
+  const [typedText, setTypedText] = useState<string>(""); // For typing animation
+  const [typingIndex, setTypingIndex] = useState<number>(0); // Tracks typing position
+  const targetText = "Explore the world with unforgettable experiences";
 
-  // Handle mouse move to update position
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       setMousePosition({ x: e.clientX, y: e.clientY });
     };
 
-    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener("mousemove", handleMouseMove);
 
-    return () => window.removeEventListener('mousemove', handleMouseMove);
+    return () => window.removeEventListener("mousemove", handleMouseMove);
   }, []);
 
-  // Change image background every 7 seconds
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentImage((prevImage) => (prevImage + 1) % travelImages.length);
-    }, 7000); // Change image every 7 seconds
+    }, 7000);
 
-    return () => clearInterval(interval); // Clear interval on component unmount
+    return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    if (typingIndex < targetText.length) {
+      const timeout = setTimeout(() => {
+        setTypedText((prev) => prev + targetText[typingIndex]);
+        setTypingIndex((prev) => prev + 1);
+      }, 100); // Adjust speed of typing here
+      return () => clearTimeout(timeout);
+    }
+  }, [typingIndex, targetText]);
 
   return (
     <div className="relative min-h-screen overflow-hidden">
@@ -46,7 +60,7 @@ export const Hero: React.FC = () => {
         className="absolute inset-0 bg-fixed bg-cover bg-center transition-all duration-1000 ease-in-out"
         style={{
           backgroundImage: `url("${travelImages[currentImage]}")`,
-          filter: 'brightness(0.7)',
+          filter: "brightness(0.7)",
         }}
       />
 
@@ -62,12 +76,19 @@ export const Hero: React.FC = () => {
           <h1 className="text-4xl md:text-6xl font-bold text-white mb-6">
             Discover Your Next Adventure
           </h1>
-          <p className="text-xl text-white/90 mb-12">
-            Explore the world with unforgettable experiences
-          </p>
+          <p className="text-xl text-white/90 mb-12">{typedText}</p>
+          <CustomButton />
         </motion.div>
+      </div>
+    </div>
+  );
+};
 
-        <motion.div
+export default Hero;
+
+
+{
+  /* <motion.div
           style={{
             translateX: -mousePosition.x * 0.01,
             translateY: -mousePosition.y * 0.01,
@@ -105,8 +126,5 @@ export const Hero: React.FC = () => {
               </button>
             </div>
           </div>
-        </motion.div>
-      </div>
-    </div>
-  );
-};
+        </motion.div> */
+}
