@@ -1,5 +1,6 @@
-import React from 'react';
-import { motion } from 'framer-motion';
+import React, { useState, useEffect } from "react";
+import { motion } from "framer-motion";
+import { Plus } from "lucide-react";
 
 interface SeatProps {
   id: string;
@@ -17,8 +18,13 @@ const Seat = ({ id, isBooked, isSelected, onSelect, price }: SeatProps) => {
       onClick={() => !isBooked && onSelect(id)}
       disabled={isBooked}
       className={`w-10 h-10 rounded-lg m-1 flex items-center justify-center text-sm font-medium transition-colors
-        ${isBooked ? 'bg-gray-300 cursor-not-allowed' : 
-          isSelected ? 'bg-blue-600 text-white' : 'bg-white hover:bg-blue-50'}`}
+        ${
+          isBooked
+            ? "bg-gray-300 cursor-not-allowed"
+            : isSelected
+            ? "bg-blue-600 text-white"
+            : "bg-white hover:bg-blue-50"
+        }`}
     >
       {id}
     </motion.button>
@@ -32,20 +38,61 @@ interface SeatLayoutProps {
   seatPrice: number;
 }
 
-export const SeatLayout = ({ selectedSeats, onSeatSelect, bookedSeats, seatPrice }: SeatLayoutProps) => {
-  // Generate seat layout for a bus with 3x3 and 2x2 configuration
-  const leftSeats = Array.from({ length: 12 }, (_, i) => ({
-    id: String.fromCharCode(65 + Math.floor(i / 3)) + (i % 3 + 1),
-    price: seatPrice
-  }));
+export const SeatLayout = ({
+  selectedSeats,
+  onSeatSelect,
+  bookedSeats,
+  seatPrice,
+}: SeatLayoutProps) => {
+  const [isTwoSeaterLayout, setIsTwoSeaterLayout] = useState(false);
+  const [showLayoutModal, setShowLayoutModal] = useState(false);
 
-  const rightSeats = Array.from({ length: 12 }, (_, i) => ({
-    id: String.fromCharCode(65 + Math.floor(i / 3)) + (i % 3 + 4),
-    price: seatPrice
-  }));
+  // Define seat layout
+  const seats = isTwoSeaterLayout
+    ? [
+        ["1", "", "2", "3"],
+        ["4", "", "5", "6"],
+        ["7", "", "8", "9"],
+        ["10", "", "11", "12"],
+        ["13", "", "14", "15"],
+        ["16", "", "17", "18"],
+        ["19", "", "20", "21"],
+        ["22", "", "23", "24"],
+        ["25", "", "26", "27"],
+        ["28", "29", "30", "31"],
+      ]
+    : [
+        ["1", "", "2", "3"],
+        ["4", "", "5", "6"],
+        ["7", "", "8", "9"],
+        ["10", "", "11", "12"],
+        ["13", "", "14", "15"],
+        ["16", "17", "18", "19"],
+      ];
+
+  // Condition to show modal when more than 15 seats are selected
+  const shouldShowLayoutChange = selectedSeats.length > 11;
+
+  useEffect(() => {
+    if (bookedSeats.length === seats.flat().length) {
+      setShowLayoutModal(true); // All seats booked, show modal
+    }
+  }, [bookedSeats, seats]);
+
+  const handleLayoutChange = () => {
+    setIsTwoSeaterLayout(true);
+    setShowLayoutModal(false);
+  };
+
+  const handleIconClick = () => {
+    if (shouldShowLayoutChange) {
+      setShowLayoutModal(true); // Show modal when more than 15 seats are selected
+    }
+  };
 
   return (
     <div className="bg-gray-100 p-6 rounded-xl">
+      {/* Legend */}
       <div className="mb-6 flex justify-between items-center">
         <div className="flex gap-4">
           <div className="flex items-center">
@@ -62,49 +109,81 @@ export const SeatLayout = ({ selectedSeats, onSeatSelect, bookedSeats, seatPrice
           </div>
         </div>
         <div className="text-sm font-medium">
-          Price per seat: ₹{seatPrice.toLocaleString('en-IN')}
+          Price per seat: ₹{seatPrice.toLocaleString("en-IN")}
         </div>
       </div>
 
-      <div className="flex justify-between">
-        {/* Left side - 3 seats */}
-        <div className="grid grid-cols-3 gap-1">
-          {leftSeats.map((seat) => (
-            <Seat
-              key={seat.id}
-              id={seat.id}
-              isBooked={bookedSeats.includes(seat.id)}
-              isSelected={selectedSeats.includes(seat.id)}
-              onSelect={onSeatSelect}
-              price={seat.price}
-            />
-          ))}
+      {/* Icon to change layout */}
+      {shouldShowLayoutChange && (
+        <div
+          onClick={handleIconClick}
+          className="flex justify-center mb-4 cursor-pointer"
+        >
+          <Plus className="text-blue-600 text-2xl" />
+          <span className="ml-2 text-blue-600 text-sm">
+            Change to 32 seater
+          </span>
         </div>
+      )}
 
-        {/* Aisle */}
-        <div className="w-16 flex items-center justify-center">
-          <div className="text-sm text-gray-500 rotate-90">Aisle</div>
+      {/* Modal for layout change */}
+      {showLayoutModal && (
+        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-xl text-center">
+            <h2 className="text-lg font-medium mb-4">
+              Do you want to change to 32 seater?
+            </h2>
+            <div className="flex justify-center gap-4">
+              <button
+                className="bg-gray-500 text-white px-4 py-2 rounded-md"
+                onClick={() => setShowLayoutModal(false)}
+              >
+                No
+              </button>
+              <button
+                className="bg-blue-600 text-white px-4 py-2 rounded-md"
+                onClick={handleLayoutChange}
+              >
+                Yes
+              </button>
+            </div>
+          </div>
         </div>
+      )}
 
-        {/* Right side - 3 seats */}
-        <div className="grid grid-cols-3 gap-1">
-          {rightSeats.map((seat) => (
-            <Seat
-              key={seat.id}
-              id={seat.id}
-              isBooked={bookedSeats.includes(seat.id)}
-              isSelected={selectedSeats.includes(seat.id)}
-              onSelect={onSeatSelect}
-              price={seat.price}
-            />
-          ))}
+      {/* Seat layout */}
+      <div className="flex flex-col items-center">
+        {/* Driver's cabin */}
+        <div className="flex flex-row gap-10 items-center">
+          <div className="w-20 h-20 bg-gray-300 rounded-lg flex items-center justify-center text-sm text-gray-600 mb-4">
+            {isTwoSeaterLayout ? 32 : 20}
+          </div>
+          <div className="w-20 h-20 bg-gray-300 rounded-lg flex items-center justify-center text-sm text-gray-600 mb-4">
+            Driver
+          </div>
         </div>
-      </div>
-
-      {/* Driver's cabin */}
-      <div className="mt-8 flex justify-end">
-        <div className="w-20 h-20 bg-gray-300 rounded-lg flex items-center justify-center text-sm text-gray-600">
-          Driver
+        {/* Seats */}
+        <div className="grid grid-cols-4 gap-2">
+          {seats.flatMap((row, rowIndex) =>
+            row.map((seatId, colIndex) => (
+              <div
+                key={`${rowIndex}-${colIndex}`}
+                className="flex justify-center"
+              >
+                {seatId ? (
+                  <Seat
+                    id={seatId}
+                    isBooked={bookedSeats.includes(seatId)}
+                    isSelected={selectedSeats.includes(seatId)}
+                    onSelect={onSeatSelect}
+                    price={seatPrice}
+                  />
+                ) : (
+                  <div className="w-10 h-10"></div> // Empty space for aisle
+                )}
+              </div>
+            ))
+          )}
         </div>
       </div>
     </div>
