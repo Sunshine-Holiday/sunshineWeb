@@ -3,10 +3,10 @@ import { Instagram, Facebook, Twitter, Youtube } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const socialLinks = [
-  { icon: Instagram, href: '#', label: 'Instagram' },
-  { icon: Facebook, href: '#', label: 'Facebook' },
-  { icon: Twitter, href: '#', label: 'Twitter' },
-  { icon: Youtube, href: '#', label: 'Youtube' },
+  { icon: Instagram, href: 'https://www.instagram.com/sunshine_holiday_packages', label: 'Instagram' },
+  { icon: Facebook, href: 'https://www.facebook.com/profile.php?id=100063907423640&mibextid=ZbWKwL', label: 'Facebook' },
+  { icon: Twitter, href: 'https://x.com', label: 'Twitter' },
+  { icon: Youtube, href: 'https://www.youtube.com/', label: 'Youtube' },
 ];
 
 export const SocialLinks = () => {
@@ -16,6 +16,8 @@ export const SocialLinks = () => {
         <motion.a
           key={label}
           href={href}
+          target="_blank"
+          rel="noopener noreferrer" // Added for security
           whileHover={{ scale: 1.1 }}
           className="text-gray-600 hover:text-blue-600"
           aria-label={label}
