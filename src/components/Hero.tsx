@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import CustomButton from "../components/CustomButton";
+import { useNavigate } from "react-router-dom";
 
 const travelImages: string[] = [
   "https://images.unsplash.com/photo-1682687220742-aba13b6e50ba",
@@ -16,6 +17,7 @@ type MousePosition = {
 };
 
 const Hero: React.FC = () => {
+  const navigate=useNavigate()
   const [currentImage, setCurrentImage] = useState<number>(0);
   const [mousePosition, setMousePosition] = useState<MousePosition>({
     x: 0,
@@ -52,7 +54,9 @@ const Hero: React.FC = () => {
       return () => clearTimeout(timeout);
     }
   }, [typingIndex, targetText]);
-
+const getStartedHandler=()=>{
+navigate("/trips")
+}
   return (
     <div className="relative min-h-screen overflow-hidden">
       {/* Static background with transition */}
@@ -77,7 +81,7 @@ const Hero: React.FC = () => {
             Discover Your Next Adventure
           </h1>
           <p className="text-xl text-white/90 mb-12">{typedText}</p>
-          <CustomButton />
+          <CustomButton onclickHandler={getStartedHandler} />
         </motion.div>
       </div>
     </div>
