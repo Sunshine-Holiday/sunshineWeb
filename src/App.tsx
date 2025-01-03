@@ -8,6 +8,7 @@ import "slick-carousel/slick/slick-theme.css";
 import BlogDetailPage from "./pages/blog/BlogDetailPage";
 // Lazy load components
 const TripsPage = React.lazy(() => import("./pages/trips/TripsPage"));
+const OTPPage = React.lazy(() => import("./pages/auth/OTPPage"));
 const TripDetails = React.lazy(() => import("./pages/trips/TripDetails"));
 const BlogPage = React.lazy(() => import("./pages/blog/BlogPage"));
 const GalleryPage = React.lazy(() => import("./pages/gallery/GalleryPage"));
@@ -45,6 +46,7 @@ export const App = () => {
             <Route path="/contact" element={<ContactPage />} />
             <Route path="/signin" element={<SignInPage />} />
             <Route path="/signup" element={<SignUpPage />} />
+            <Route path="/otp-verify" element={<OTPPage />} />
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/booking" element={<BookingPage />} />
           </Routes>
