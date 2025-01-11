@@ -4,13 +4,17 @@ import { AuthCard } from "./components/AuthCard";
 import { FormInput } from "./components/FormInput";
 import { SubmitButton } from "./components/SubmitButton";
 import { useAuth } from "../../hooks/useAuth";
+import { LogIn } from "lucide-react";
+import { useLoginMutation } from "@/store/api/auth";
 
 const SignInPage = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const { signIn, loading } = useAuth();
+  // const { signIn, loading } = useAuth();
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const [signIn] = useLoginMutation();
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -32,9 +36,16 @@ const SignInPage = () => {
     if (!validateForm()) return;
 
     try {
-      await signIn(email, password);
+      const resp = await signIn({ email, password }).unwrap();
+      if (resp.success) {
+        console.log("Logged in successfully", resp);
+        // if (resp.data?.user) {
+        //   setUser(resp.data.user);
+        //
+      }
       navigate("/");
     } catch (error) {
+      console.log("Error logging in", error);
       setErrors({ form: "Invalid email or password" });
     }
   };
