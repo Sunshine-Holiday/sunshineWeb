@@ -1,15 +1,14 @@
+import React from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { Navbar } from "./components/Navbar";
 import { Footer } from "./components/footer/Footer";
 import { useSmooth } from "./utils/scrollUtils";
-import React, { useEffect } from "react";
 import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
 import BlogDetailPage from "./pages/blog/BlogDetailPage";
 import { Provider } from "react-redux";
 import { store } from "./store/store";
-import { useUserDetailQuery } from "./store/initalState";
-// Lazy load components
+import imagelogo from "./asserts/Sunshine.png";
 const TripsPage = React.lazy(() => import("./pages/trips/TripsPage"));
 const OTPPage = React.lazy(() => import("./pages/auth/OTPPage"));
 const TripDetails = React.lazy(() => import("./pages/trips/TripDetails"));
@@ -27,13 +26,19 @@ const HomePage = React.lazy(() => import("./pages/Home"));
 // Skeleton Loader using Tailwind CSS
 const LoadingSkeleton = () => (
   <div className="flex items-center justify-center min-h-screen bg-gray-100">
-    <div className="h-44 w-44 bg-gray-300 animate-pulse rounded-full"></div>
+    <div className="relative h-44 w-44 bg-gray-300 animate-pulse rounded-full">
+      <img
+        src={imagelogo}
+        alt="logo"
+        className="absolute inset-0 h-24 w-26 m-auto opacity-100 animate-blink object-cover rounded-full"
+      />
+    </div>
   </div>
 );
 
+
 export const AppContent = () => {
   useSmooth();
-  
 
   return (
     <div className="min-h-screen bg-gray-50">

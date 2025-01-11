@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Plane, User, Menu, X } from 'lucide-react';
-
+import React, { useState } from "react";
+import { Link, useNavigate, useLocation } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
+import { Plane, User, Menu, X } from "lucide-react";
+import logo from "../asserts/1-removebg-preview.png";
 export const Navbar: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -21,8 +21,11 @@ export const Navbar: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           <Link to="/" className="flex items-center space-x-2">
-            <Plane className="h-8 w-8 text-blue-600" />
-            <span className="text-xl font-bold text-gray-900">Sunshine Holiday Packages</span>
+            <img className="h-24 w-24 text-blue-600" src={logo} />
+            
+            <span className="text-xl font-bold text-gray-900">
+              Sunshine Holiday Packages
+            </span>
           </Link>
 
           <div className="hidden md:flex items-center space-x-8">
@@ -43,7 +46,11 @@ export const Navbar: React.FC = () => {
 
           {/* Mobile menu button */}
           <button className="md:hidden" onClick={handleMobileMenuToggle}>
-            {isMobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+            {isMobileMenuOpen ? (
+              <X className="h-6 w-6" />
+            ) : (
+              <Menu className="h-6 w-6" />
+            )}
           </button>
         </div>
       </div>
@@ -58,10 +65,18 @@ export const Navbar: React.FC = () => {
             className="md:hidden bg-white/90 backdrop-blur-sm shadow-md absolute top-16 w-full" // Lighter blur for mobile menu
           >
             <div className="flex flex-col space-y-4 p-4">
-              <NavLink to="/trips" onClick={handleMobileMenuToggle}>Trips</NavLink>
-              <NavLink to="/blog" onClick={handleMobileMenuToggle}>Blog</NavLink>
-              <NavLink to="/gallery" onClick={handleMobileMenuToggle}>Gallery</NavLink>
-              <NavLink to="/contact" onClick={handleMobileMenuToggle}>Contact</NavLink>
+              <NavLink to="/trips" onClick={handleMobileMenuToggle}>
+                Trips
+              </NavLink>
+              <NavLink to="/blog" onClick={handleMobileMenuToggle}>
+                Blog
+              </NavLink>
+              <NavLink to="/gallery" onClick={handleMobileMenuToggle}>
+                Gallery
+              </NavLink>
+              <NavLink to="/contact" onClick={handleMobileMenuToggle}>
+                Contact
+              </NavLink>
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
