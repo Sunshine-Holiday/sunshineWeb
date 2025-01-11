@@ -2,6 +2,9 @@ import {
   UserResponse,
   LoginCredentials,
   RegisterCredentials,
+  forgetPasswordCredentails,
+  DataResponse,
+  verifyforgetPasswordlOTP,
 } from "@/types/auth";
 
 import { apiSlice } from "../initalState";
@@ -28,9 +31,42 @@ export const authApiSlice = apiWithTag.injectEndpoints({
       query: (credential) => ({
         url: "/api/v1/user/register",
         method: "POST",
-        // headers: {
-        //   "Content-Type": "application/json",
-        // },
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: credential,
+      }),
+    }),
+
+    forgetPassword: builder.mutation<DataResponse, forgetPasswordCredentails>({
+      query: (credential) => ({
+        url: "/api/v1/user/forgotpassword",
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: credential,
+      }),
+    }),
+
+    otpVerify: builder.mutation<DataResponse, verifyforgetPasswordlOTP>({
+      query: (credential) => ({
+        url: "/api/v1/user/otp-check",
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: credential,
+      }),
+    }),
+
+    resetPassword: builder.mutation<DataResponse, verifyforgetPasswordlOTP>({
+      query: (credential) => ({
+        url: "/api/v1/user/reset-password",
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: credential,
       }),
     }),
@@ -38,4 +74,10 @@ export const authApiSlice = apiWithTag.injectEndpoints({
   overrideExisting: true,
 });
 
-export const { useLoginMutation, useRegistrationMutation } = authApiSlice;
+export const {
+  useLoginMutation,
+  useRegistrationMutation,
+  useForgetPasswordMutation,
+  useOtpVerifyMutation,
+  useResetPasswordMutation
+} = authApiSlice;

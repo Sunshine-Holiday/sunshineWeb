@@ -22,6 +22,11 @@ export type UserResponse = {
   user: User;
   token?: string;
 };
+export type DataResponse = {
+  message?: string;
+  success?: boolean;
+ 
+};
 export type ProductResponse = {
   message?: string;
   success?: boolean;
@@ -46,6 +51,15 @@ export type RegisterCredentials = {
   password: string; // Password entered during signup
 };
 
+export type forgetPasswordCredentails = {
+email:string
+};
+export type verifyforgetPasswordlOTP = {
+  email:string
+  otp:string
+  password?:string
+  };
+  
 export type updateUser = {
   username: string; // User's full name
   phone: string;

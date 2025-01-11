@@ -1,5 +1,7 @@
-import React, { useState, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { AuthCard } from "./components/AuthCard";
+import { useOtpVerifyMutation } from "@/store/api/auth";
 
 interface OTPInputProps {
   length: number;
@@ -65,19 +67,43 @@ const OTPInput: React.FC<OTPInputProps> = ({ length, onChange }) => {
 
 const OTPPage: React.FC = () => {
   const [otp, setOtp] = useState<string>("");
+  const [loading, setLoading] = useState(false);
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { email } = location.state || {}; // Handle missing email gracefully
+  const [verifyforgetPasswordlOTP] = useOtpVerifyMutation();
+
+  // Redirect if email is not available inside useEffect
+  useEffect(() => {
+    if (!email) {
+      navigate("/"); // Redirect to the home page
+    }
+  }, [email, navigate]); // Dependency array ensures this runs when email is available
 
   const handleOtpChange = (otpValue: string) => {
     setOtp(otpValue);
   };
 
-  const handleSubmit = () => {
-    console.log("Submitting OTP: ", otp.length);
+  const handleSubmit = async () => {
     if (otp.length !== 6) {
       alert("Please enter all 6 digits");
       return;
     }
-    alert("OTP Submitted: " + otp);
-    // Proceed with OTP verification logic here
+    setLoading(true);
+    try {
+      const resp = await verifyforgetPasswordlOTP({
+        email: email,
+        otp: otp,
+      }).unwrap();
+
+      if (resp.success) {
+        navigate("/reset-password", { state: { email: email, otp } });
+      }
+    } catch (error) {
+      console.error("Failed to verify OTP: ", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleResend = () => {
@@ -95,7 +121,7 @@ const OTPPage: React.FC = () => {
     >
       <AuthCard
         title="Verify OTP"
-        subtitle="Enter the 6-digit code sent to your email ."
+        subtitle="Enter the 6-digit code sent to your email."
       >
         <div className="mt-6">
           <OTPInput length={6} onChange={handleOtpChange} />
@@ -103,9 +129,40 @@ const OTPPage: React.FC = () => {
 
         <button
           onClick={handleSubmit}
-          className="w-full bg-blue-600 text-white mt-6 py-2 rounded-md hover:bg-blue-700"
+          disabled={loading}
+          className={`w-full mt-6 py-2 rounded-md text-white ${
+            loading
+              ? "bg-blue-400 cursor-not-allowed"
+              : "bg-blue-600 hover:bg-blue-700"
+          }`}
         >
-          Verify OTP
+          {loading ? (
+            <div className="flex items-center justify-center">
+              <svg
+                className="animate-spin h-5 w-5 mr-2 text-white"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                ></circle>
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8v8H4z"
+                ></path>
+              </svg>
+              Processing...
+            </div>
+          ) : (
+            "Verify OTP"
+          )}
         </button>
 
         <p className="text-sm text-gray-600 text-center mt-4">
@@ -113,6 +170,7 @@ const OTPPage: React.FC = () => {
           <button
             className="text-blue-600 hover:underline"
             onClick={handleResend}
+            disabled={loading}
           >
             Resend OTP
           </button>

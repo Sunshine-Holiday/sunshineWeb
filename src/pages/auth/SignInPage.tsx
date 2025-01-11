@@ -3,9 +3,9 @@ import { Link, useNavigate } from "react-router-dom";
 import { AuthCard } from "./components/AuthCard";
 import { FormInput } from "./components/FormInput";
 import { SubmitButton } from "./components/SubmitButton";
-import { useAuth } from "../../hooks/useAuth";
-import { LogIn } from "lucide-react";
+
 import { useLoginMutation } from "@/store/api/auth";
+import PasswordInput from "./components/PasswordIntput";
 
 const SignInPage = () => {
   const [email, setEmail] = useState("");
@@ -24,8 +24,6 @@ const SignInPage = () => {
       newErrors.email = "Invalid email format";
 
     if (!password) newErrors.password = "Password is required";
-    else if (password.length < 6)
-      newErrors.password = "Password must be at least 6 characters";
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -34,7 +32,7 @@ const SignInPage = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateForm()) return;
-
+    setLoading(true);
     try {
       const resp = await signIn({ email, password }).unwrap();
       if (resp.success) {
@@ -47,6 +45,9 @@ const SignInPage = () => {
     } catch (error) {
       console.log("Error logging in", error);
       setErrors({ form: "Invalid email or password" });
+      setLoading(false);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -79,7 +80,7 @@ const SignInPage = () => {
               error={errors.email}
             />
 
-            <FormInput
+            <PasswordInput
               id="password"
               label="Password"
               type="password"

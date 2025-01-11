@@ -17,6 +17,8 @@ const GalleryPage = React.lazy(() => import("./pages/gallery/GalleryPage"));
 const ContactPage = React.lazy(() => import("./pages/contact/ContactPage"));
 const SignInPage = React.lazy(() => import("./pages/auth/SignInPage"));
 const SignUpPage = React.lazy(() => import("./pages/auth/SignUpPage"));
+
+const ResetPasword = React.lazy(() => import("./pages/auth/resetPassword"));
 const ForgotPasswordPage = React.lazy(
   () => import("./pages/auth/ForgotPasswordPage")
 );
@@ -36,7 +38,6 @@ const LoadingSkeleton = () => (
   </div>
 );
 
-
 export const AppContent = () => {
   useSmooth();
 
@@ -55,6 +56,7 @@ export const AppContent = () => {
           <Route path="/signin" element={<SignInPage />} />
           <Route path="/signup" element={<SignUpPage />} />
           <Route path="/otp-verify" element={<OTPPage />} />
+          <Route path="/reset-password" element={<ResetPasword />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/booking" element={<BookingPage />} />
         </Routes>
