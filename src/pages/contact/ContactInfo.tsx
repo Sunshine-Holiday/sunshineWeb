@@ -5,14 +5,14 @@ const contactInfo = [
   {
     icon: MapPin,
     title: "Address",
-    content: "Pune, India, Maharashtra",
-    link: "https://www.google.com/maps/search/Pune,+India,+Maharashtra",
+    content: "Sr No 53/1 Ashtavinayak Society Sainath Nagar, Vadgaon Sheri, Pune - 411014",
+    link: "https://g.co/kgs/UC1gGSf",
   },
   {
     icon: Phone,
     title: "Phone",
-    content: "+91 9975375975",
-    link: "tel:+919975375975",
+    content: "+91 9975375975 / +91 9175757178",
+    link: "tel:+919975375975", 
   },
   {
     icon: Mail,
@@ -23,7 +23,7 @@ const contactInfo = [
   {
     icon: Clock,
     title: "Hours",
-    content: "Mon-Fri: 9AM-6PM",
+    content: "Mon-Fri: 9AM-7PM",
   },
 ];
 
@@ -39,9 +39,21 @@ export const ContactInfo = () => {
             <h3 className="font-medium text-gray-900">{title}</h3>
             <p className="text-gray-600">
               {link ? (
-                <a href={link} className="text-blue-500 hover:underline">
-                  {content}
-                </a>
+                title === "Phone" ? (
+                  <>
+                    <a href="tel:+919975375975" className="text-blue-500 hover:underline">
+                      +91 9975375975
+                    </a>{" "}
+                    /{" "}
+                    <a href="tel:+919175757178" className="text-blue-500 hover:underline">
+                      +91 9175757178
+                    </a>
+                  </>
+                ) : (
+                  <a href={link} className="text-blue-500 hover:underline">
+                    {content}
+                  </a>
+                )
               ) : (
                 content
               )}
