@@ -10,7 +10,11 @@ export interface User {
   phone?: string;
   address?: string;
 }
-
+export interface contact{
+  name: string;
+  email: string;
+  message: string;
+}
 export interface UserTableColumn {
   id: keyof User | "actions";
   label: string;

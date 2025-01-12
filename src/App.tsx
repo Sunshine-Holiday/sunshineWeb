@@ -1,5 +1,10 @@
 import React, { useEffect } from "react";
-import { BrowserRouter as Router, Routes, Route, useLocation } from "react-router-dom";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  useLocation,
+} from "react-router-dom";
 import { Navbar } from "./components/Navbar";
 import { Footer } from "./components/footer/Footer";
 import { useSmooth } from "./utils/scrollUtils";
@@ -20,6 +25,8 @@ import {
 } from "./store/reducer/auth";
 import ProtectedRoute from "./protectedRoute/protectedRouter";
 import RedirectRoute from "./protectedRoute/RedirectRoute";
+
+const VerifyEmailOTP = React.lazy(() => import("./pages/auth/VerifyEmailOTP"));
 const Profile = React.lazy(() => import("./pages/Profile"));
 const TripsPage = React.lazy(() => import("./pages/trips/TripsPage"));
 const OTPPage = React.lazy(() => import("./pages/auth/OTPPage"));
@@ -68,12 +75,13 @@ export const AppContent = () => {
       <Navbar />
       <React.Suspense fallback={<LoadingSkeleton imagelogo={imagelogo} />}>
         <Routes>
-          <Route element={<RedirectRoute redirectPath={from}/>}>
+          <Route element={<RedirectRoute redirectPath={from} />}>
             <Route path="/signin" element={<SignInPage />} />
             <Route path="/signup" element={<SignUpPage />} />
             <Route path="/otp-verify" element={<OTPPage />} />
             <Route path="/reset-password" element={<ResetPasword />} />
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/email-verify" element={<VerifyEmailOTP />} />
           </Route>
 
           <Route path="/" element={<HomePage />} />

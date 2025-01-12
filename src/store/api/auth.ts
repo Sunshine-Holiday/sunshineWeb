@@ -9,7 +9,7 @@ import {
 
 import { apiSlice } from "../initalState";
 
-import { User } from "@/types/user";
+import { contact, User } from "@/types/user";
 const apiWithTag = apiSlice.enhanceEndpoints({
   addTagTypes: ["user", "admin-user", "product", "order"],
 });
@@ -92,6 +92,29 @@ export const authApiSlice = apiWithTag.injectEndpoints({
       }),
       invalidatesTags: ["user"],
     }),
+
+    sendContact: builder.mutation<UserResponse, contact>({
+      query: (credential) => ({
+        url: "/api/v1/user/contact",
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: credential,
+      }),
+      invalidatesTags: ["user"],
+    }),
+
+    verifyEmail: builder.mutation<UserResponse, verifyforgetPasswordlOTP>({
+      query: (credential) => ({
+        url: "/api/v1/user/verify-email",
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: credential,
+      }),
+    }),
   }),
   overrideExisting: true,
 });
@@ -104,4 +127,6 @@ export const {
   useResetPasswordMutation,
   useGetMyProfileQuery,
   useUpdateProfileMutation,
+  useVerifyEmailMutation,
+  useSendContactMutation,
 } = authApiSlice;

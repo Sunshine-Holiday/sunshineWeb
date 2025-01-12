@@ -1,12 +1,12 @@
 
 import { Link } from 'react-router-dom';
-
+import logo from "../asserts/Sunshine.png";
 const  NotFound=()=> {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="text-center">
         <img
-          src="https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=800&q=80"
+          src={logo}
           alt="404 Electronics"
           className="w-64 mx-auto mb-6 rounded-lg shadow-lg"
         />

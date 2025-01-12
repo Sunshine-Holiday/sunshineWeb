@@ -6,6 +6,7 @@ import { SubmitButton } from "./components/SubmitButton";
 
 import { useRegistrationMutation } from "@/store/api/auth";
 import PasswordInput from "./components/PasswordIntput";
+import { toast } from "react-toastify";
 
 const SignUpPage = () => {
   const [formData, setFormData] = useState({
@@ -57,7 +58,8 @@ const SignUpPage = () => {
         username: formData.name,
       }).unwrap();
       console.log("Account created successfully", resp);
-      navigate("/");
+      toast.success(resp.message || "Account created successfully");
+      navigate("/email-verify", { state: { email: formData.email } });
     } catch (error) {
       console.error("Failed to create account", error);
       setErrors({ form: "Failed to create account" });
