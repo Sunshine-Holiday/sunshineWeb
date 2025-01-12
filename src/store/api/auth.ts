@@ -8,6 +8,8 @@ import {
 } from "@/types/auth";
 
 import { apiSlice } from "../initalState";
+
+import { User } from "@/types/user";
 const apiWithTag = apiSlice.enhanceEndpoints({
   addTagTypes: ["user", "admin-user", "product", "order"],
 });
@@ -70,6 +72,26 @@ export const authApiSlice = apiWithTag.injectEndpoints({
         body: credential,
       }),
     }),
+
+    getMyProfile: builder.query<UserResponse, void>({
+      query: () => ({
+        url: "/api/v1/user/profile",
+        method: "GET",
+      }),
+      providesTags: ["user"],
+    }),
+
+    updateProfile: builder.mutation<UserResponse, User>({
+      query: (credential) => ({
+        url: "/api/v1/user/profile",
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: credential,
+      }),
+      invalidatesTags: ["user"],
+    }),
   }),
   overrideExisting: true,
 });
@@ -79,5 +101,7 @@ export const {
   useRegistrationMutation,
   useForgetPasswordMutation,
   useOtpVerifyMutation,
-  useResetPasswordMutation
+  useResetPasswordMutation,
+  useGetMyProfileQuery,
+  useUpdateProfileMutation,
 } = authApiSlice;

@@ -1,7 +1,7 @@
 export type UserRole = "admin" | "user";
 
 export interface User {
-  createdAt: string;
+  createdAt?: string;
   _id?: string; // User ID
   username: string; // User's full name
   email: string; // User's email

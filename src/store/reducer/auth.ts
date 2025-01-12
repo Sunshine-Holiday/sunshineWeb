@@ -36,8 +36,8 @@ const initialState: AuthState = {
     token: getToken(),
     message: null,
     user: null,
-    isLoading: !getToken(), // Set loading to true if token exists
-    isAuthenticated: !!getToken(), // Set true if token exists
+    isLoading: true, // Set loading to true if token exists
+    isAuthenticated: false, // Set true if token exists
 };
 
 // Redux slice for auth management

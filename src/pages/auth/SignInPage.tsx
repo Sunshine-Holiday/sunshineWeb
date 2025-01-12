@@ -6,6 +6,9 @@ import { SubmitButton } from "./components/SubmitButton";
 
 import { useLoginMutation } from "@/store/api/auth";
 import PasswordInput from "./components/PasswordIntput";
+import { toast } from "react-toastify";
+import { setCredentials } from "@/store/reducer/auth";
+import { useDispatch } from "react-redux";
 
 const SignInPage = () => {
   const [email, setEmail] = useState("");
@@ -15,7 +18,7 @@ const SignInPage = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const [signIn] = useLoginMutation();
-
+  const dispatch = useDispatch();
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
 
@@ -36,12 +39,14 @@ const SignInPage = () => {
     try {
       const resp = await signIn({ email, password }).unwrap();
       if (resp.success) {
+        toast.success("Logged in successfully");
         console.log("Logged in successfully", resp);
+        dispatch(setCredentials(resp));
         // if (resp.data?.user) {
         //   setUser(resp.data.user);
         //
+        navigate("/");
       }
-      navigate("/");
     } catch (error) {
       console.log("Error logging in", error);
       setErrors({ form: "Invalid email or password" });

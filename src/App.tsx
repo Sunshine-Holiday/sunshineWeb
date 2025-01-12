@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { Navbar } from "./components/Navbar";
 import { Footer } from "./components/footer/Footer";
@@ -6,9 +6,18 @@ import { useSmooth } from "./utils/scrollUtils";
 import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
 import BlogDetailPage from "./pages/blog/BlogDetailPage";
-import { Provider } from "react-redux";
+import { Provider, useDispatch, useSelector } from "react-redux";
 import { store } from "./store/store";
 import imagelogo from "./asserts/Sunshine.png";
+import { ToastContainer } from "react-toastify";
+import { LoadingSkeleton } from "./loader/loader";
+import { useGetMyProfileQuery } from "./store/api/auth";
+import {
+  authError,
+  selectCurrentLoading,
+  setCredentials,
+} from "./store/reducer/auth";
+const Profile = React.lazy(() => import("./pages/Profile"));
 const TripsPage = React.lazy(() => import("./pages/trips/TripsPage"));
 const OTPPage = React.lazy(() => import("./pages/auth/OTPPage"));
 const TripDetails = React.lazy(() => import("./pages/trips/TripDetails"));
@@ -26,27 +35,35 @@ const BookingPage = React.lazy(() => import("./pages/booking/BookingPage"));
 const HomePage = React.lazy(() => import("./pages/Home"));
 
 // Skeleton Loader using Tailwind CSS
-const LoadingSkeleton = () => (
-  <div className="flex items-center justify-center min-h-screen bg-gray-100">
-    <div className="relative h-44 w-44 bg-gray-300 animate-pulse rounded-full">
-      <img
-        src={imagelogo}
-        alt="logo"
-        className="absolute inset-0 h-24 w-26 m-auto opacity-100 animate-blink object-cover rounded-full"
-      />
-    </div>
-  </div>
-);
 
 export const AppContent = () => {
   useSmooth();
-
+  const { data, error, isLoading } = useGetMyProfileQuery();
+  const reduxDispatch = useDispatch();
+  const isAuthLoading = useSelector(selectCurrentLoading);
+  useEffect(() => {
+    if (data) {
+      console.log("Data", data);
+      reduxDispatch(
+        setCredentials({
+          user: data.user,
+        })
+      );
+    } else if (error) {
+      console.log("Error", error);
+      reduxDispatch(authError());
+    }
+  }, [data, error]);
+  if (isAuthLoading) {
+    return <LoadingSkeleton imagelogo={imagelogo} />;
+  }
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
-      <React.Suspense fallback={<LoadingSkeleton />}>
+      <React.Suspense fallback={<LoadingSkeleton imagelogo={imagelogo} />}>
         <Routes>
           <Route path="/" element={<HomePage />} />
+          <Route path="/profile" element={<Profile />} />
           <Route path="/trips" element={<TripsPage />} />
           <Route path="/trips/:id" element={<TripDetails />} />
           <Route path="/blog" element={<BlogPage />} />
@@ -71,6 +88,7 @@ function App() {
     <Provider store={store}>
       <Router>
         <AppContent />
+        <ToastContainer />
       </Router>
     </Provider>
   );

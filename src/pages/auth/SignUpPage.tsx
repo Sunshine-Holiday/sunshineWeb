@@ -5,6 +5,7 @@ import { FormInput } from "./components/FormInput";
 import { SubmitButton } from "./components/SubmitButton";
 
 import { useRegistrationMutation } from "@/store/api/auth";
+import PasswordInput from "./components/PasswordIntput";
 
 const SignUpPage = () => {
   const [formData, setFormData] = useState({
@@ -127,7 +128,7 @@ const SignUpPage = () => {
               error={errors.phone}
             />
 
-            <FormInput
+            <PasswordInput
               id="password"
               label="Password"
               type="password"
@@ -141,7 +142,7 @@ const SignUpPage = () => {
               error={errors.password}
             />
 
-            <FormInput
+            <PasswordInput
               id="confirmPassword"
               label="Confirm password"
               type="password"
