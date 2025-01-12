@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, useLocation } from "react-router-dom";
 import { Navbar } from "./components/Navbar";
 import { Footer } from "./components/footer/Footer";
 import { useSmooth } from "./utils/scrollUtils";
@@ -15,8 +15,11 @@ import { useGetMyProfileQuery } from "./store/api/auth";
 import {
   authError,
   selectCurrentLoading,
+  selectCurrentUser,
   setCredentials,
 } from "./store/reducer/auth";
+import ProtectedRoute from "./protectedRoute/protectedRouter";
+import RedirectRoute from "./protectedRoute/RedirectRoute";
 const Profile = React.lazy(() => import("./pages/Profile"));
 const TripsPage = React.lazy(() => import("./pages/trips/TripsPage"));
 const OTPPage = React.lazy(() => import("./pages/auth/OTPPage"));
@@ -26,7 +29,7 @@ const GalleryPage = React.lazy(() => import("./pages/gallery/GalleryPage"));
 const ContactPage = React.lazy(() => import("./pages/contact/ContactPage"));
 const SignInPage = React.lazy(() => import("./pages/auth/SignInPage"));
 const SignUpPage = React.lazy(() => import("./pages/auth/SignUpPage"));
-
+const NotFound = React.lazy(() => import("./pages/NotFound"));
 const ResetPasword = React.lazy(() => import("./pages/auth/resetPassword"));
 const ForgotPasswordPage = React.lazy(
   () => import("./pages/auth/ForgotPasswordPage")
@@ -40,6 +43,9 @@ export const AppContent = () => {
   useSmooth();
   const { data, error, isLoading } = useGetMyProfileQuery();
   const reduxDispatch = useDispatch();
+  const location = useLocation();
+  const from = location.state?.from || "/";
+  const user = useSelector(selectCurrentUser);
   const isAuthLoading = useSelector(selectCurrentLoading);
   useEffect(() => {
     if (data) {
@@ -62,20 +68,47 @@ export const AppContent = () => {
       <Navbar />
       <React.Suspense fallback={<LoadingSkeleton imagelogo={imagelogo} />}>
         <Routes>
+          <Route element={<RedirectRoute redirectPath={from}/>}>
+            <Route path="/signin" element={<SignInPage />} />
+            <Route path="/signup" element={<SignUpPage />} />
+            <Route path="/otp-verify" element={<OTPPage />} />
+            <Route path="/reset-password" element={<ResetPasword />} />
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          </Route>
+
           <Route path="/" element={<HomePage />} />
-          <Route path="/profile" element={<Profile />} />
+
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute role={user?.role}>
+                <Profile />
+              </ProtectedRoute>
+            }
+          />
           <Route path="/trips" element={<TripsPage />} />
           <Route path="/trips/:id" element={<TripDetails />} />
           <Route path="/blog" element={<BlogPage />} />
-          <Route path="/blog/:id" element={<BlogDetailPage />} />
+          <Route
+            path="/blog/:id"
+            element={
+              <ProtectedRoute role={user?.role}>
+                <BlogDetailPage />
+              </ProtectedRoute>
+            }
+          />
           <Route path="/gallery" element={<GalleryPage />} />
           <Route path="/contact" element={<ContactPage />} />
-          <Route path="/signin" element={<SignInPage />} />
-          <Route path="/signup" element={<SignUpPage />} />
-          <Route path="/otp-verify" element={<OTPPage />} />
-          <Route path="/reset-password" element={<ResetPasword />} />
-          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-          <Route path="/booking" element={<BookingPage />} />
+
+          <Route
+            path="/booking"
+            element={
+              <ProtectedRoute role={user?.role}>
+                <BookingPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </React.Suspense>
       <Footer />

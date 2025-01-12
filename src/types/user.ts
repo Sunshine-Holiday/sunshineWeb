@@ -6,7 +6,7 @@ export interface User {
   username: string; // User's full name
   email: string; // User's email
   token?: string; // Authentication token (JWT or similar)
-  role?: string;
+  role?: "admin" | "user"; // User role
   phone?: string;
   address?: string;
 }

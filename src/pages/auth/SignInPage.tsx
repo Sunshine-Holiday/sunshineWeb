@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { AuthCard } from "./components/AuthCard";
 import { FormInput } from "./components/FormInput";
 import { SubmitButton } from "./components/SubmitButton";
@@ -14,11 +14,16 @@ const SignInPage = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
-  // const { signIn, loading } = useAuth();
   const [loading, setLoading] = useState(false);
+
   const navigate = useNavigate();
+  const location = useLocation();
   const [signIn] = useLoginMutation();
   const dispatch = useDispatch();
+
+  // Default to home if no "from" location is specified
+  const from = location.state?.from || "/";
+
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
 
@@ -36,21 +41,17 @@ const SignInPage = () => {
     e.preventDefault();
     if (!validateForm()) return;
     setLoading(true);
+
     try {
       const resp = await signIn({ email, password }).unwrap();
       if (resp.success) {
         toast.success("Logged in successfully");
-        console.log("Logged in successfully", resp);
         dispatch(setCredentials(resp));
-        // if (resp.data?.user) {
-        //   setUser(resp.data.user);
-        //
-        navigate("/");
+        navigate(from, { replace: true }); // Redirect to the original route
       }
     } catch (error) {
-      console.log("Error logging in", error);
+      console.error("Error logging in", error);
       setErrors({ form: "Invalid email or password" });
-      setLoading(false);
     } finally {
       setLoading(false);
     }
