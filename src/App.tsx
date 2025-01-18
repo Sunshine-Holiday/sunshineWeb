@@ -4,6 +4,7 @@ import {
   Routes,
   Route,
   useLocation,
+  Navigate,
 } from "react-router-dom";
 import { Navbar } from "./components/Navbar";
 import { Footer } from "./components/footer/Footer";
@@ -25,6 +26,7 @@ import {
 } from "./store/reducer/auth";
 import ProtectedRoute from "./protectedRoute/protectedRouter";
 import RedirectRoute from "./protectedRoute/RedirectRoute";
+import Layout from "./layout/Layout";
 
 const VerifyEmailOTP = React.lazy(() => import("./pages/auth/VerifyEmailOTP"));
 const Profile = React.lazy(() => import("./pages/Profile"));
@@ -107,7 +109,15 @@ export const AppContent = () => {
           />
           <Route path="/gallery" element={<GalleryPage />} />
           <Route path="/contact" element={<ContactPage />} />
-
+          <Route path="/admin" element={<Navigate to="/admin/dashboard" />} />
+          <Route
+            path="/admin/*"
+            element={
+              <ProtectedRoute role={user?.role}>
+                <Layout />
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/booking"
             element={

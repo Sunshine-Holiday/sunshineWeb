@@ -1,0 +1,31 @@
+import React from "react";
+import Dashboard from "@/pages/admin/Dashboard";
+import UserManagement from "@/pages/admin/userManagement";
+import { Route, Routes } from "react-router-dom";
+import Sidebar from "./sidebar";
+import Trips from "@/pages/admin/Trips";
+import Booked from "@/pages/admin/Booked";
+import Gallery from "@/pages/admin/Gallery";
+import Blogs from "@/pages/admin/Blogs";
+import Contact from "@/pages/admin/Contact";
+
+const Layout = () => {
+  return (
+    <div className="flex h-screen bg-background pt-14">
+      <Sidebar />
+      <main className="flex-1 overflow-y-auto p-8">
+        <Routes>
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/users" element={<UserManagement />} />
+          <Route path="/trips" element={<Trips />} />
+          <Route path="/booked" element={<Booked />} />
+          <Route path="/gallery" element={<Gallery />} />
+          <Route path="/blog" element={<Blogs />} />
+          <Route path="/contact" element={<Contact />} />
+        </Routes>
+      </main>
+    </div>
+  );
+};
+
+export default Layout;

@@ -5,6 +5,8 @@ import {
   forgetPasswordCredentails,
   DataResponse,
   verifyforgetPasswordlOTP,
+  updateUser,
+  AllUserResponse,
 } from "@/types/auth";
 
 import { apiSlice } from "../initalState";
@@ -104,7 +106,28 @@ export const authApiSlice = apiWithTag.injectEndpoints({
       }),
       invalidatesTags: ["user"],
     }),
-
+    adminUpdateUser: builder.mutation<UserResponse, updateUser>({
+      query: (credential: any) => ({
+        url: `/api/v1/user/allUser/${credential.id}`,
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: credential,
+      }),
+      invalidatesTags: ["admin-user"],
+    }),
+    allUserDetail: builder.query<AllUserResponse, void>({
+      query: () => ({
+        url: "/api/v1/user/allUser",
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }),
+      providesTags: ["admin-user"],
+      keepUnusedDataFor: 0,
+    }),
     verifyEmail: builder.mutation<UserResponse, verifyforgetPasswordlOTP>({
       query: (credential) => ({
         url: "/api/v1/user/verify-email",
@@ -129,4 +152,6 @@ export const {
   useUpdateProfileMutation,
   useVerifyEmailMutation,
   useSendContactMutation,
+  useAdminUpdateUserMutation,
+  useAllUserDetailQuery
 } = authApiSlice;
