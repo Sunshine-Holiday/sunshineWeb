@@ -7,7 +7,8 @@ import Trips from "@/pages/admin/Trips";
 import Booked from "@/pages/admin/Booked";
 import Gallery from "@/pages/admin/Gallery";
 import Blogs from "@/pages/admin/Blogs";
-import Contact from "@/pages/admin/Contact";
+import TermAndCondition from "@/pages/admin/termAndCondition";
+import BlogCreatePage from "@/pages/admin/BlogCreate";
 
 const Layout = () => {
   return (
@@ -21,7 +22,8 @@ const Layout = () => {
           <Route path="/booked" element={<Booked />} />
           <Route path="/gallery" element={<Gallery />} />
           <Route path="/blog" element={<Blogs />} />
-          <Route path="/contact" element={<Contact />} />
+          <Route path="/blog/create" element={<BlogCreatePage />} />
+          <Route path="/terms-and-condition" element={<TermAndCondition />} />
         </Routes>
       </main>
     </div>

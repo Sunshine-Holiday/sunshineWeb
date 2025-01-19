@@ -113,7 +113,7 @@ export const AppContent = () => {
           <Route
             path="/admin/*"
             element={
-              <ProtectedRoute role={user?.role}>
+              <ProtectedRoute role={"admin"}>
                 <Layout />
               </ProtectedRoute>
             }

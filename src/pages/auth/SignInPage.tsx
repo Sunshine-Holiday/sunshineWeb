@@ -47,7 +47,7 @@ const SignInPage = () => {
       if (resp.success) {
         toast.success("Logged in successfully");
         dispatch(setCredentials(resp));
-        navigate(from, { replace: true }); // Redirect to the original route
+        navigate(from||"/", { replace: true }); // Redirect to the original route
       }
     } catch (error) {
       console.error("Error logging in", error);

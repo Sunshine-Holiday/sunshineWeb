@@ -11,8 +11,8 @@ import {
   CheckSquare,
   Image,
   FileText,
-  Mail,
   Menu,
+  ShieldCheck,
 } from "lucide-react"; // Updated icons
 
 // SidebarHeader Component
@@ -53,9 +53,9 @@ const navigationItems = [
     icon: FileText, // Represents blog posts or text content
   },
   {
-    name: "Contact",
-    href: "/admin/contact",
-    icon: Mail, // Represents contact or emails
+    name: "Terms and Condition",
+    href: "/admin/term-and-condition",
+    icon: ShieldCheck, // terms 
   },
 ];
 
