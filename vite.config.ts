@@ -4,6 +4,9 @@ import { defineConfig } from "vite";
 
 export default defineConfig({
   plugins: [react()],
+  define: {
+    global: 'window', // Define `global` to point to `window` in the browser
+  },
 
   resolve: {
     alias: {
@@ -14,9 +17,8 @@ export default defineConfig({
   optimizeDeps: {
     exclude: ["lucide-react"],
   },
-  build: {
-    target: "es2022", // Update the target to ES2022 or later
-  },
+
+  
   server: {
     host: true,
     proxy: {

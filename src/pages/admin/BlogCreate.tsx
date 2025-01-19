@@ -1,16 +1,14 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { fadeInUp } from "../../utils/animations";
-import "react-quill/dist/quill.snow.css";
 import { useSelector } from "react-redux";
 import { selectCurrentUser } from "@/store/reducer/auth";
+import { EditorState, convertToRaw } from "draft-js";
+import { Editor } from "react-draft-wysiwyg";
+import "react-draft-wysiwyg/dist/react-draft-wysiwyg.css";
 
 // Dynamically import ReactQuill to ensure compatibility with Vite and SSR.
-const ReactQuill =
-  typeof window !== "undefined"
-    ? (await import("react-quill")).default
-    : () => <div />;
-
+// Replacing with react-draft-wysiwyg for rich text editing.
 const BlogCreatePage: React.FC = () => {
   const user = useSelector(selectCurrentUser);
   const [formData, setFormData] = useState({
@@ -20,6 +18,8 @@ const BlogCreatePage: React.FC = () => {
     imagePreview: "",
     description: "",
   });
+
+  const [editorState, setEditorState] = useState(EditorState.createEmpty());
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -48,8 +48,11 @@ const BlogCreatePage: React.FC = () => {
     }
   };
 
-  const handleDescriptionChange = (value: string) => {
-    setFormData((prevData) => ({ ...prevData, description: value }));
+  const handleEditorChange = (state: EditorState) => {
+    setEditorState(state);
+    const rawContent = convertToRaw(state.getCurrentContent());
+    const description = JSON.stringify(rawContent);
+    setFormData((prevData) => ({ ...prevData, description }));
   };
 
   const handleFormSubmit = (e: React.FormEvent) => {
@@ -139,17 +142,16 @@ const BlogCreatePage: React.FC = () => {
               >
                 Description
               </label>
-              {ReactQuill && (
-                <div className="mt-1">
-                  <ReactQuill
-                    id="description"
-                    value={formData.description}
-                    onChange={handleDescriptionChange}
-                    className="h-48 overflow-auto"
-                    placeholder="Enter a detailed description of the blog"
-                  />
-                </div>
-              )}
+              <div className="mt-1">
+                <Editor
+                  editorState={editorState}
+                  onEditorStateChange={handleEditorChange}
+                  toolbarClassName="flex justify-center"
+                  wrapperClassName="border p-2"
+                  editorClassName="h-48 overflow-auto"
+                  placeholder="Enter a detailed description of the blog"
+                />
+              </div>
             </div>
             <div>
               <button
