@@ -8,14 +8,24 @@ interface BlogCardProps {
     id: number;
     title: string;
     excerpt: string;
-    image: string;
-    date: string;
+    image: {
+      public_id: String;
+      url: String;
+    };
+    createdAt: string; // Change to createdAt to match the field from your data
     author: string;
     category: string;
   };
 }
 
 export const BlogCard = ({ post }: BlogCardProps) => {
+  // Format the date
+  const formattedDate = new Date(post.createdAt).toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+
   return (
     <motion.article
       variants={scaleOnHover}
@@ -29,7 +39,7 @@ export const BlogCard = ({ post }: BlogCardProps) => {
       >
         <img
           src={
-            post.image ||
+            post.image.url ||
             "https://images.unsplash.com/photo-1552733407-5d5c46c3bb3b"
           }
           alt={post.title}
@@ -62,7 +72,7 @@ export const BlogCard = ({ post }: BlogCardProps) => {
           </div>
           <div className="flex items-center">
             <Calendar className="h-4 w-4 mr-1" />
-            {post.date}
+            {formattedDate} {/* Use formatted date here */}
           </div>
         </div>
       </div>

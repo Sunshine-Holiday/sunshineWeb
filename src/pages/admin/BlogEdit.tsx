@@ -1,17 +1,21 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { fadeInUp } from "../../utils/animations";
 import { useSelector } from "react-redux";
 import { selectCurrentUser } from "@/store/reducer/auth";
 import "react-quill/dist/quill.snow.css"; // Import Quill CSS
 import ReactQuill from "react-quill";
-import { useCreateBlogMutation } from "@/store/api/blogs";
+import { useGetBlogsIDQuery, useUpdateBlogsMutation } from "@/store/api/blogs";
 import { toast } from "react-toastify";
 import { FaSpinner } from "react-icons/fa";
+import { useParams } from "react-router-dom";
 
-const BlogCreatePage: React.FC = () => {
-  const [createBlog] = useCreateBlogMutation();
+const BlogEdit: React.FC = () => {
+  const { id } = useParams();
+  const { data, isLoading, isError } = useGetBlogsIDQuery({ id });
+  const [updateBlogs] = useUpdateBlogsMutation();
   const user = useSelector(selectCurrentUser);
+
   const [formData, setFormData] = useState({
     title: "",
     author: user?.username || "",
@@ -49,6 +53,18 @@ const BlogCreatePage: React.FC = () => {
     }
   };
 
+  useEffect(() => {
+    if (data && !isLoading && !isError) {
+      setFormData({
+        title: data.blog.title,
+        author: data.blog.author,
+        image: null,
+        imagePreview: data.blog.image.url || "",
+        description: data.blog.description,
+      });
+    }
+  }, [data, isLoading, isError]);
+
   const handleDescriptionChange = (value: string) => {
     setFormData((prevData) => ({ ...prevData, description: value }));
   };
@@ -64,14 +80,15 @@ const BlogCreatePage: React.FC = () => {
     if (formData.image) {
       formDataToSend.append("file", formData.image);
     }
-
+console.log(id,"dsad")
     try {
-      const resp = await createBlog(formDataToSend).unwrap();
-      console.log(resp);
-      toast.success("Blog submitted successfully!");
+  
+      const resp = await updateBlogs({form:formData, id}).unwrap();
+      console.log(resp)
+      toast.success("Blog updated successfully!");
     } catch (error: any) {
-      console.log(error?.data?.message);
-      toast.error(error?.data?.message);
+      console.log(error);
+      toast.error(error?.data?.message || "Something went wrong");
     } finally {
       setLoading(false);
     }
@@ -87,13 +104,13 @@ const BlogCreatePage: React.FC = () => {
           className="bg-white rounded-xl shadow-lg p-6 space-y-8"
         >
           <h1 className="text-3xl font-bold text-gray-900 mb-4 text-center">
-            Create a New Blog
+            Edit Blog
           </h1>
           <form onSubmit={handleFormSubmit} className="space-y-8">
-            {formData.imagePreview && (
+            {formData?.imagePreview && (
               <div className="mb-4">
                 <img
-                  src={formData.imagePreview}
+                  src={formData?.imagePreview || formData?.image?.url}
                   alt="Preview"
                   className="w-full h-64 object-cover rounded-md"
                 />
@@ -147,7 +164,6 @@ const BlogCreatePage: React.FC = () => {
                 id="image"
                 accept="image/png, image/jpeg, image/jpg"
                 onChange={handleImageChange}
-                required
                 className="mt-1 block w-full text-gray-700"
               />
             </div>
@@ -174,7 +190,7 @@ const BlogCreatePage: React.FC = () => {
                 {loading ? (
                   <FaSpinner className="animate-spin mx-auto" />
                 ) : (
-                  "Submit Blog"
+                  "Update Blog"
                 )}
               </button>
             </div>
@@ -185,4 +201,4 @@ const BlogCreatePage: React.FC = () => {
   );
 };
 
-export default BlogCreatePage;
+export default BlogEdit;

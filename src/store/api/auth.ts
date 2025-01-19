@@ -80,6 +80,7 @@ export const authApiSlice = apiWithTag.injectEndpoints({
         url: "/api/v1/user/profile",
         method: "GET",
       }),
+      keepUnusedDataFor: 0,
       providesTags: ["user"],
     }),
 
@@ -153,5 +154,5 @@ export const {
   useVerifyEmailMutation,
   useSendContactMutation,
   useAdminUpdateUserMutation,
-  useAllUserDetailQuery
+  useAllUserDetailQuery,
 } = authApiSlice;

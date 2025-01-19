@@ -98,7 +98,7 @@ export default function Sidebar() {
       {/* Mobile Sidebar Toggle Button */}
       <button
         className={cn(
-          "lg:hidden p-4 absolute top-0 left-0 z-20", // Set higher z-index for the menu button
+          "lg:hidden p-4 absolute top-0 left-0 z-20 mt-2", // Set higher z-index for the menu button
           isOpen ? "hidden" : "" // Hide the menu button when sidebar is open
         )}
         onClick={toggleSidebar}
@@ -116,7 +116,7 @@ export default function Sidebar() {
       >
         <SidebarHeader />
 
-        <div className="flex-1 overflow-y-auto p-4">
+        <div className="flex-1 overflow-y-auto p-4 pt-12">
           <nav className="flex flex-col gap-2">
             {navigationItems.map((item) => {
               const isActive =

@@ -9,6 +9,7 @@ import Gallery from "@/pages/admin/Gallery";
 import Blogs from "@/pages/admin/Blogs";
 import TermAndCondition from "@/pages/admin/termAndCondition";
 import BlogCreatePage from "@/pages/admin/BlogCreate";
+import BlogEdit from "@/pages/admin/BlogEdit";
 
 const Layout = () => {
   return (
@@ -23,6 +24,7 @@ const Layout = () => {
           <Route path="/gallery" element={<Gallery />} />
           <Route path="/blog" element={<Blogs />} />
           <Route path="/blog/create" element={<BlogCreatePage />} />
+          <Route path="/blog/edit/:id" element={<BlogEdit />} />
           <Route path="/terms-and-condition" element={<TermAndCondition />} />
         </Routes>
       </main>

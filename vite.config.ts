@@ -4,9 +4,9 @@ import { defineConfig } from "vite";
 
 export default defineConfig({
   plugins: [react()],
-  define: {
-    global: 'window', // Define `global` to point to `window` in the browser
-  },
+  // define: {
+  //   global: 'window', // Define `global` to point to `window` in the browser
+  // },
 
   resolve: {
     alias: {
@@ -15,6 +15,7 @@ export default defineConfig({
   },
 
   optimizeDeps: {
+    include: ['react-quill'],
     exclude: ["lucide-react"],
   },
 
