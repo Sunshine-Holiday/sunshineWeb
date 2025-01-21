@@ -15,6 +15,7 @@ interface TripCardProps {
     startDates: string[]; // Modified to startDates array
     price: number;
   };
+  onDelete: (id: number) => void; // Add delete handler
 }
 
 const isValidStartDate = (startDate: string) => {
@@ -32,7 +33,7 @@ const formatDate = (date: string) => {
   return new Date(date).toLocaleDateString("en-US", options); // Format date as "March 15, 2024"
 };
 
-export const TripCard = ({ trip }: TripCardProps) => {
+export const TripCard = ({ trip, onDelete }: TripCardProps) => {
   const navigate = useNavigate();
 
   // Check if any of the trip's start dates are valid
@@ -40,22 +41,36 @@ export const TripCard = ({ trip }: TripCardProps) => {
 
   if (!isValid) return null; // If no valid start date, return null
 
-  const handleClick = () => {
-    navigate(`/trips/${trip._id}`, { state: { trip } });
+  const handleEdit = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigate(`/admin/edit-trip/${trip_.id}`, { state: { trip } });
+  };
+
+  const handleDelete = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (window.confirm("Are you sure you want to delete this trip?")) {
+      onDelete(trip.id); // Trigger delete function
+    }
+  };
+
+  const handleCardClick = () => {
+    navigate(`/trips/${trip.id}`, { state: { trip } });
   };
 
   return (
     <motion.div
       variants={scaleOnHover}
-      onClick={handleClick}
+   
       className="bg-white rounded-xl shadow-sm overflow-hidden cursor-pointer"
     >
       <motion.div
         className="relative h-48 overflow-hidden"
         whileHover={{ scale: 1.05 }}
         transition={{ duration: 0.3 }}
+        onClick={handleCardClick}
       >
         <img
+        
           src={
             trip?.image ||
             "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b"
@@ -81,7 +96,6 @@ export const TripCard = ({ trip }: TripCardProps) => {
             <Users className="h-4 w-4 mr-2" />
             <span>{trip.busSize}</span>
           </div>
-          {/* Display the first valid start date in the desired format */}
           <div className="flex items-center text-gray-600">
             <Calendar className="h-4 w-4 mr-2" />
             <span>{formatDate(trip.startDates.find(isValidStartDate)!)}</span>
@@ -91,16 +105,22 @@ export const TripCard = ({ trip }: TripCardProps) => {
           <span className="text-2xl font-bold text-blue-600">
             ₹{trip.price.toLocaleString("en-IN")}
           </span>
-          <motion.button
-            {...scaleOnHover}
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate("/booking", { state: { tripId: trip.id } });
-            }}
-            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
-          >
-            Book Now
-          </motion.button>
+          <div className="flex gap-2">
+            <motion.button
+              {...scaleOnHover}
+              onClick={handleEdit}
+              className="bg-yellow-500 text-white px-4 py-2 rounded-lg hover:bg-yellow-600"
+            >
+              Edit
+            </motion.button>
+            <motion.button
+              {...scaleOnHover}
+              onClick={handleDelete}
+              className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600"
+            >
+              Delete
+            </motion.button>
+          </div>
         </div>
       </div>
     </motion.div>

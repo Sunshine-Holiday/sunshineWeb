@@ -1,34 +1,114 @@
-import React from 'react';
-import { motion } from 'framer-motion';
-import { MapPin, Clock, Calendar, Users, Bus, Wifi, Coffee, Snowflake, Power } from 'lucide-react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { fadeInUp, staggerChildren } from '../../utils/animations';
+import React, { useEffect, useState } from "react";
+import { motion } from "framer-motion";
+import {
+  MapPin,
+  Clock,
+  Calendar,
+  Users,
+  Bus,
+  Wifi,
+  Coffee,
+  Snowflake,
+  Power,
+  HelpCircle,
+} from "lucide-react";
+import { useNavigate, useLocation } from "react-router-dom";
+import { fadeInUp, staggerChildren } from "../../utils/animations";
+import { useGettripsIDQuery } from "@/store/api/trips";
 
 interface Amenity {
   icon: React.ElementType;
   name: string;
 }
 
-const amenities: Amenity[] = [
-  { icon: Wifi, name: 'Free WiFi' },
-  { icon: Coffee, name: 'Refreshments' },
-  { icon: Snowflake, name: 'AC' },
-  { icon: Power, name: 'Charging Points' },
+// Define available amenities with their icons
+const amenitiesList: Amenity[] = [
+  { icon: Wifi, name: "Free WiFi" },
+  { icon: Coffee, name: "Refreshments" },
+  { icon: Snowflake, name: "AC" },
+  { icon: Power, name: "Charging Points" },
 ];
 
- const TripDetails = () => {
+const TripDetails = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const trip = location.state?.trip;
+  const [trip, setTrips] = useState<any>({});
+  const { _id } = location.state?.trip;
+  const { data,isLoading,isError } = useGettripsIDQuery({ id: _id });
 
-  if (!trip) {
+  const formatDate = (date: string) => {
+    const options: Intl.DateTimeFormatOptions = {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    };
+    return new Date(date).toLocaleDateString("en-US", options);
+  };
+
+  useEffect(() => {
+    if (data) {
+      setTrips(data);
+    }
+  }, [data]);
+
+  if (!trip || !trip.price) {
     return <div>Trip not found</div>;
   }
 
   const handleBookNow = () => {
-    navigate('/booking', { state: { tripId: trip.id } });
+    navigate("/booking", { state: { tripId: trip._id } });
   };
 
+  // Find the icon for a specific amenity
+  const getAmenityIcon = (amenityName: string) => {
+    const amenity = amenitiesList.find(
+      (item) => item.name.toLowerCase() === amenityName.toLowerCase()
+    );
+    return amenity ? amenity.icon : HelpCircle; // Fallback to HelpCircle icon
+  };
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 pt-24 pb-16">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <motion.div
+            variants={staggerChildren}
+            initial="initial"
+            animate="animate"
+            className="grid md:grid-cols-3 gap-8"
+          >
+            {/* Skeleton Left Column */}
+            <motion.div variants={fadeInUp} className="md:col-span-2">
+              <div className="bg-white rounded-xl shadow-lg overflow-hidden animate-pulse">
+                <div className="h-64 bg-gray-200"></div>
+                <div className="p-6 space-y-4">
+                  <div className="h-8 bg-gray-200 rounded w-3/4"></div>
+                  <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+                  <div className="h-4 bg-gray-200 rounded w-full"></div>
+                  <div className="h-4 bg-gray-200 rounded w-2/3"></div>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* Skeleton Right Column */}
+            <motion.div variants={fadeInUp} className="md:col-span-1">
+              <div className="bg-white rounded-xl shadow-lg p-6 sticky top-24 animate-pulse">
+                <div className="h-6 bg-gray-200 rounded w-1/2 mb-4"></div>
+                <div className="space-y-3">
+                  <div className="h-4 bg-gray-200 rounded w-full"></div>
+                  <div className="h-4 bg-gray-200 rounded w-full"></div>
+                  <div className="h-6 bg-gray-200 rounded w-2/3 mt-4"></div>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!trip || !trip.price || isError) {
+    return <div>Trip not found</div>;
+  }
   return (
     <div className="min-h-screen bg-gray-50 pt-24 pb-16">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -43,18 +123,23 @@ const amenities: Amenity[] = [
             <div className="bg-white rounded-xl shadow-lg overflow-hidden">
               <div className="h-64 relative">
                 <img
-                  src={trip.image}
+                  src={
+                    trip?.image ||
+                    "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b"
+                  }
                   alt={trip.title}
                   className="w-full h-full object-cover"
                 />
                 <div className="absolute top-4 right-4 bg-blue-600 text-white px-4 py-2 rounded-full">
-                  ₹{trip.price.toLocaleString('en-IN')||""}
+                  ₹{trip.price ? trip.price.toLocaleString("en-IN") : "N/A"}
                 </div>
               </div>
-              
+
               <div className="p-6">
-                <h1 className="text-3xl font-bold text-gray-900 mb-4">{trip.title}</h1>
-                
+                <h1 className="text-3xl font-bold text-gray-900 mb-4">
+                  {trip.title}
+                </h1>
+
                 <div className="grid grid-cols-2 gap-4 mb-6">
                   <div className="flex items-center text-gray-600">
                     <MapPin className="h-5 w-5 mr-2" />
@@ -64,18 +149,24 @@ const amenities: Amenity[] = [
                     <Clock className="h-5 w-5 mr-2" />
                     <span>{trip.duration}</span>
                   </div>
-                  <div className="flex items-center text-gray-600">
+                  <div className="flex items-start text-gray-600">
                     <Calendar className="h-5 w-5 mr-2" />
-                    <span>{trip.startDate}</span>
+                    <div>
+                      {trip.startDates.map((item, index) => (
+                        <p key={index}>{formatDate(item)}</p>
+                      ))}
+                    </div>
                   </div>
                   <div className="flex items-center text-gray-600">
                     <Users className="h-5 w-5 mr-2" />
-                    <span>{trip.groupSize}</span>
+                    <span>{trip.busSize} seats</span>
                   </div>
                 </div>
 
                 <div className="border-t border-gray-200 pt-6">
-                  <h2 className="text-xl font-semibold mb-4">Bus Information</h2>
+                  <h2 className="text-xl font-semibold mb-4">
+                    Bus Information
+                  </h2>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="flex items-center text-gray-600">
                       <Bus className="h-5 w-5 mr-2" />
@@ -90,36 +181,39 @@ const amenities: Amenity[] = [
                 <div className="border-t border-gray-200 pt-6 mt-6">
                   <h2 className="text-xl font-semibold mb-4">Amenities</h2>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    {amenities.map((amenity) => (
-                      <div key={amenity.name} className="flex items-center text-gray-600">
-                        <amenity.icon className="h-5 w-5 mr-2" />
-                        <span>{amenity.name}</span>
-                      </div>
-                    ))}
+                    {trip.amenities.map((amenity: string) => {
+                      const Icon = getAmenityIcon(amenity);
+                      return (
+                        <div
+                          key={amenity}
+                          className="flex items-center text-gray-600"
+                        >
+                          <Icon className="h-5 w-5 mr-2" />
+                          <span>{amenity}</span>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
 
                 <div className="border-t border-gray-200 pt-6 mt-6">
-                  <h2 className="text-xl font-semibold mb-4">Boarding Points</h2>
+                  <h2 className="text-xl font-semibold mb-4">
+                    Boarding Points
+                  </h2>
                   <div className="space-y-4">
-                    <div className="flex items-start">
-                      <div className="bg-blue-100 p-2 rounded-lg mr-4">
-                        <MapPin className="h-5 w-5 text-blue-600" />
+                    {trip.boardingPoints?.map((point: any) => (
+                      <div key={point._id} className="flex items-start">
+                        <div className="bg-blue-100 p-2 rounded-lg mr-4">
+                          <MapPin className="h-5 w-5 text-blue-600" />
+                        </div>
+                        <div>
+                          <h3 className="font-medium">{point.location}</h3>
+                          <p className="text-sm text-gray-600">
+                            {point.time} - {point.details}
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <h3 className="font-medium">Borivali West</h3>
-                        <p className="text-sm text-gray-600">21:00 - Near Metro Station</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start">
-                      <div className="bg-blue-100 p-2 rounded-lg mr-4">
-                        <MapPin className="h-5 w-5 text-blue-600" />
-                      </div>
-                      <div>
-                        <h3 className="font-medium">Andheri East</h3>
-                        <p className="text-sm text-gray-600">21:45 - Western Express Highway</p>
-                      </div>
-                    </div>
+                    ))}
                   </div>
                 </div>
               </div>
@@ -129,20 +223,34 @@ const amenities: Amenity[] = [
           {/* Right Column - Booking Card */}
           <motion.div variants={fadeInUp} className="md:col-span-1">
             <div className="bg-white rounded-xl shadow-lg p-6 sticky top-24">
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">Price Details</h2>
-              
+              <h2 className="text-2xl font-bold text-gray-900 mb-4">
+                Price Details
+              </h2>
+
               <div className="space-y-3 mb-6">
                 <div className="flex justify-between">
                   <span className="text-gray-600">Base Fare</span>
-                  <span>₹{trip.price.toLocaleString('en-IN')}</span>
+                  <span>
+                    ₹{trip.price ? trip.price.toLocaleString("en-IN") : "N/A"}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">GST (5%)</span>
-                  <span>₹{(trip.price * 0.05).toLocaleString('en-IN')}</span>
+                  <span>
+                    ₹
+                    {trip.price
+                      ? (trip.price * 0.05).toLocaleString("en-IN")
+                      : "N/A"}
+                  </span>
                 </div>
                 <div className="flex justify-between font-semibold text-lg pt-3 border-t">
                   <span>Total</span>
-                  <span>₹{(trip.price * 1.05).toLocaleString('en-IN')}</span>
+                  <span>
+                    ₹
+                    {trip.price
+                      ? (trip.price * 1.05).toLocaleString("en-IN")
+                      : "N/A"}
+                  </span>
                 </div>
               </div>
 
@@ -172,4 +280,5 @@ const amenities: Amenity[] = [
     </div>
   );
 };
-export default TripDetails
+
+export default TripDetails;

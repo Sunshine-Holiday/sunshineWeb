@@ -1,28 +1,45 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { TripCard } from "./TripCard";
-import { TripFilters } from "./TripFilters";
+import { FaPlus } from "react-icons/fa"; // Import the plus icon
+
 import { fadeInUp, staggerChildren } from "../../utils/animations";
-import { allTrips } from "../../constants/trip";
-
-
+import { TripFilters } from "../trips/TripFilters";
+import { useNavigate } from "react-router-dom";
+import { useGettripsQuery } from "@/store/api/trips";
+import { TripCard } from "./TripCard";
 
 const TripsPage = () => {
   const [selectedCategory, setSelectedCategory] = useState("All");
-  const [trips, setTrips] = useState(allTrips);
+  const [trips, setTrips] = useState([]);
+  const { data, isLoading, error } = useGettripsQuery();
+
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (data) {
+      console.log(data);
+      setTrips(data);
+    }
+  }, [data]);
 
   // Handle category filter
   const filterTrips = (category) => {
     setSelectedCategory(category);
     if (category === "All") {
-      setTrips(allTrips);
+      setTrips(data); // Use the fetched data instead of `allTrips`
     } else {
-      setTrips(allTrips.filter((trip) => trip.category === category));
+      setTrips(data.filter((trip) => trip.category === category));
     }
   };
 
+  // Handle adding a new trip (for logging purposes)
+  const handleAddTrip = () => {
+    console.log("Add new trip clicked");
+    navigate("/admin/trips/add-trips");
+  };
+
   return (
-    <div className="min-h-screen bg-gray-50 pt-24 pb-16">
+    <div className="min-h-screen bg-gray-50 pt-24 pb-16 relative">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <motion.div
           variants={fadeInUp}
@@ -43,19 +60,38 @@ const TripsPage = () => {
           selectedCategory={selectedCategory}
         />
 
-        <motion.div
-          variants={staggerChildren}
-          initial="initial"
-          animate="animate"
-          className="grid md:grid-cols-2 lg:grid-cols-3 gap-8"
-        >
-          {trips.map((trip) => (
-            <motion.div key={trip.id} variants={fadeInUp}>
-              <TripCard trip={trip} />
-            </motion.div>
-          ))}
-        </motion.div>
+        {isLoading ? (
+          <div className="text-center mt-8 text-gray-600">Loading trips...</div>
+        ) : error ? (
+          <div className="text-center mt-8 text-red-600">Error loading trips.</div>
+        ) : trips.length > 0 ? (
+          <motion.div
+            variants={staggerChildren}
+            initial="initial"
+            animate="animate"
+            className="grid md:grid-cols-2 lg:grid-cols-3 gap-8"
+          >
+            {trips.map((trip) => (
+              <motion.div key={trip._id} variants={fadeInUp}>
+                <TripCard trip={trip} />
+              </motion.div>
+            ))}
+          </motion.div>
+        ) : (
+          <div className="text-center mt-8 text-gray-600">
+            Upcoming trips coming soon.
+          </div>
+        )}
       </div>
+
+      {/* Floating Action Button */}
+      <button
+        onClick={handleAddTrip}
+        className="fixed bottom-6 sm:bottom-8 right-6 sm:right-8 bg-blue-600 text-white p-3 sm:p-4 rounded-full shadow-lg hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-300"
+        aria-label="Add New Trip"
+      >
+        <FaPlus className="w-5 h-5 sm:w-6 sm:h-6" />
+      </button>
     </div>
   );
 };
