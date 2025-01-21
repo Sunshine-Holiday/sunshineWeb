@@ -1,12 +1,11 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
+import { FaPlus } from "react-icons/fa"; // Import the plus icon
 
 import { fadeInUp, staggerChildren } from "../../utils/animations";
 import { allTrips } from "../../constants/trip";
 import { TripFilters } from "../trips/TripFilters";
 import { TripCard } from "../trips/TripCard";
-
-
 
 const TripsPage = () => {
   const [selectedCategory, setSelectedCategory] = useState("All");
@@ -22,8 +21,13 @@ const TripsPage = () => {
     }
   };
 
+  // Handle adding a new trip (for logging purposes)
+  const handleAddTrip = () => {
+    console.log("Add new trip clicked");
+  };
+
   return (
-    <div className="min-h-screen bg-gray-50 pt-24 pb-16">
+    <div className="min-h-screen bg-gray-50 pt-24 pb-16 relative">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <motion.div
           variants={fadeInUp}
@@ -57,6 +61,15 @@ const TripsPage = () => {
           ))}
         </motion.div>
       </div>
+
+      {/* Floating Action Button */}
+      <button
+        onClick={handleAddTrip}
+        className="fixed bottom-6 sm:bottom-8 right-6 sm:right-8 bg-blue-600 text-white p-3 sm:p-4 rounded-full shadow-lg hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-300"
+        aria-label="Add New Trip"
+      >
+        <FaPlus className="w-5 h-5 sm:w-6 sm:h-6" />
+      </button>
     </div>
   );
 };

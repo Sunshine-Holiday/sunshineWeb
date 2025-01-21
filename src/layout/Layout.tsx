@@ -10,6 +10,7 @@ import Blogs from "@/pages/admin/Blogs";
 import TermAndCondition from "@/pages/admin/termAndCondition";
 import BlogCreatePage from "@/pages/admin/BlogCreate";
 import BlogEdit from "@/pages/admin/BlogEdit";
+import AddGallery from "@/pages/admin/gallery/AddGallery";
 
 const Layout = () => {
   return (
@@ -22,6 +23,7 @@ const Layout = () => {
           <Route path="/trips" element={<Trips />} />
           <Route path="/booked" element={<Booked />} />
           <Route path="/gallery" element={<Gallery />} />
+          <Route path="/gallery/add-gallery" element={<AddGallery />} />
           <Route path="/blog" element={<Blogs />} />
           <Route path="/blog/create" element={<BlogCreatePage />} />
           <Route path="/blog/edit/:id" element={<BlogEdit />} />
