@@ -28,7 +28,9 @@ import ProtectedRoute from "./protectedRoute/protectedRouter";
 import RedirectRoute from "./protectedRoute/RedirectRoute";
 import Layout from "./layout/Layout";
 
+
 const VerifyEmailOTP = React.lazy(() => import("./pages/auth/VerifyEmailOTP"));
+const TermsAndCondition = React.lazy(() => import("./pages/terms/TermsAndCondition"));
 const Profile = React.lazy(() => import("./pages/Profile"));
 const TripsPage = React.lazy(() => import("./pages/trips/TripsPage"));
 const OTPPage = React.lazy(() => import("./pages/auth/OTPPage"));
@@ -108,6 +110,7 @@ export const AppContent = () => {
             }
           />
           <Route path="/gallery" element={<GalleryPage />} />
+          <Route path="/terms-condition" element={<TermsAndCondition />} />
           <Route path="/contact" element={<ContactPage />} />
           <Route path="/admin" element={<Navigate to="/admin/dashboard" />} />
           <Route
