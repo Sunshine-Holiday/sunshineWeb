@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { fadeInUp } from "../../utils/animations";
 import { useSelector } from "react-redux";
 import { selectCurrentUser } from "@/store/reducer/auth";
-import "react-quill/dist/quill.snow.css"; // Import Quill CSS
+import "react-quill/dist/quill.snow.css";
 import ReactQuill from "react-quill";
 import { useGetBlogsIDQuery, useUpdateBlogsMutation } from "@/store/api/blogs";
 import { toast } from "react-toastify";
@@ -11,8 +11,8 @@ import { FaSpinner } from "react-icons/fa";
 import { useParams } from "react-router-dom";
 
 const BlogEdit: React.FC = () => {
-  const { id } = useParams();
-  const { data, isLoading, isError } = useGetBlogsIDQuery({ id });
+  const { id } = useParams<{ id: string }>();
+  const { data, isLoading: isFetching, isError } = useGetBlogsIDQuery({ id });
   const [updateBlogs] = useUpdateBlogsMutation();
   const user = useSelector(selectCurrentUser);
 
@@ -26,6 +26,18 @@ const BlogEdit: React.FC = () => {
 
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    if (data && !isFetching && !isError) {
+      setFormData({
+        title: data.blog.title,
+        author: data.blog.author,
+        image: null,
+        imagePreview: data.blog.image?.url || "",
+        description: data.blog.description,
+      });
+    }
+  }, [data, isFetching, isError]);
+
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
@@ -38,7 +50,7 @@ const BlogEdit: React.FC = () => {
     if (file) {
       const validExtensions = ["image/png", "image/jpeg", "image/jpg"];
       if (!validExtensions.includes(file.type)) {
-        alert("Please upload an image in PNG, JPEG, or JPG format.");
+        toast.error("Please upload a valid image (PNG, JPEG, JPG).");
         return;
       }
       const reader = new FileReader();
@@ -53,26 +65,18 @@ const BlogEdit: React.FC = () => {
     }
   };
 
-  useEffect(() => {
-    if (data && !isLoading && !isError) {
-      setFormData({
-        title: data.blog.title,
-        author: data.blog.author,
-        image: null,
-        imagePreview: data.blog.image.url || "",
-        description: data.blog.description,
-      });
-    }
-  }, [data, isLoading, isError]);
-
   const handleDescriptionChange = (value: string) => {
     setFormData((prevData) => ({ ...prevData, description: value }));
   };
 
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
+    if (!id) {
+      toast.error("Invalid blog ID.");
+      return;
+    }
 
+    setLoading(true);
     const formDataToSend = new FormData();
     formDataToSend.append("title", formData.title);
     formDataToSend.append("author", formData.author);
@@ -80,15 +84,14 @@ const BlogEdit: React.FC = () => {
     if (formData.image) {
       formDataToSend.append("file", formData.image);
     }
-console.log(id,"dsad")
+
     try {
-  
-      const resp = await updateBlogs({form:formData, id}).unwrap();
-      console.log(resp)
+      const response = await updateBlogs({ id, form: formDataToSend }).unwrap();
       toast.success("Blog updated successfully!");
+      console.log(response);
     } catch (error: any) {
-      console.log(error);
-      toast.error(error?.data?.message || "Something went wrong");
+      console.error(error);
+      toast.error(error?.data?.message || "Failed to update the blog.");
     } finally {
       setLoading(false);
     }
@@ -106,95 +109,99 @@ console.log(id,"dsad")
           <h1 className="text-3xl font-bold text-gray-900 mb-4 text-center">
             Edit Blog
           </h1>
-          <form onSubmit={handleFormSubmit} className="space-y-8">
-            {formData?.imagePreview && (
-              <div className="mb-4">
-                <img
-                  src={formData?.imagePreview || formData?.image?.url}
-                  alt="Preview"
-                  className="w-full h-64 object-cover rounded-md"
+          {isFetching ? (
+            <div className="flex justify-center">
+              <FaSpinner className="animate-spin text-blue-600 text-2xl" />
+            </div>
+          ) : isError ? (
+            <p className="text-center text-red-500">Failed to load blog data.</p>
+          ) : (
+            <form onSubmit={handleFormSubmit} className="space-y-8">
+              {formData.imagePreview && (
+                <div className="mb-4">
+                  <img
+                    src={formData.imagePreview}
+                    alt="Preview"
+                    className="w-full h-64 object-cover rounded-md"
+                  />
+                </div>
+              )}
+              <div>
+                <label
+                  htmlFor="title"
+                  className="block text-sm font-medium text-gray-700"
+                >
+                  Blog Title
+                </label>
+                <input
+                  type="text"
+                  id="title"
+                  name="title"
+                  value={formData.title}
+                  onChange={handleInputChange}
+                  required
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                  placeholder="Enter blog title"
                 />
               </div>
-            )}
-            <div>
-              <label
-                htmlFor="title"
-                className="block text-sm font-medium text-gray-700"
-              >
-                Blog Title
-              </label>
-              <input
-                type="text"
-                id="title"
-                name="title"
-                value={formData.title}
-                onChange={handleInputChange}
-                required
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                placeholder="Enter blog title"
-              />
-            </div>
-            <div>
-              <label
-                htmlFor="author"
-                className="block text-sm font-medium text-gray-700"
-              >
-                Author Name
-              </label>
-              <input
-                type="text"
-                id="author"
-                name="author"
-                value={formData.author}
-                onChange={handleInputChange}
-                required
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                placeholder="Enter author name"
-              />
-            </div>
-            <div>
-              <label
-                htmlFor="image"
-                className="block text-sm font-medium text-gray-700"
-              >
-                Upload Image (PNG, JPEG, JPG)
-              </label>
-              <input
-                type="file"
-                id="image"
-                accept="image/png, image/jpeg, image/jpg"
-                onChange={handleImageChange}
-                className="mt-1 block w-full text-gray-700"
-              />
-            </div>
-            <div>
-              <label
-                htmlFor="description"
-                className="block text-sm font-medium text-gray-700"
-              >
-                Description
-              </label>
-              <ReactQuill
-                value={formData.description}
-                onChange={handleDescriptionChange}
-                className="mt-1"
-                placeholder="Enter a detailed description of the blog"
-              />
-            </div>
-            <div>
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full bg-blue-600 text-white py-2 px-4 rounded-md shadow hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-              >
-                {loading ? (
-                  <FaSpinner className="animate-spin mx-auto" />
-                ) : (
-                  "Update Blog"
-                )}
-              </button>
-            </div>
-          </form>
+              <div>
+                <label
+                  htmlFor="author"
+                  className="block text-sm font-medium text-gray-700"
+                >
+                  Author Name
+                </label>
+                <input
+                  type="text"
+                  id="author"
+                  name="author"
+                  value={formData.author}
+                  onChange={handleInputChange}
+                  required
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                  placeholder="Enter author name"
+                />
+              </div>
+              <div>
+                <label
+                  htmlFor="image"
+                  className="block text-sm font-medium text-gray-700"
+                >
+                  Upload Image
+                </label>
+                <input
+                  type="file"
+                  id="image"
+                  accept="image/png, image/jpeg, image/jpg"
+                  onChange={handleImageChange}
+                  className="mt-1 block w-full text-gray-700"
+                />
+              </div>
+              <div>
+                <label
+                  htmlFor="description"
+                  className="block text-sm font-medium text-gray-700"
+                >
+                  Description
+                </label>
+                <ReactQuill
+                  value={formData.description}
+                  onChange={handleDescriptionChange}
+                  className="mt-1"
+                  placeholder="Enter a detailed description"
+                />
+              </div>
+              <div>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full bg-blue-600 text-white py-2 px-4 rounded-md shadow hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                >
+                  {loading ? <FaSpinner className="animate-spin mx-auto" /> : "Update Blog"}
+                </button>
+              </div>
+            </form>
+          )}
         </motion.div>
       </div>
     </div>

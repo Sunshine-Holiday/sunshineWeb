@@ -8,10 +8,10 @@ interface BlogCardProps {
   post: {
     _id: string;
     title: string;
-    excerpt: string;
+    description: string;
     image: {
-      public_id: String;
-      url: String;
+      public_id: string;
+      url: string;
     };
     createdAt: string;
     author: string;
@@ -64,9 +64,15 @@ export const BlogCard = ({ post, onEdit, onDelete }: BlogCardProps) => {
         <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-2 truncate">
           {post.title}
         </h3>
-        <p className="text-gray-600 mb-3 sm:mb-4 text-xs sm:text-sm truncate">
-          {post.excerpt}
-        </p>
+        <p
+          className="text-gray-600 mb-3 sm:mb-4 text-xs sm:text-sm truncate"
+          dangerouslySetInnerHTML={{
+            __html:
+              post.description.length > 200
+                ? `${post.description.slice(0, 200)}...`
+                : post.description,
+          }}
+        ></p>
 
         {/* Author and Date Section */}
         <div className="flex items-center justify-between text-xs sm:text-sm text-gray-500">
@@ -83,13 +89,13 @@ export const BlogCard = ({ post, onEdit, onDelete }: BlogCardProps) => {
         {/* Edit and Delete Buttons */}
         <div className="flex mt-3">
           <button
-            onClick={() => onEdit(post?._id)}
+            onClick={() => onEdit(post._id)}
             className="bg-blue-500 text-white px-3 py-1 rounded-full text-xs mr-2"
           >
             Edit
           </button>
           <button
-            onClick={() => onDelete(post?._id)}
+            onClick={() => onDelete(post._id)}
             className="bg-red-500 text-white px-3 py-1 rounded-full text-xs"
           >
             Delete
