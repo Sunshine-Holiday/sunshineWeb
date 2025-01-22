@@ -38,7 +38,7 @@ jobs:
             # Ensure that the dist directory exists
             ls -R
             # Clear previous build files and copy new build to the server
-            rm -rf /var/www/html/*
+            # rm -rf /var/www/html/*
             cp -r dist/* /var/www/html/
             # Restart Nginx to reflect changes
             systemctl restart nginx
