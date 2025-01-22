@@ -20,13 +20,7 @@ jobs:
         with:
           node-version: 18
 
-      # Step 3: Install dependencies and build
-      - name: Install dependencies and build
-        run: |
-          npm install
-          npm run build
-
-      # Step 4: Deploy to Server via SSH
+      # Step 3: Deploy to Server via SSH
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v0.1.6
         with:
@@ -37,6 +31,9 @@ jobs:
           script: |
             # Navigate to the correct directory
             cd /root/sunshineWeb
+            # Install dependencies and build the project
+            npm install
+            npm run build
             # Copy built files to the server's web directory
             cp -r dist/* /var/www/html/
             # Restart nginx to apply the changes
