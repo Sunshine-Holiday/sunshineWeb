@@ -31,9 +31,13 @@ jobs:
           script: |
             # Navigate to the correct directory
             cd /root/sunshineWeb
+            # Pull the latest changes from the repository
+            git pull origin main  # Make sure the latest code is pulled
             # Install dependencies and build the project
             npm install
             npm run build
+            # Remove old files from the server's web directory
+            rm -rf /var/www/html/*
             # Copy built files to the server's web directory
             cp -r dist/* /var/www/html/
             # Restart nginx to apply the changes
