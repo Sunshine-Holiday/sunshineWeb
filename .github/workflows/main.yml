@@ -30,55 +30,9 @@ jobs:
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v0.1.6
         with:
-          host: ${"147.93.98.20}
-          username: ${"root"}
-          key: ${"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" }
+          host: ${{ secrets.SSH_HOST }}  # Use secrets for sensitive data
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}  # Store SSH key as a secret
           port: 22
           script: |
             rm -rf /var/www/html/*
