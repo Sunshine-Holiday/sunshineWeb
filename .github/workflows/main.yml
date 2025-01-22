@@ -25,7 +25,7 @@ jobs:
         run: |
           npm install
           npm run build
-          
+
       # Step 4: Deploy to Server via SSH
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v0.1.6
@@ -35,6 +35,11 @@ jobs:
           key: ${{ secrets.SSHKEY }}  # Store SSH key as a secret
           port: 22
           script: |
+            # Ensure that the dist directory exists
+            ls -R
+            # Clear previous build files and copy new build to the server
             rm -rf /var/www/html/*
-            cp -r dist/* /var/www/html
+            cp -r dist/* /var/www/html/
+            # Restart Nginx to reflect changes
+            systemctl restart nginx
           debug: true  # Enable debugging to get more detailed logs
