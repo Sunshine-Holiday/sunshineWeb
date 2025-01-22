@@ -13,6 +13,7 @@ import {
   FileText,
   Menu,
   ShieldCheck,
+  ReceiptText,
 } from "lucide-react"; // Updated icons
 
 // SidebarHeader Component
@@ -56,6 +57,11 @@ const navigationItems = [
     name: "Terms and Condition",
     href: "/admin/term-and-condition",
     icon: ShieldCheck, // terms 
+  },
+  {
+    name: "About",
+    href: "/admin/about",
+    icon: ReceiptText, // about 
   },
 ];
 
