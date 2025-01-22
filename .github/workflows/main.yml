@@ -32,7 +32,7 @@ jobs:
         with:
           host: ${{ secrets.SSH_HOST }}  # Use secrets for sensitive data
           username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_KEY }}  # Store SSH key as a secret
+          key: ${{ secrets.SSHKEY }}  # Store SSH key as a secret
           port: 22
           script: |
             rm -rf /var/www/html/*
