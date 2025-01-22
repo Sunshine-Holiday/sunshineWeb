@@ -25,7 +25,7 @@ jobs:
         run: |
           npm install
           npm run build
-
+          
       # Step 4: Deploy to Server via SSH
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v0.1.6
@@ -37,3 +37,4 @@ jobs:
           script: |
             rm -rf /var/www/html/*
             cp -r dist/* /var/www/html
+          debug: true  # Enable debugging to get more detailed logs
