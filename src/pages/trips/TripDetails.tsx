@@ -12,7 +12,7 @@ import {
   Power,
   HelpCircle,
 } from "lucide-react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation, useParams } from "react-router-dom";
 import { fadeInUp, staggerChildren } from "../../utils/animations";
 import { useGettripsIDQuery } from "@/store/api/trips";
 
@@ -33,8 +33,9 @@ const TripDetails = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [trip, setTrips] = useState<any>({});
-  const { _id } = location.state?.trip;
-  const { data,isLoading,isError } = useGettripsIDQuery({ id: _id });
+  // const { _id } = location.state?.trip;
+  const {id} = useParams();
+  const { data, isLoading, isError } = useGettripsIDQuery({ id: id });
 
   const formatDate = (date: string) => {
     const options: Intl.DateTimeFormatOptions = {
@@ -50,10 +51,6 @@ const TripDetails = () => {
       setTrips(data);
     }
   }, [data]);
-
-  if (!trip || !trip.price) {
-    return <div>Trip not found</div>;
-  }
 
   const handleBookNow = () => {
     navigate("/booking", { state: { tripId: trip._id } });
@@ -107,7 +104,11 @@ const TripDetails = () => {
   }
 
   if (!trip || !trip.price || isError) {
-    return <div>Trip not found</div>;
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-4xl font-bold text-gray-600">Trip not found</div>
+      </div>
+    );
   }
   return (
     <div className="min-h-screen bg-gray-50 pt-24 pb-16">

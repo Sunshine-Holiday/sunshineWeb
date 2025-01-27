@@ -19,9 +19,8 @@ interface TripCardProps {
 }
 
 const isValidStartDate = (startDate: string) => {
-  const today = new Date();
   const tripDate = new Date(startDate);
-  return tripDate >= today; // Only show trips with a start date >= today
+  return tripDate; // Only show trips with a start date >= today
 };
 
 const formatDate = (date: string) => {
@@ -36,11 +35,6 @@ const formatDate = (date: string) => {
 export const TripCard = ({ trip, onDelete }: TripCardProps) => {
   const navigate = useNavigate();
 
-  // Check if any of the trip's start dates are valid
-  const isValid = trip.startDates.some(isValidStartDate);
-
-  if (!isValid) return null; // If no valid start date, return null
-
   const handleEdit = (e: React.MouseEvent) => {
     e.stopPropagation();
     navigate(`/admin/edit-trip/${trip_.id}`, { state: { trip } });
@@ -48,19 +42,17 @@ export const TripCard = ({ trip, onDelete }: TripCardProps) => {
 
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (window.confirm("Are you sure you want to delete this trip?")) {
-      onDelete(trip.id); // Trigger delete function
-    }
+
+    onDelete(trip._id); // Trigger delete function
   };
 
   const handleCardClick = () => {
-    navigate(`/trips/${trip.id}`, { state: { trip } });
+    navigate(`/trips/${trip._id}`, { state: { trip } });
   };
 
   return (
     <motion.div
       variants={scaleOnHover}
-   
       className="bg-white rounded-xl shadow-sm overflow-hidden cursor-pointer"
     >
       <motion.div
@@ -70,7 +62,6 @@ export const TripCard = ({ trip, onDelete }: TripCardProps) => {
         onClick={handleCardClick}
       >
         <img
-        
           src={
             trip?.image ||
             "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b"

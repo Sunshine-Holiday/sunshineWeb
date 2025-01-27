@@ -18,9 +18,9 @@ interface TripCardProps {
 }
 
 const isValidStartDate = (startDate: string) => {
-  const today = new Date();
+  // const today = new Date();
   const tripDate = new Date(startDate);
-  return tripDate >= today; // Only show trips with a start date >= today
+  return tripDate 
 };
 
 const formatDate = (date: string) => {

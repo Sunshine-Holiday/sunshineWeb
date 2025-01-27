@@ -7,6 +7,7 @@ import { TripFilters } from "../trips/TripFilters";
 import { useNavigate } from "react-router-dom";
 import { useGettripsQuery } from "@/store/api/trips";
 import { TripCard } from "./TripCard";
+import { Plane } from "lucide-react";
 
 const TripsPage = () => {
   const [selectedCategory, setSelectedCategory] = useState("All");
@@ -78,9 +79,10 @@ const TripsPage = () => {
             ))}
           </motion.div>
         ) : (
-          <div className="text-center mt-8 text-gray-600">
-            Upcoming trips coming soon.
-          </div>
+          <div className="flex flex-col items-center justify-center mt-8 text-gray-600">
+          <Plane className="w-16 h-16 text-blue-500" />
+          <div className="text-2xl font-bold mt-4">Upcoming trips  soon.</div>
+        </div>
         )}
       </div>
 

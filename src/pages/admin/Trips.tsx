@@ -1,41 +1,63 @@
 import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { FaPlus } from "react-icons/fa"; // Import the plus icon
-
+import { FaPlus } from "react-icons/fa";
 import { fadeInUp, staggerChildren } from "../../utils/animations";
 import { TripFilters } from "../trips/TripFilters";
 import { useNavigate } from "react-router-dom";
-import { useGettripsQuery } from "@/store/api/trips";
+import { useDeleteTtipsMutation, useGettripsQuery } from "@/store/api/trips";
 import { TripCard } from "./components/trips/TripsCard";
+import { toast } from "react-toastify";
 
 const TripsPage = () => {
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [trips, setTrips] = useState([]);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [tripToDelete, setTripToDelete] = useState(null);
+
   const { data, isLoading, error } = useGettripsQuery();
-  
+  const [deleteTrips] = useDeleteTtipsMutation();
   const navigate = useNavigate();
 
   useEffect(() => {
     if (data) {
-      console.log(data);
       setTrips(data);
+      console.log(data);
     }
   }, [data]);
 
-  // Handle category filter
   const filterTrips = (category) => {
     setSelectedCategory(category);
-    if (category === "All") {
-      setTrips(data); // Use the fetched data instead of `allTrips`
-    } else {
-      setTrips(data.filter((trip) => trip.category === category));
+    setTrips(
+      category === "All"
+        ? data
+        : data.filter((trip) => trip.category === category)
+    );
+  };
+
+  const handleAddTrip = () => navigate("/admin/trips/add-trips");
+
+  const confirmDelete = (trip) => {
+    setTripToDelete(trip);
+    setIsModalOpen(true);
+  };
+
+  const handleDelete = async () => {
+    if (!tripToDelete) return;
+    try {
+      await deleteTrips(tripToDelete._id).unwrap();
+      toast.success("trips delete successfully");
+    } catch (error) {
+      toast.error("trips failed to delete");
+      console.error("Error deleting trip:", error);
+    } finally {
+      setIsModalOpen(false);
+      setTripToDelete(null);
     }
   };
 
-  // Handle adding a new trip (for logging purposes)
-  const handleAddTrip = () => {
-    console.log("Add new trip clicked");
-    navigate("/admin/trips/add-trips");
+  const cancelDelete = () => {
+    setTripToDelete(null);
+    setIsModalOpen(false);
   };
 
   return (
@@ -63,7 +85,9 @@ const TripsPage = () => {
         {isLoading ? (
           <div className="text-center mt-8 text-gray-600">Loading trips...</div>
         ) : error ? (
-          <div className="text-center mt-8 text-red-600">Error loading trips.</div>
+          <div className="text-center mt-8 text-red-600">
+            Error loading trips.
+          </div>
         ) : (
           <motion.div
             variants={staggerChildren}
@@ -73,7 +97,7 @@ const TripsPage = () => {
           >
             {trips.map((trip) => (
               <motion.div key={trip._id} variants={fadeInUp}>
-                <TripCard trip={trip} />
+                <TripCard trip={trip} onDelete={() => confirmDelete(trip)} />
               </motion.div>
             ))}
           </motion.div>
@@ -88,6 +112,35 @@ const TripsPage = () => {
       >
         <FaPlus className="w-5 h-5 sm:w-6 sm:h-6" />
       </button>
+
+      {/* Delete Confirmation Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+          <div className="bg-white rounded-lg p-6 w-96 shadow-lg">
+            <h2 className="text-lg font-bold text-gray-800 mb-4">
+              Confirm Deletion
+            </h2>
+            <p className="text-gray-600 mb-6">
+              Are you sure you want to delete the trip{" "}
+              <span className="font-semibold">{tripToDelete?.name}</span>?
+            </p>
+            <div className="flex justify-end gap-4">
+              <button
+                onClick={cancelDelete}
+                className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDelete}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

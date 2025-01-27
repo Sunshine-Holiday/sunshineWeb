@@ -15,16 +15,24 @@ export const TripsApiSlice = apiWithTag.injectEndpoints({
 
       invalidatesTags: ["trips"],
     }),
-    gettripsID: builder.query<void, void>({
-        query: (credentials:any) => ({
-          url: `/api/v1/trips/${credentials.id}`,
-          method: "GET",
-        }),
-        keepUnusedDataFor: 0,
-        providesTags: ["trips"],
+    deleteTtips: builder.mutation<void, void>({
+      query: (id) => ({
+        url: `/api/v1/trips/${id}`,
+        method: "DELETE",
       }),
+
+      invalidatesTags: ["trips"],
+    }),
+    gettripsID: builder.query<void, void>({
+      query: (credentials: any) => ({
+        url: `/api/v1/trips/${credentials.id}`,
+        method: "GET",
+      }),
+      keepUnusedDataFor: 0,
+      providesTags: ["trips"],
+    }),
     gettrips: builder.query<void, void>({
-      query: (credentials:any) => ({
+      query: (credentials: any) => ({
         url: `/api/v1/trips`,
         method: "GET",
       }),
@@ -35,4 +43,9 @@ export const TripsApiSlice = apiWithTag.injectEndpoints({
   overrideExisting: true,
 });
 
-export const { useCreatetripsMutation, useGettripsQuery,useGettripsIDQuery } = TripsApiSlice;
+export const {
+  useCreatetripsMutation,
+  useGettripsQuery,
+  useGettripsIDQuery,
+  useDeleteTtipsMutation,
+} = TripsApiSlice;
