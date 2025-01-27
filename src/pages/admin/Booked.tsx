@@ -11,12 +11,13 @@ import {
 import { FaSpinner } from "react-icons/fa"; // Importing React Icon for loading spinner
 import Skeleton from "react-loading-skeleton"; // Importing Skeleton for loading state
 import "react-loading-skeleton/dist/skeleton.css"; // Skeleton CSS
+import { useNavigate } from "react-router-dom";
 
 const Booked = () => {
   const [filter, setFilter] = useState("all");
   const [bookings, setBookings] = useState<any>([]);
   const { data, isError, isLoading } = useGetbookingQuery({ filter });
-
+  const navigate = useNavigate();
   useEffect(() => {
     if (!isLoading) {
       if (data && data.bookings) {
@@ -94,49 +95,57 @@ const Booked = () => {
           <TableBody>
             {bookings.map((booking) => (
               <TableRow key={booking._id} className="border-b hover:bg-gray-50">
-                <TableCell className="px-4 py-2 text-sm text-gray-700">
-                  {booking.trip.title}
-                </TableCell>
-                <TableCell className="px-4 py-2 text-sm text-gray-700">
-                  {booking.trip.location}
-                </TableCell>
-                <TableCell className="px-4 py-2 text-sm text-gray-700">
-                  {booking.price}
-                </TableCell>
-                <TableCell className="px-4 py-2 text-sm text-gray-700">
-                  {booking.user.email}
-                </TableCell>
-                <TableCell className="px-4 py-2 text-sm text-gray-700">
-                  {booking.user.phone}
-                </TableCell>
-                <TableCell className="px-4 py-2 text-sm text-gray-700">
-                  {new Date(booking.selectedDate).toLocaleString()}
-                </TableCell>
-                <TableCell className="px-4 py-2 text-sm text-gray-700">
-                  {booking.selectedSeats.join(", ")}
-                </TableCell>
-                <TableCell className="px-4 py-2 text-sm text-gray-700">
-                  {booking.passengers.map((passenger, index) => (
-                    <div key={index} className="text-sm text-gray-700">
-                      <div>
-                        <strong>Name:</strong> {passenger.name || "Unnamed"}
+                <div
+                  onClick={() => {
+                    navigate(`/admin/booked/${booking._id}`);
+
+                    console.log(booking._id);
+                  }}
+                >
+                  <TableCell className="px-4 py-2 text-sm text-gray-700">
+                    {booking.trip.title}
+                  </TableCell>
+                  <TableCell className="px-4 py-2 text-sm text-gray-700">
+                    {booking.trip.location}
+                  </TableCell>
+                  <TableCell className="px-4 py-2 text-sm text-gray-700">
+                    {booking.price}
+                  </TableCell>
+                  <TableCell className="px-4 py-2 text-sm text-gray-700">
+                    {booking.user.email}
+                  </TableCell>
+                  <TableCell className="px-4 py-2 text-sm text-gray-700">
+                    {booking.user.phone}
+                  </TableCell>
+                  <TableCell className="px-4 py-2 text-sm text-gray-700">
+                    {new Date(booking.selectedDate).toLocaleString()}
+                  </TableCell>
+                  <TableCell className="px-4 py-2 text-sm text-gray-700">
+                    {booking.selectedSeats.join(", ")}
+                  </TableCell>
+                  <TableCell className="px-4 py-2 text-sm text-gray-700">
+                    {booking.passengers.map((passenger, index) => (
+                      <div key={index} className="text-sm text-gray-700">
+                        <div>
+                          <strong>Name:</strong> {passenger.name || "Unnamed"}
+                        </div>
+                        <div>
+                          <strong>Age:</strong> {passenger.age}
+                        </div>
+                        <div>
+                          <strong>Gender:</strong> {passenger.gender}
+                        </div>
+                        <div>
+                          <strong>Address:</strong> {passenger.address}
+                        </div>
+                        <div>
+                          <strong>ID Proof:</strong> {passenger.idProof} (
+                          {passenger.idProofNumber})
+                        </div>
                       </div>
-                      <div>
-                        <strong>Age:</strong> {passenger.age}
-                      </div>
-                      <div>
-                        <strong>Gender:</strong> {passenger.gender}
-                      </div>
-                      <div>
-                        <strong>Address:</strong> {passenger.address}
-                      </div>
-                      <div>
-                        <strong>ID Proof:</strong> {passenger.idProof} (
-                        {passenger.idProofNumber})
-                      </div>
-                    </div>
-                  ))}
-                </TableCell>
+                    ))}
+                  </TableCell>
+                </div>
               </TableRow>
             ))}
           </TableBody>
