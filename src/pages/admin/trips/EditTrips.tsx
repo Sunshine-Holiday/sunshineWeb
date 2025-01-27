@@ -4,7 +4,7 @@ import { format, parse, startOfWeek, getDay } from "date-fns";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import { Wifi, Coffee, Snowflake, Power } from "lucide-react";
 import { enUS } from "date-fns/locale";
-import { useCreatetripsMutation, useEditTtipsMutation, useGettripsIDQuery } from "@/store/api/trips";
+import {   useEditTripsMutation, useGettripsIDQuery } from "@/store/api/trips";
 import { toast } from "react-toastify";
 import { FaSpinner } from "react-icons/fa";
 import { useLocation } from "react-router-dom";
@@ -49,7 +49,7 @@ const EditTrips: React.FC = () => {
   const { id } = location.state;
   const { data, isError, isLoading } = useGettripsIDQuery({ id });
 
-  const [createTrips] = useEditTtipsMutation();
+  const [createTrips] = useEditTripsMutation();
   const [loading, setLoading] = useState(false);
   const [tripDetails, setTripDetails] = useState<TripDetails>({
     _id:id,

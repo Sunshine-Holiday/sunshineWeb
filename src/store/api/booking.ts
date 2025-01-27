@@ -40,10 +40,11 @@ export const BookingApiSlice = apiWithTag.injectEndpoints({
       keepUnusedDataFor: 0,
       providesTags: ["booking"],
     }),
-    getbooking: builder.query<void, void>({
-      query: (credentials: any) => ({
+    getbooking: builder.query<any, any>({
+      query: ({filter}: any) => ({
         url: `/api/v1/booking`,
         method: "GET",
+        params: { filter },
       }),
       keepUnusedDataFor: 0,
       providesTags: ["booking"],
