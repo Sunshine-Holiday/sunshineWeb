@@ -63,6 +63,11 @@ const navigationItems = [
     href: "/admin/about",
     icon: ReceiptText, // about 
   },
+  {
+    name: "privacy-policy",
+    href: "/admin/privacy-policy",
+    icon: ReceiptText, // about 
+  },
 ];
 
 // NavLink Component

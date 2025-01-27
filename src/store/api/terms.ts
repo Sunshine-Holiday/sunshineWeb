@@ -1,7 +1,7 @@
 import { apiSlice } from "../initalState";
 
 const apiWithTag = apiSlice.enhanceEndpoints({
-  addTagTypes: ["term", "about"],
+  addTagTypes: ["term", "about", "privacy"],
 });
 export const TermsApiSlice = apiWithTag.injectEndpoints({
   endpoints: (builder) => ({
@@ -15,6 +15,18 @@ export const TermsApiSlice = apiWithTag.injectEndpoints({
 
       invalidatesTags: ["term"],
     }),
+
+    createPrivacy: builder.mutation<void, void>({
+      query: (credentials) => ({
+        url: "/api/v1/privacy",
+        method: "PUT",
+
+        body: credentials,
+      }),
+
+      invalidatesTags: ["term"],
+    }),
+
     aboutTerms: builder.mutation<void, void>({
       query: (credentials) => ({
         url: "/api/v1/about",
@@ -28,6 +40,14 @@ export const TermsApiSlice = apiWithTag.injectEndpoints({
     getAbout: builder.query<void, void>({
       query: () => ({
         url: "/api/v1/about",
+        method: "GET",
+      }),
+      keepUnusedDataFor: 0,
+      providesTags: ["term"],
+    }),
+    getPrivacy: builder.query<void, void>({
+      query: () => ({
+        url: "/api/v1/privacy",
         method: "GET",
       }),
       keepUnusedDataFor: 0,
@@ -49,5 +69,7 @@ export const {
   useGetTermsQuery,
   useCreatetermsMutation,
   useAboutTermsMutation,
+  useCreatePrivacyMutation,
+  useGetPrivacyQuery,
   useGetAboutQuery,
 } = TermsApiSlice;

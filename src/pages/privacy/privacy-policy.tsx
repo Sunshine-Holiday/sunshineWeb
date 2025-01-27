@@ -1,14 +1,15 @@
-import { useGetTermsQuery } from "@/store/api/terms";
+import { useGetPrivacyQuery } from "@/store/api/terms";
 import React, { useEffect, useState } from "react";
 import Skeleton from "react-loading-skeleton"; // Import Skeleton component
 
 const PrivacyPolicy: React.FC = () => {
   const [termsText, setTermsText] = useState("");
-  const { data, error, isLoading } = useGetTermsQuery();
+  const { data, error, isLoading } = useGetPrivacyQuery();
 
   useEffect(() => {
     if (data) {
-      setTermsText(data.terms);
+      console.log(data.privacy)
+      setTermsText(data.privacy||"");
     }
   }, [data]);
 
