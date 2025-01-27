@@ -79,6 +79,7 @@ navigate("/trips")
         >
           <h1 className="text-4xl md:text-6xl font-bold text-white mb-6">
             {/* Discover Your Next Adventure */}
+            hello
           </h1>
           <p className="text-xl text-white/90 mb-12">{typedText}</p>
           <CustomButton onclickHandler={getStartedHandler} />
