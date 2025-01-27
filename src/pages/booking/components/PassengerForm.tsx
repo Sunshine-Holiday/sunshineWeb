@@ -134,8 +134,6 @@ export const PassengerForm = ({
               type="number"
               name="age"
               value={passengers[index]?.age || ""}
-              min="1"
-              max="120"
               onChange={handleChange}
               className={`w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${
                 errors.age ? "border-red-500" : ""
@@ -160,17 +158,19 @@ export const PassengerForm = ({
               aria-invalid={errors.gender ? "true" : "false"}
               required
             >
-              <option value="" disabled>Select Gender</option>
+              <option value="">Select Gender</option>
               <option value="male">Male</option>
               <option value="female">Female</option>
               <option value="other">Other</option>
             </select>
             {errors.gender && <p className="text-red-500 text-xs">{errorMessages.gender}</p>}
           </div>
+        </div>
 
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              ID Proof (Aadhar/PAN)
+              ID Proof Type
             </label>
             <select
               name="idProof"
@@ -179,10 +179,9 @@ export const PassengerForm = ({
               className={`w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${
                 errors.idProof ? "border-red-500" : ""
               }`}
-              aria-invalid={errors.idProof ? "true" : "false"}
               required
             >
-              <option value="" disabled>Select ID Proof</option>
+              <option value="">Select ID Proof</option>
               <option value="aadhar">Aadhar</option>
               <option value="pan">PAN</option>
             </select>
@@ -209,7 +208,7 @@ export const PassengerForm = ({
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Pickup Address
+              Pickup Location
             </label>
             <select
               name="address"
@@ -221,30 +220,15 @@ export const PassengerForm = ({
               aria-invalid={errors.address ? "true" : "false"}
               required
             >
-              <option value="" disabled>
-                Select Pickup Location
-              </option>
-              {tripDetails.boardingPoints.length > 0 ? (
-                tripDetails.boardingPoints.map((point) => (
-                  <option key={point._id} value={point.location}>
-                    {point.location} - {point.time}
-                  </option>
-                ))
-              ) : (
-                <option disabled>No boarding points available</option>
-              )}
+              <option value="">Select Pickup Location</option>
+              {tripDetails.boardingPoints.map((point) => (
+                <option key={point._id} value={point.location}>
+                  {point.location} - {point.time}
+                </option>
+              ))}
             </select>
             {errors.address && <p className="text-red-500 text-xs">{errorMessages.address}</p>}
           </div>
-        </div>
-
-        <div className="mt-4">
-          <button
-            type="submit"
-            className="w-full py-2 bg-blue-500 text-white rounded-md focus:ring-4 focus:ring-blue-500"
-          >
-            Submit
-          </button>
         </div>
       </form>
     </motion.div>

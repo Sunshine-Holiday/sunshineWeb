@@ -17,20 +17,16 @@ const BookingPage = () => {
   const location = useLocation();
   const { tripId } = location.state;
 
-  const [trip, setTrip] = useState(null);
+  const [trip, setTrip] = useState<any | null>(null);
   const [selectedSeats, setSelectedSeats] = useState<string[]>([]);
-  const [passengers, setPassengers] = useState<PassengerData[]>([
-    
-  ]);
-  const [step, setStep] = useState<"select-seats" | "passenger-details">(
-    INITIAL_STEP
-  );
+  const [passengers, setPassengers] = useState<PassengerData[]>([]);
+  const [step, setStep] = useState<"select-seats" | "passenger-details">(INITIAL_STEP);
 
   const { data, isLoading, isError } = useGettripsIDQuery({ id: tripId });
 
   useEffect(() => {
     if (data) {
-      console.log(data)
+      console.log(data);
       setTrip(data);
     }
   }, [data]);
@@ -93,11 +89,11 @@ const BookingPage = () => {
     from: trip.location || "Unknown",
     to: trip.category || "Unknown",
     date: new Date(trip.startDates[0]).toLocaleDateString(),
-    time: "21:00", // Placeholder
+    time: trip.duration,
     busType: trip.busSize || "Standard",
     amenities: trip.amenities || [],
-    price: trip?.price,
-    boardingPoints: trip?.boardingPoints || []
+    price: trip?.price || SEAT_PRICE,
+    boardingPoints: trip?.boardingPoints || [],
   };
 
   return (
@@ -110,9 +106,7 @@ const BookingPage = () => {
           className="text-center mb-12"
         >
           <h1 className="text-4xl font-bold text-gray-900 mb-4">
-            {step === "select-seats"
-              ? "Select Your Seats"
-              : "Passenger Details"}
+            {step === "select-seats" ? "Select Your Seats" : "Passenger Details"}
           </h1>
           <p className="text-gray-600">
             {step === "select-seats"
