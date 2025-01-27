@@ -8,6 +8,20 @@ const Profile: React.FC = () => {
   const user = useSelector(selectCurrentUser);
   const loading = useSelector(selectCurrentLoading);
   const [isEditing, setIsEditing] = useState(false);
+  const [profilePicture, setProfilePicture] = useState(user?.profilePicture || "/default-profile.png");
+
+  const handleProfilePictureChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      const reader = new FileReader();
+      reader.onload = () => {
+        setProfilePicture(reader.result as string);
+        // Here, you can send the file to the server via API
+        // Example: uploadProfilePictureAPI(file);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   if (loading) {
     return (
@@ -33,7 +47,7 @@ const Profile: React.FC = () => {
     );
   }
 
-  const { email, username, createdAt, profilePicture, phone, address } = user;
+  const { email, username, createdAt, phone, address } = user;
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-400 via-pink-500 to-red-500">
@@ -53,12 +67,24 @@ const Profile: React.FC = () => {
             animate={{ scale: 1 }}
             transition={{ duration: 0.5, ease: "easeInOut" }}
           >
-            <motion.img
-              src={profilePicture || "/default-profile.png"}
-              alt="Profile"
-              className="h-32 w-32 rounded-full border-4 border-white shadow-lg mb-4"
-              whileHover={{ scale: 1.1, rotate: 2 }}
-            />
+            <motion.label
+              htmlFor="profilePictureInput"
+              className="cursor-pointer relative"
+            >
+              <motion.img
+                src={profilePicture}
+                alt="Profile"
+                className="h-32 w-32 rounded-full border-4 border-white shadow-lg mb-4"
+                whileHover={{ scale: 1.1, rotate: 2 }}
+              />
+              <input
+                id="profilePictureInput"
+                type="file"
+                accept="image/*"
+                onChange={handleProfilePictureChange}
+                className="hidden"
+              />
+            </motion.label>
             <h1 className="text-3xl font-bold text-white">Hello, {username}!</h1>
           </motion.div>
           <motion.div

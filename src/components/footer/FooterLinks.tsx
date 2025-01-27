@@ -4,18 +4,18 @@ import { Link } from 'react-router-dom';
 const links = {
   Company: [
     { name: 'About Us', path: '/about-us' },
-    { name: 'Careers', path: '/careers' },
-    { name: 'Press', path: '/press' },
+    { name: 'Contact', path: '/contact' },
+    // { name: 'Press', path: '/press' },
   ],
   Support: [
-    { name: 'Help Center', path: '/help-center' },
-    { name: 'Safety', path: '/safety' },
-    { name: 'Cancellation Options', path: '/cancellation-options' },
+    { name: 'Help Center', path: '/contact' },
+    { name: 'Safety', path: '/terms-condition' },
+    { name: 'Cancellation Options', path: '/privacy-policy' },
   ],
   Legal: [
     { name: 'Privacy Policy', path: '/privacy-policy' },
     { name: 'Terms and condition', path: '/terms-condition' },
-    { name: 'Cookie Settings', path: '/cookie-settings' },
+    // { name: 'Cookie Settings', path: '/cookie-settings' },
   ],
 };
 
