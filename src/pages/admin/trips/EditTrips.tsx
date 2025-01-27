@@ -290,7 +290,7 @@ const EditTrips: React.FC = () => {
                     onChange={(e) =>
                       handleBoardingPointChange(index, "location", e.target.value)
                     }
-                    placeholder="Location"
+                   placeholder="Pick Up Location"
                     className="w-full rounded-lg p-2"
                   />
                   <input
@@ -308,7 +308,7 @@ const EditTrips: React.FC = () => {
                     onChange={(e) =>
                       handleBoardingPointChange(index, "details", e.target.value)
                     }
-                    placeholder="Details"
+                  placeholder="Pick Up Location Details"
                     className="w-full rounded-lg p-2"
                   />
                 </div>

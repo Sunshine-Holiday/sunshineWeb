@@ -262,7 +262,7 @@ const AdminTripForm: React.FC = () => {
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <input
                       type="text"
-                      placeholder="Location"
+                      placeholder="Pick Up Location"
                       value={boardingPoint.location}
                       onChange={(e) =>
                         handleBoardingPointChange(
@@ -284,7 +284,7 @@ const AdminTripForm: React.FC = () => {
                     />
                     <input
                       type="text"
-                      placeholder="Details"
+                       placeholder="Pick Up Location Details"
                       value={boardingPoint.details}
                       onChange={(e) =>
                         handleBoardingPointChange(
