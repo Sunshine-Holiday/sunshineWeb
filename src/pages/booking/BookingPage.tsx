@@ -6,6 +6,7 @@ import { PassengerForm, PassengerData } from "./components/PassengerForm";
 import { fadeInUp } from "../../utils/animations";
 import { useLocation } from "react-router-dom";
 import { useGettripsIDQuery } from "@/store/api/trips";
+import { toast } from "react-toastify";
 
 const SEAT_PRICE = 1499;
 const INITIAL_STEP = "select-seats";
@@ -22,6 +23,7 @@ const BookingPage = () => {
   const [passengers, setPassengers] = useState<PassengerData[]>([]);
   const [step, setStep] = useState<"select-seats" | "passenger-details">(INITIAL_STEP);
 
+  
   const { data, isLoading, isError } = useGettripsIDQuery({ id: tripId });
 
   useEffect(() => {
@@ -70,6 +72,31 @@ const BookingPage = () => {
   };
 
   const handleProceed = () => {
+    // Validate passenger details
+    let allFieldsFilled = true;
+    if (passengers.length===0) {
+      toast.error("Please fill in all the passenger details.");
+      return; 
+    }
+    passengers.forEach((passenger, index) => {
+      if (
+        !passenger.name ||
+        !passenger.age ||
+        !passenger.gender ||
+        !passenger.idProof ||
+        !passenger.idProofNumber ||
+        !passenger.address
+      ) {
+        allFieldsFilled = false;
+      }
+    });
+  
+    if (!allFieldsFilled) {
+      toast.error("Please fill in all the passenger details.");
+      return; // Prevent proceeding if fields are not filled
+    }
+  
+    // Proceed to the next step or action
     if (step === "select-seats") {
       setStep("passenger-details");
     } else {

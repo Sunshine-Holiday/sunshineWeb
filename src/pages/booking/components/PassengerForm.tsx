@@ -91,12 +91,7 @@ export const PassengerForm = ({
     return isValid;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (validateFields()) {
-      console.log("Form submitted", passengers[index]);
-    }
-  };
+
 
   return (
     <motion.div
@@ -106,7 +101,7 @@ export const PassengerForm = ({
       <h3 className="font-medium mb-4">
         Passenger {index + 1} - Seat {seatNumber}
       </h3>
-      <form onSubmit={handleSubmit}>
+  
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -230,7 +225,7 @@ export const PassengerForm = ({
             {errors.address && <p className="text-red-500 text-xs">{errorMessages.address}</p>}
           </div>
         </div>
-      </form>
+    
     </motion.div>
   );
 };
