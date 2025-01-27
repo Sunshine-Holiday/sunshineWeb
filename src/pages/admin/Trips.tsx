@@ -40,7 +40,10 @@ const TripsPage = () => {
     setTripToDelete(trip);
     setIsModalOpen(true);
   };
-
+  const onEdit = (id) => {
+    console.log(id);
+    navigate(`/admin/trips/edit`, { state: { id } });
+  };
   const handleDelete = async () => {
     if (!tripToDelete) return;
     try {
@@ -97,7 +100,11 @@ const TripsPage = () => {
           >
             {trips.map((trip) => (
               <motion.div key={trip._id} variants={fadeInUp}>
-                <TripCard trip={trip} onDelete={() => confirmDelete(trip)} />
+                <TripCard
+                  trip={trip}
+                  onDelete={() => confirmDelete(trip)}
+                  onEdit={onEdit}
+                />
               </motion.div>
             ))}
           </motion.div>

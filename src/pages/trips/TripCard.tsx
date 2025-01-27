@@ -95,7 +95,7 @@ export const TripCard = ({ trip }: TripCardProps) => {
             {...scaleOnHover}
             onClick={(e) => {
               e.stopPropagation();
-              navigate("/booking", { state: { tripId: trip.id } });
+              navigate("/booking", { state: { tripId: trip._id } });
             }}
             className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
           >

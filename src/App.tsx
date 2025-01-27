@@ -71,7 +71,7 @@ export const AppContent = () => {
       reduxDispatch(authError());
     }
   }, [data, error]);
-  if (isAuthLoading) {
+  if (isAuthLoading||isLoading) {
     return <LoadingSkeleton imagelogo={imagelogo} />;
   }
   return (

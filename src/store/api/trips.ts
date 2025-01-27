@@ -15,6 +15,15 @@ export const TripsApiSlice = apiWithTag.injectEndpoints({
 
       invalidatesTags: ["trips"],
     }),
+    editTtips: builder.mutation<void, void>({
+      query: (credentials) => ({
+        url: `/api/v1/trips/${credentials._id}`,
+        method: "PUT",
+        body: credentials,
+      }),
+
+      invalidatesTags: ["trips"],
+    }),
     deleteTtips: builder.mutation<void, void>({
       query: (id) => ({
         url: `/api/v1/trips/${id}`,
@@ -48,4 +57,5 @@ export const {
   useGettripsQuery,
   useGettripsIDQuery,
   useDeleteTtipsMutation,
+  useEditTtipsMutation
 } = TripsApiSlice;

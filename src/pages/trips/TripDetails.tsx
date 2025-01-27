@@ -34,7 +34,7 @@ const TripDetails = () => {
   const location = useLocation();
   const [trip, setTrips] = useState<any>({});
   // const { _id } = location.state?.trip;
-  const {id} = useParams();
+  const { id } = useParams();
   const { data, isLoading, isError } = useGettripsIDQuery({ id: id });
 
   const formatDate = (date: string) => {
@@ -235,22 +235,19 @@ const TripDetails = () => {
                     ₹{trip.price ? trip.price.toLocaleString("en-IN") : "N/A"}
                   </span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">GST (5%)</span>
+                {/* <div className="flex justify-between">
+                  <span className="text-gray-600">GST (18%)</span>
                   <span>
                     ₹
                     {trip.price
-                      ? (trip.price * 0.05).toLocaleString("en-IN")
+                      ? (trip.price * 0.18).toLocaleString("en-IN")
                       : "N/A"}
                   </span>
-                </div>
+                </div> */}
                 <div className="flex justify-between font-semibold text-lg pt-3 border-t">
                   <span>Total</span>
                   <span>
-                    ₹
-                    {trip.price
-                      ? (trip.price * 1.05).toLocaleString("en-IN")
-                      : "N/A"}
+                    ₹{trip.price ? trip.price.toLocaleString("en-IN") : "N/A"}
                   </span>
                 </div>
               </div>

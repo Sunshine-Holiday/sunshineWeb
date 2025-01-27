@@ -6,7 +6,7 @@ import { scaleOnHover } from "@/utils/animations";
 
 interface TripCardProps {
   trip: {
-    id: number;
+    _id: number;
     title: string;
     image: string;
     location: string;
@@ -16,6 +16,7 @@ interface TripCardProps {
     price: number;
   };
   onDelete: (id: number) => void; // Add delete handler
+  onEdit: (id: number) => void; // Add delete handler
 }
 
 const isValidStartDate = (startDate: string) => {
@@ -32,12 +33,13 @@ const formatDate = (date: string) => {
   return new Date(date).toLocaleDateString("en-US", options); // Format date as "March 15, 2024"
 };
 
-export const TripCard = ({ trip, onDelete }: TripCardProps) => {
+export const TripCard = ({ trip, onDelete,onEdit }: TripCardProps) => {
   const navigate = useNavigate();
 
   const handleEdit = (e: React.MouseEvent) => {
     e.stopPropagation();
-    navigate(`/admin/edit-trip/${trip_.id}`, { state: { trip } });
+    // navigate(`/admin/edit-trip/${trip_.id}`, { state: { trip } });
+    onEdit(trip._id)
   };
 
   const handleDelete = (e: React.MouseEvent) => {

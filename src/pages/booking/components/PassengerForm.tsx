@@ -5,6 +5,14 @@ import { fadeInUp } from "../../../utils/animations";
 interface PassengerFormProps {
   seatNumber: string;
   index: number;
+  tripDetails: {
+    boardingPoints: {
+      details: string;
+      location: string;
+      time: string;
+      _id: string;
+    }[];
+  };
   onChange: (index: number, data: PassengerData) => void;
 }
 
@@ -19,6 +27,7 @@ export interface PassengerData {
 
 export const PassengerForm = ({
   seatNumber,
+  tripDetails,
   index,
   onChange,
 }: PassengerFormProps) => {
@@ -99,7 +108,6 @@ export const PassengerForm = ({
             className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
             required
           >
-         
             <option value="aadhar">Aadhar</option>
             <option value="pan">PAN</option>
           </select>
@@ -111,7 +119,6 @@ export const PassengerForm = ({
           </label>
           <input
             type="text"
-          
             name="idProofNumber"
             onChange={handleChange}
             className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
@@ -123,13 +130,21 @@ export const PassengerForm = ({
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Pickup Address
           </label>
-          <input
-            type="text"
+          <select
             name="address"
             onChange={handleChange}
             className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
             required
-          />
+          >
+            <option value="" disabled selected>
+              Select Pickup Location
+            </option>
+            {tripDetails.boardingPoints.map((point) => (
+              <option key={point._id} value={point.location}>
+                {point.location} - {point.time}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
     </motion.div>
