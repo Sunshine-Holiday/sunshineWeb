@@ -27,11 +27,16 @@ import {
 import ProtectedRoute from "./protectedRoute/protectedRouter";
 import RedirectRoute from "./protectedRoute/RedirectRoute";
 import Layout from "./layout/Layout";
+const About = React.lazy(() => import("./pages/about/About"));
 
-
+const PrivacyPolicy = React.lazy(
+  () => import("./pages/privacy/privacy-policy")
+);
 const Booked = React.lazy(() => import("./pages/booked/Booked"));
 const VerifyEmailOTP = React.lazy(() => import("./pages/auth/VerifyEmailOTP"));
-const TermsAndCondition = React.lazy(() => import("./pages/terms/TermsAndCondition"));
+const TermsAndCondition = React.lazy(
+  () => import("./pages/terms/TermsAndCondition")
+);
 const Profile = React.lazy(() => import("./pages/Profile"));
 const TripsPage = React.lazy(() => import("./pages/trips/TripsPage"));
 const OTPPage = React.lazy(() => import("./pages/auth/OTPPage"));
@@ -72,7 +77,7 @@ export const AppContent = () => {
       reduxDispatch(authError());
     }
   }, [data, error]);
-  if (isAuthLoading||isLoading) {
+  if (isAuthLoading || isLoading) {
     return <LoadingSkeleton imagelogo={imagelogo} />;
   }
   return (
@@ -110,7 +115,9 @@ export const AppContent = () => {
               </ProtectedRoute>
             }
           />
+            <Route path="/about-us" element={<About />} />
           <Route path="/gallery" element={<GalleryPage />} />
+          <Route path="/privacy-policy" element={<PrivacyPolicy />} />
           <Route path="/terms-condition" element={<TermsAndCondition />} />
           <Route path="/contact" element={<ContactPage />} />
           <Route path="/admin" element={<Navigate to="/admin/dashboard" />} />
@@ -130,7 +137,7 @@ export const AppContent = () => {
               </ProtectedRoute>
             }
           />
-                 <Route
+          <Route
             path="/booked"
             element={
               <ProtectedRoute role={user?.role}>
