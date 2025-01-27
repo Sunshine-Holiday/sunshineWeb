@@ -2,7 +2,7 @@ import { blogCredential, BlogResponse } from "@/types/blogs";
 import { apiSlice } from "../initalState";
 
 const apiWithTag = apiSlice.enhanceEndpoints({
-  addTagTypes: ["blog"],
+  addTagTypes: ["blogs"],
 });
 export const blogApiSlice = apiWithTag.injectEndpoints({
   endpoints: (builder) => ({
@@ -14,20 +14,23 @@ export const blogApiSlice = apiWithTag.injectEndpoints({
         body: credentials,
       }),
 
-      invalidatesTags: ["blog"],
+      invalidatesTags: ["blogs"],
     }),
-    updateBlogs: builder.mutation<BlogResponse, { form: blogCredential; id: string }>({
-        query: (credentials) => {
-          console.log('Blog ID:', credentials.id);  // Log the ID here
-          return {
-            url: `/api/v1/blog/update-blog/${credentials.id}`,
-            method: "PUT",
-            body: credentials.form,
-          };
-        },
-        invalidatesTags: ["blog"],
-      }),
-      
+    updateBlogs: builder.mutation<
+      BlogResponse,
+      { form: blogCredential; id: string }
+    >({
+      query: (credentials) => {
+        console.log("Blog ID:", credentials.id); // Log the ID here
+        return {
+          url: `/api/v1/blog/update-blog/${credentials.id}`,
+          method: "PUT",
+          body: credentials.form,
+        };
+      },
+      invalidatesTags: ["blogs"],
+    }),
+
     deleteBlog: builder.mutation<
       BlogResponse,
       {
@@ -41,7 +44,7 @@ export const blogApiSlice = apiWithTag.injectEndpoints({
         body: credentials,
       }),
 
-      invalidatesTags: ["blog"],
+      invalidatesTags: ["blogs"],
     }),
     getAllBlogs: builder.query<void, void>({
       query: () => ({
@@ -49,7 +52,7 @@ export const blogApiSlice = apiWithTag.injectEndpoints({
         method: "GET",
       }),
       keepUnusedDataFor: 0,
-      providesTags: ["blog"],
+      providesTags: ["blogs"],
     }),
     getBlogsID: builder.query<BlogResponse, { id: string }>({
       query: (credential: { id: string }) => {
@@ -60,7 +63,7 @@ export const blogApiSlice = apiWithTag.injectEndpoints({
         };
       },
       keepUnusedDataFor: 0,
-      providesTags: ["blog"],
+      providesTags: ["blogs"],
     }),
   }),
   overrideExisting: true,

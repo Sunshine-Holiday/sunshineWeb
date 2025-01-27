@@ -1,19 +1,15 @@
 import React from "react";
 import { motion } from "framer-motion";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { fadeInUp, staggerChildren } from "../../utils/animations";
-
-import { Plus } from "lucide-react";
-import { useDeleteBlogMutation, useGetAllBlogsQuery } from "@/store/api/blogs";
-import { toast } from "react-toastify";
+import { useGetAllBlogsQuery } from "@/store/api/blogs";
 import { BlogCard } from "./BlogCard";
+import logo from "../../asserts/Sunshine.png";
 
 // Skeleton loader component for the blog cards
-const SkeletonLoader = () => {
-  return (
-    <div className="w-full h-64 bg-gray-200 animate-pulse rounded-lg shadow-md"></div>
-  );
-};
+const SkeletonLoader = () => (
+  <div className="w-full h-64 bg-gray-200 animate-pulse rounded-lg shadow-md"></div>
+);
 
 const BlogPage = () => {
   const navigate = useNavigate();
@@ -42,39 +38,41 @@ const BlogPage = () => {
           animate="animate"
           className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
         >
-          {/* Show skeleton loader while data is loading */}
-          {isLoading
-            ? Array(6)
-                .fill(0)
-                .map((_, index) => (
-                  <motion.div
-                    key={index}
-                    variants={fadeInUp}
-                    className="w-full"
-                  >
-                    <SkeletonLoader />
-                  </motion.div>
-                ))
-            : data?.blogs.map((post) => (
-                <motion.div
-                  key={post._id}
-                  variants={fadeInUp}
-                  onClick={()=>navigate(`/blog/${post._id}`)}
-                  className="w-full"
-                >
-                  <BlogCard post={post} />
+          {isLoading ? (
+            Array(6)
+              .fill(0)
+              .map((_, index) => (
+                <motion.div key={index} variants={fadeInUp} className="w-full">
+                  <SkeletonLoader />
                 </motion.div>
-              ))}
+              ))
+          ) : data?.blogs?.length ? (
+            data.blogs.map((post) => (
+              <motion.div
+                key={post._id}
+                variants={fadeInUp}
+                onClick={() => navigate(`/blog/${post._id}`)}
+                className="w-full"
+              >
+                <BlogCard post={post} />
+              </motion.div>
+            ))
+          ) : (
+            <motion.div
+              variants={fadeInUp}
+              className="col-span-full text-center text-gray-600 text-4xl flex flex-col items-center space-y-4"
+            >
+              <img
+                src={logo}
+                alt="404 Electronics"
+                className="w-64 mx-auto mb-6 rounded-lg shadow-lg"
+              />
+              <p className="text-2xl">Adding blogs soon. Stay tuned!</p>{" "}
+              {/* Larger text */}
+            </motion.div>
+          )}
         </motion.div>
       </div>
-
-      {/* Floating Action Button */}
-      {/* <button
-        className="fixed bottom-6 sm:bottom-8 right-6 sm:right-8 bg-blue-600 text-white p-3 sm:p-4 rounded-full shadow-lg hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-300"
-        aria-label="Create New Blog"
-      >
-        <Plus className="w-5 h-5 sm:w-6 sm:h-6" />
-      </button> */}
     </div>
   );
 };

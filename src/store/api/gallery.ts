@@ -15,6 +15,16 @@ export const GalleryApiSlice = apiWithTag.injectEndpoints({
 
       invalidatesTags: ["gallery"],
     }),
+    deleteGallery: builder.mutation<void, void>({
+      query: (credentials) => ({
+        url: `/api/v1/gallery/${credentials._id}`,
+        method: "DELETE",
+
+        body: credentials,
+      }),
+
+      invalidatesTags: ["gallery"],
+    }),
 
     getGallery: builder.query<void, void>({
       query: () => ({
@@ -28,4 +38,4 @@ export const GalleryApiSlice = apiWithTag.injectEndpoints({
   overrideExisting: true,
 });
 
-export const { useCreateGalleryMutation, useGetGalleryQuery } = GalleryApiSlice;
+export const { useCreateGalleryMutation, useGetGalleryQuery,useDeleteGalleryMutation } = GalleryApiSlice;

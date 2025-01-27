@@ -1,16 +1,24 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Masonry from "react-masonry-css";
 import { motion } from "framer-motion";
 import { X } from "lucide-react";
+import { FaPlus } from "react-icons/fa"; // Import the plus icon
 import { fadeInUp } from "../../utils/animations";
-import { media } from "../../constants/trip";
+
+import { useNavigate } from "react-router-dom";
+import { useGetGalleryQuery } from "@/store/api/gallery";
+
+interface MediaFile {
+  public_id: string;
+  url: string;
+}
 
 type MediaItem = {
-  id: number;
-  src?: string;
-  videoSrc?: string;
+  _id: string;
+  mediaType: "image" | "video"; // Enum type
+  file: MediaFile;
   location: string;
-  date: string;
+  date: Date;
 };
 
 const breakpoints = {
@@ -21,7 +29,29 @@ const breakpoints = {
 };
 
 const GalleryPage: React.FC = () => {
+  const navigate = useNavigate();
+  const [gallery, setGallery] = useState<MediaItem[]>([]);
+  const { data, isLoading } = useGetGalleryQuery();
   const [selectedItem, setSelectedItem] = useState<MediaItem | null>(null);
+
+  useEffect(() => {
+    if (data) {
+      console.log(data);
+      setGallery(data);
+    }
+  }, [data]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        closeModal();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, []);
 
   const handleItemClick = (item: MediaItem) => {
     setSelectedItem(item);
@@ -29,6 +59,63 @@ const GalleryPage: React.FC = () => {
 
   const closeModal = () => {
     setSelectedItem(null);
+  };
+
+  // Conditional rendering: Check if data is loading or empty
+  const renderGallery = () => {
+    if (isLoading) {
+      return <p>Loading gallery...</p>;
+    }
+
+    if (gallery.length === 0) {
+      return (
+<div className="flex items-center justify-center min-h-screen">
+  <p className="text-3xl font-semibold text-gray-500">Gallery images coming soon!</p>
+</div>
+
+      );
+    }
+
+    return (
+      <Masonry
+        breakpointCols={breakpoints}
+        className="flex w-auto gap-1"
+        columnClassName="masonry-grid_column"
+      >
+        {gallery.map((item: MediaItem) => (
+          <motion.div
+            key={item._id}
+            variants={fadeInUp}
+            className="relative rounded-lg overflow-hidden mt-4 cursor-pointer"
+            onClick={() => handleItemClick(item)}
+          >
+            {item.mediaType === "image" ? (
+              <img
+                src={item.file.url}
+                alt={item.location}
+                className="w-full h-auto object-cover"
+              />
+            ) : (
+              <video
+                src={item.file.url}
+                className="w-full h-auto object-cover"
+                controls
+                muted
+              />
+            )}
+            <div className="absolute inset-0 bg-black bg-opacity-30 opacity-0 hover:opacity-100 transition-opacity duration-300 flex items-end p-4">
+              <div className="text-white">
+                <span className="font-medium">{item.location}</span>
+                <br />
+                <span className="text-sm">
+                  {new Date(item.date).toLocaleDateString("en-GB")}
+                </span>
+              </div>
+            </div>
+          </motion.div>
+        ))}
+      </Masonry>
+    );
   };
 
   return (
@@ -48,42 +135,8 @@ const GalleryPage: React.FC = () => {
           </p>
         </motion.div>
 
-        <Masonry
-          breakpointCols={breakpoints}
-          className="flex w-auto gap-1"
-          columnClassName="masonry-grid_column"
-        >
-          {media.map((item: MediaItem) => (
-            <motion.div
-              key={item.id}
-              variants={fadeInUp}
-              className="relative rounded-lg overflow-hidden mt-4 cursor-pointer"
-              onClick={() => handleItemClick(item)}
-            >
-              {item.src ? (
-                <img
-                  src={item.src}
-                  alt={item.location}
-                  className="w-full h-auto object-cover"
-                />
-              ) : (
-                <video
-                  src={item.videoSrc}
-                  className="w-full h-auto object-cover"
-                  controls
-                  muted
-                />
-              )}
-              <div className="absolute inset-0 bg-black bg-opacity-30 opacity-0 hover:opacity-100 transition-opacity duration-300 flex items-end p-4">
-                <div className="text-white">
-                  <span className="font-medium">{item.location}</span>
-                  <br />
-                  <span className="text-sm">{item.date}</span>
-                </div>
-              </div>
-            </motion.div>
-          ))}
-        </Masonry>
+        {/* Render the gallery content */}
+        {renderGallery()}
       </div>
 
       {selectedItem && (
@@ -101,34 +154,39 @@ const GalleryPage: React.FC = () => {
             >
               <X size={24} />
             </button>
-            <div className="flex items-center justify-center" style={{ height: "50%" }}>
-  {selectedItem.src ? (
-    <img
-      src={selectedItem.src}
-      alt={selectedItem.location}
-      className="object-cover"
-      style={{ width: "80%", height: "80%" }}
-    />
-  ) : (
-    <video
-      src={selectedItem.videoSrc}
-      className="object-cover w-full h-full"
-      style={{ maxWidth: "100%", maxHeight: "80vh", objectFit: "contain" }}
-      controls
-      autoPlay
-      muted
-    />
-  )}
-</div>
+            <div
+              className="flex items-center justify-center"
+              style={{ height: "50%" }}
+            >
+              {selectedItem.mediaType === "image" ? (
+                <img
+                  src={selectedItem.file.url}
+                  alt={selectedItem.location}
+                  className="object-cover"
+                  style={{ width: "80%", height: "80%" }}
+                />
+              ) : (
+                <video
+                  src={selectedItem.file.url}
+                  className="object-cover w-full h-full"
+                  style={{
+                    maxWidth: "100%",
+                    maxHeight: "80vh",
+                    objectFit: "contain",
+                  }}
+                  controls
+                  autoPlay
+                  muted
+                />
+              )}
+            </div>
 
             <div className="p-6">
               <h2 className="text-2xl font-bold text-gray-900 mb-2">
                 {selectedItem.location}
               </h2>
-              <p className="text-gray-600">Date: {selectedItem.date}</p>
-              <p className="text-gray-600 mt-4">
-                Description: Lorem ipsum dolor sit amet, consectetur adipiscing
-                elit. Pellentesque ac justo vel dui consectetur aliquam.
+              <p className="text-gray-600">
+                Date: {new Date(selectedItem.date).toLocaleDateString("en-GB")}
               </p>
             </div>
           </div>

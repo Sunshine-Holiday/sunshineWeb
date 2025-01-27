@@ -6,13 +6,15 @@ import { FaPlus } from "react-icons/fa"; // Import the plus icon
 import { fadeInUp } from "../../utils/animations";
 
 import { useNavigate } from "react-router-dom";
-import { useGetGalleryQuery } from "@/store/api/gallery";
+import { useGetGalleryQuery, useDeleteGalleryMutation } from "@/store/api/gallery";
+
 interface MediaFile {
   public_id: string;
   url: string;
 }
+
 type MediaItem = {
-  _id:string
+  _id: string;
   mediaType: "image" | "video"; // Enum type
   file: MediaFile;
   location: string;
@@ -28,12 +30,14 @@ const breakpoints = {
 
 const GalleryPage: React.FC = () => {
   const navigate = useNavigate();
-  const [gallery, setGallery] = useState([]);
+  const [gallery, setGallery] = useState<MediaItem[]>([]);
   const { data, isLoading } = useGetGalleryQuery();
   const [selectedItem, setSelectedItem] = useState<MediaItem | null>(null);
+  const [deleteGalleryItem, { isLoading: isDeleting }] = useDeleteGalleryMutation(); // Hook for deletion
+  const [loadingId, setLoadingId] = useState<string | null>(null); // Track item being deleted
+
   useEffect(() => {
     if (data) {
-      console.log(data);
       setGallery(data);
     }
   }, [data]);
@@ -59,9 +63,20 @@ const GalleryPage: React.FC = () => {
   };
 
   const handleAddItemClick = () => {
-    console.log("Add new item clicked");
     navigate("/admin/gallery/add-gallery");
-    // You can implement functionality to add a new item to the gallery here
+  };
+
+  const handleDeleteItem = async (_id: string) => {
+    console.log(_id)
+    setLoadingId(_id); // Start loading for the specific item
+    try {
+      await deleteGalleryItem({_id}).unwrap(); // Delete gallery item
+      setGallery(gallery.filter((item) => item._id !== _id)); // Update gallery state
+    } catch (error) {
+      console.error("Error deleting item:", error);
+    } finally {
+      setLoadingId(null); // Stop loading
+    }
   };
 
   return (
@@ -73,9 +88,7 @@ const GalleryPage: React.FC = () => {
           animate="animate"
           className="text-center mb-12"
         >
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">
-            Travel Gallery
-          </h1>
+          <h1 className="text-4xl font-bold text-gray-900 mb-4">Travel Gallery</h1>
           <p className="text-gray-600 max-w-2xl mx-auto">
             Capturing moments from our amazing adventures
           </p>
@@ -107,6 +120,7 @@ const GalleryPage: React.FC = () => {
                   muted
                 />
               )}
+
               <div className="absolute inset-0 bg-black bg-opacity-30 opacity-0 hover:opacity-100 transition-opacity duration-300 flex items-end p-4">
                 <div className="text-white">
                   <span className="font-medium">{item.location}</span>
@@ -116,6 +130,22 @@ const GalleryPage: React.FC = () => {
                   </span>
                 </div>
               </div>
+
+              {/* Delete Button */}
+              <button
+                className="absolute top-4 right-4 bg-red-600 text-white p-2 rounded-full shadow-lg hover:bg-red-700 focus:outline-none"
+                onClick={(e) => {
+                  e.stopPropagation(); // Prevent modal from opening on button click
+                  handleDeleteItem(item._id);
+                }}
+                disabled={isDeleting || loadingId === item._id} // Disable while deleting
+              >
+                {isDeleting || loadingId === item._id ? (
+                  <span className="loader">Loading...</span>
+                ) : (
+                  <X size={18} />
+                )}
+              </button>
             </motion.div>
           ))}
         </Masonry>
@@ -169,11 +199,6 @@ const GalleryPage: React.FC = () => {
               </h2>
               <p className="text-gray-600">
                 Date: {new Date(selectedItem.date).toLocaleDateString("en-GB")}
-              </p>
-
-              <p className="text-gray-600 mt-4">
-                Description: Lorem ipsum dolor sit amet, consectetur adipiscing
-                elit. Pellentesque ac justo vel dui consectetur aliquam.
               </p>
             </div>
           </div>

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Link, useNavigate } from "react-router-dom";
 import { fadeInUp, staggerChildren } from "../../utils/animations";
@@ -8,7 +8,6 @@ import { Plus } from "lucide-react";
 import { useDeleteBlogMutation, useGetAllBlogsQuery } from "@/store/api/blogs";
 import { toast } from "react-toastify";
 
-// Skeleton loader component for the blog cards
 const SkeletonLoader = () => {
   return (
     <div className="w-full h-64 bg-gray-200 animate-pulse rounded-lg shadow-md"></div>
@@ -17,26 +16,51 @@ const SkeletonLoader = () => {
 
 const BlogPage = () => {
   const navigate = useNavigate();
+  const [blogs, setBlogs] = useState([]);
   const { data, isLoading } = useGetAllBlogsQuery();
   const [deleteBlogsID] = useDeleteBlogMutation();
-  const handleCreateBlog = () => {
-    navigate("/admin/blog/create"); // Redirect to the blog creation page
-  };
-  const deleteBlog = async (id: string) => {
-    console.log("Deleting blog with id:", id); // Log the id to the console
-    try {
-      const resp = await deleteBlogsID({ id }).unwrap();
-      toast.success(resp.message);
-      console.log(resp);
-    } catch (error) {
-      console.log(error);
+  const [isModalOpen, setModalOpen] = useState(false);
+  const [blogToDelete, setBlogToDelete] = useState(null);
+  useEffect(() => {
+    if (data) {
+      setBlogs(data?.blogs);
     }
+  }, [data]);
+
+  const handleCreateBlog = () => {
+    navigate("/admin/blog/create");
   };
 
-  const editBlogs = (id:string) => {
-    navigate(`/admin/blog/edit/${id}`);
-    console.log("edit blog with id:", id); // Log the id to the console
+  const confirmDelete = (id) => {
+    setBlogToDelete(id);
+    setModalOpen(true);
   };
+
+  const closeModal = () => {
+    setModalOpen(false);
+    setBlogToDelete(null);
+  };
+
+  const deleteBlog = async () => {
+    if (blogToDelete) {
+      try {
+        const resp = await deleteBlogsID({ id: blogToDelete }).unwrap();
+        toast.success(resp.message);
+        setBlogs((prevBlogs) =>
+          prevBlogs.filter((blog) => blog._id !== blogToDelete)
+        );
+        closeModal();
+      } catch (error) {
+        toast.error("Failed to delete the blog");
+        console.error(error);
+      }
+    }
+  };
+  
+  const editBlogs = (id) => {
+    navigate(`/admin/blog/edit/${id}`);
+  };
+
   return (
     <div className="relative min-h-screen bg-gray-50 pt-24 pb-16">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -60,7 +84,6 @@ const BlogPage = () => {
           animate="animate"
           className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
         >
-          {/* Show skeleton loader while data is loading */}
           {isLoading
             ? Array(6)
                 .fill(0)
@@ -73,7 +96,7 @@ const BlogPage = () => {
                     <SkeletonLoader />
                   </motion.div>
                 ))
-            : data?.blogs.map((post) => (
+            : blogs.map((post) => (
                 <motion.div
                   key={post._id}
                   variants={fadeInUp}
@@ -81,9 +104,7 @@ const BlogPage = () => {
                 >
                   <BlogCard
                     post={post}
-                    onDelete={(id) => {
-                      deleteBlog(id);
-                    }}
+                    onDelete={() => confirmDelete(post._id)}
                     onEdit={(id) => {
                       editBlogs(id);
                     }}
@@ -101,6 +122,32 @@ const BlogPage = () => {
       >
         <Plus className="w-5 h-5 sm:w-6 sm:h-6" />
       </button>
+
+      {/* Confirmation Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg">
+            <h3 className="text-lg font-bold mb-4">Confirm Deletion</h3>
+            <p className="text-gray-700 mb-6">
+              Are you sure you want to delete this blog?
+            </p>
+            <div className="flex items-center justify-end space-x-4">
+              <button
+                onClick={closeModal}
+                className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={deleteBlog}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

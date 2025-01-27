@@ -17,11 +17,10 @@ interface BlogCardProps {
     author: string;
     category: string;
   };
-  onEdit: (id: string) => void; // Handler for edit
-  onDelete: (id: string) => void; // Handler for delete
+
 }
 
-export const BlogCard = ({ post, onEdit, onDelete }: BlogCardProps) => {
+export const BlogCard = ({ post }: BlogCardProps) => {
   const formattedDate = new Date(post.createdAt).toLocaleDateString("en-US", {
     year: "numeric",
     month: "short",
