@@ -39,7 +39,7 @@ export const Navbar: React.FC = () => {
         className="fixed w-full bg-white/70 backdrop-blur-sm z-50 shadow-sm"
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
+          <div className="flex justify-around items-center h-16">
             <Link to="/" className="flex items-center space-x-2">
               <img className="h-24 w-24 text-blue-600" src={logo} alt="Logo" />
               <span className="text-xl font-bold text-gray-900">
@@ -56,6 +56,7 @@ export const Navbar: React.FC = () => {
               {user ? (
                 <>
                   <NavLink to="/profile">Profile</NavLink>
+                  <NavLink to="/booked">Booked</NavLink>
                   <motion.button
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
@@ -116,6 +117,13 @@ export const Navbar: React.FC = () => {
                   <NavLink to="/profile" onClick={handleMobileMenuToggle}>
                     Profile
                   </NavLink>
+                  
+                )}
+                      {user && (
+                  <NavLink to="/booked" onClick={handleMobileMenuToggle}>
+                    Booked
+                  </NavLink>
+                  
                 )}
                     {user && (
                   <NavLink to="/admin" onClick={handleMobileMenuToggle}>

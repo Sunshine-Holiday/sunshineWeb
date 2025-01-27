@@ -29,6 +29,7 @@ import RedirectRoute from "./protectedRoute/RedirectRoute";
 import Layout from "./layout/Layout";
 
 
+const Booked = React.lazy(() => import("./pages/booked/Booked"));
 const VerifyEmailOTP = React.lazy(() => import("./pages/auth/VerifyEmailOTP"));
 const TermsAndCondition = React.lazy(() => import("./pages/terms/TermsAndCondition"));
 const Profile = React.lazy(() => import("./pages/Profile"));
@@ -126,6 +127,14 @@ export const AppContent = () => {
             element={
               <ProtectedRoute role={user?.role}>
                 <BookingPage />
+              </ProtectedRoute>
+            }
+          />
+                 <Route
+            path="/booked"
+            element={
+              <ProtectedRoute role={user?.role}>
+                <Booked />
               </ProtectedRoute>
             }
           />

@@ -49,6 +49,15 @@ export const BookingApiSlice = apiWithTag.injectEndpoints({
       keepUnusedDataFor: 0,
       providesTags: ["booking"],
     }),
+    getuserAllbooking: builder.query<any, any>({
+      query: () => ({
+        url: `/api/v1/booking/user`,
+        method: "GET",
+     
+      }),
+      keepUnusedDataFor: 0,
+      providesTags: ["booking"],
+    }),
   }),
   overrideExisting: true,
 });
@@ -58,4 +67,5 @@ export const {
   useDeleteTtipsMutation,
   useGetbookingIDQuery,
   useGetbookingQuery,
+  useGetuserAllbookingQuery
 } = BookingApiSlice;
