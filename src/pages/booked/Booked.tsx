@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/table";
 import { FaSpinner } from "react-icons/fa"; // Loading spinner icon
 import "react-loading-skeleton/dist/skeleton.css"; // Skeleton CSS
+import { useNavigate } from "react-router-dom";
 
 // Component for displaying a passenger's details
 const PassengerDetails = ({ passenger }) => (
@@ -42,6 +43,7 @@ const LoadingState = () => (
 const Booked = () => {
   const [bookings, setBookings] = useState<any[]>([]);
   const { data, isError, isLoading } = useGetuserAllbookingQuery({});
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (data && data.bookings) {
@@ -81,7 +83,14 @@ const Booked = () => {
           </TableHeader>
           <TableBody>
             {bookings.map((booking) => (
-              <TableRow key={booking._id} className="border-b hover:bg-gray-50">
+              <TableRow
+                key={booking._id}
+                className="border-b hover:bg-gray-50 cursor-pointer"
+                onClick={() => {
+                  navigate(`/booked/${booking._id}`);
+                  console.log(`Navigating to user ${booking._id}`);
+                }}
+              >
                 <TableCell className="px-4 py-2 text-sm text-gray-700">
                   {booking.trip.title}
                 </TableCell>

@@ -8,9 +8,9 @@ import {
   TableCell,
   TableHead,
 } from "@/components/ui/table";
-import { FaSpinner } from "react-icons/fa"; // Importing React Icon for loading spinner
-import Skeleton from "react-loading-skeleton"; // Importing Skeleton for loading state
-import "react-loading-skeleton/dist/skeleton.css"; // Skeleton CSS
+import { FaSpinner } from "react-icons/fa";
+import Skeleton from "react-loading-skeleton";
+import "react-loading-skeleton/dist/skeleton.css";
 import { useNavigate } from "react-router-dom";
 
 const Booked = () => {
@@ -18,13 +18,12 @@ const Booked = () => {
   const [bookings, setBookings] = useState<any>([]);
   const { data, isError, isLoading } = useGetbookingQuery({ filter });
   const navigate = useNavigate();
+
   useEffect(() => {
     if (!isLoading) {
       if (data && data.bookings) {
         setBookings(data.bookings);
         console.log(data.message);
-        console.log(JSON.stringify(data.bookings, null, 2));
-        console.log(data.bookings);
       } else if (data.bookings.length === 0) {
         setBookings([]);
       }
@@ -90,62 +89,59 @@ const Booked = () => {
               <TableHead className="px-4 py-2 text-left text-sm font-medium text-gray-700">
                 Passengers
               </TableHead>
+              <TableHead className="px-4 py-2 text-left text-sm font-medium text-gray-700">
+                View Details
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {bookings.map((booking) => (
               <TableRow key={booking._id} className="border-b hover:bg-gray-50">
-                <div
-                  onClick={() => {
-                    navigate(`/admin/booked/${booking._id}`);
-
-                    console.log(booking._id);
-                  }}
-                >
-                  <TableCell className="px-4 py-2 text-sm text-gray-700">
-                    {booking.trip.title}
-                  </TableCell>
-                  <TableCell className="px-4 py-2 text-sm text-gray-700">
-                    {booking.trip.location}
-                  </TableCell>
-                  <TableCell className="px-4 py-2 text-sm text-gray-700">
-                    {booking.price}
-                  </TableCell>
-                  <TableCell className="px-4 py-2 text-sm text-gray-700">
-                    {booking.user.email}
-                  </TableCell>
-                  <TableCell className="px-4 py-2 text-sm text-gray-700">
-                    {booking.user.phone}
-                  </TableCell>
-                  <TableCell className="px-4 py-2 text-sm text-gray-700">
-                    {new Date(booking.selectedDate).toLocaleString()}
-                  </TableCell>
-                  <TableCell className="px-4 py-2 text-sm text-gray-700">
-                    {booking.selectedSeats.join(", ")}
-                  </TableCell>
-                  <TableCell className="px-4 py-2 text-sm text-gray-700">
-                    {booking.passengers.map((passenger, index) => (
-                      <div key={index} className="text-sm text-gray-700">
-                        <div>
-                          <strong>Name:</strong> {passenger.name || "Unnamed"}
-                        </div>
-                        <div>
-                          <strong>Age:</strong> {passenger.age}
-                        </div>
-                        <div>
-                          <strong>Gender:</strong> {passenger.gender}
-                        </div>
-                        <div>
-                          <strong>Address:</strong> {passenger.address}
-                        </div>
-                        <div>
-                          <strong>ID Proof:</strong> {passenger.idProof} (
-                          {passenger.idProofNumber})
-                        </div>
-                      </div>
-                    ))}
-                  </TableCell>
-                </div>
+                <TableCell className="px-4 py-2 text-sm text-gray-700">
+                  {booking.trip.title}
+                </TableCell>
+                <TableCell className="px-4 py-2 text-sm text-gray-700">
+                  {booking.trip.location}
+                </TableCell>
+                <TableCell className="px-4 py-2 text-sm text-gray-700">
+                  {booking.price}
+                </TableCell>
+                <TableCell className="px-4 py-2 text-sm text-gray-700">
+                  {booking.user.email}
+                </TableCell>
+                <TableCell className="px-4 py-2 text-sm text-gray-700">
+                  {booking.user.phone}
+                </TableCell>
+                <TableCell className="px-4 py-2 text-sm text-gray-700">
+                  {new Date(booking.selectedDate).toLocaleString()}
+                </TableCell>
+                <TableCell className="px-4 py-2 text-sm text-gray-700">
+                  {booking.selectedSeats.join(", ")}
+                </TableCell>
+                <TableCell className="px-4 py-2 text-sm text-gray-700">
+                  {booking.passengers.map((passenger, index) => (
+                    <div key={index}>
+                      <strong>Name:</strong> {passenger.name || "Unnamed"}
+                      <br />
+                      <strong>Age:</strong> {passenger.age}
+                      <br />
+                      <strong>Gender:</strong> {passenger.gender}
+                      <br />
+                      <strong>Address:</strong> {passenger.address}
+                      <br />
+                      <strong>ID Proof:</strong> {passenger.idProof} (
+                      {passenger.idProofNumber})
+                    </div>
+                  ))}
+                </TableCell>
+                <TableCell className="px-4 py-2 text-sm text-gray-700">
+                  <button
+                    className="text-blue-500 hover:underline"
+                    onClick={() => navigate(`/admin/booked/${booking._id}`)}
+                  >
+                    View Details
+                  </button>
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>

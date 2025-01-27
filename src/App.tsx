@@ -27,6 +27,7 @@ import {
 import ProtectedRoute from "./protectedRoute/protectedRouter";
 import RedirectRoute from "./protectedRoute/RedirectRoute";
 import Layout from "./layout/Layout";
+import BookingDetail from "./pages/admin/BookingDetail";
 const About = React.lazy(() => import("./pages/about/About"));
 
 const PrivacyPolicy = React.lazy(
@@ -142,6 +143,14 @@ export const AppContent = () => {
             element={
               <ProtectedRoute role={user?.role}>
                 <Booked />
+              </ProtectedRoute>
+            }
+          />
+                <Route
+            path="/booked/:id"
+            element={
+              <ProtectedRoute role={user?.role}>
+                <BookingDetail />
               </ProtectedRoute>
             }
           />

@@ -12,6 +12,7 @@ const BookingDetail = () => {
 
   useEffect(() => {
     if (data && data.booking) {
+     
       const selectedBooking = data.booking;
       setBooking(selectedBooking);
     }
@@ -229,6 +230,7 @@ const BookingDetail = () => {
   }
 
   if (isError) {
+    console.log(error)
     return (
       <div className="h-screen flex items-center justify-center">
         Error fetching booking details.
