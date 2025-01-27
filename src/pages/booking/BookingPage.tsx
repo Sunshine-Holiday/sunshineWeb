@@ -19,7 +19,9 @@ const BookingPage = () => {
 
   const [trip, setTrip] = useState(null);
   const [selectedSeats, setSelectedSeats] = useState<string[]>([]);
-  const [passengers, setPassengers] = useState<PassengerData[]>([]);
+  const [passengers, setPassengers] = useState<PassengerData[]>([
+    
+  ]);
   const [step, setStep] = useState<"select-seats" | "passenger-details">(
     INITIAL_STEP
   );
@@ -66,7 +68,7 @@ const BookingPage = () => {
   const handlePassengerChange = (index: number, data: PassengerData) => {
     setPassengers((prev) => {
       const updatedPassengers = [...prev];
-      updatedPassengers[index] = data;
+      updatedPassengers[index] = data; // Update the passenger data at the specified index
       return updatedPassengers;
     });
   };
@@ -95,7 +97,7 @@ const BookingPage = () => {
     busType: trip.busSize || "Standard",
     amenities: trip.amenities || [],
     price: trip?.price,
-    boardingPoints:trip?.boardingPoints||[]
+    boardingPoints: trip?.boardingPoints || []
   };
 
   return (
@@ -137,6 +139,7 @@ const BookingPage = () => {
                     seatNumber={seat}
                     index={index}
                     onChange={handlePassengerChange}
+                    passengers={passengers} // Passing passengers state to form
                   />
                 ))}
               </div>

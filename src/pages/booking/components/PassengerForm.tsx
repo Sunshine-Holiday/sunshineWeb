@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { fadeInUp } from "../../../utils/animations";
 
@@ -14,13 +14,14 @@ interface PassengerFormProps {
     }[];
   };
   onChange: (index: number, data: PassengerData) => void;
+  passengers: PassengerData[];
 }
 
 export interface PassengerData {
   name: string;
   age: string;
   gender: "male" | "female" | "other";
-  idProof: "aadhar" | "pan" | "";
+  idProof: "aadhar" | "pan";
   idProofNumber: string;
   address: string;
 }
@@ -30,21 +31,71 @@ export const PassengerForm = ({
   tripDetails,
   index,
   onChange,
+  passengers,
 }: PassengerFormProps) => {
+  const [errors, setErrors] = useState({
+    name: false,
+    age: false,
+    gender: false,
+    idProof: false,
+    idProofNumber: false,
+    address: false,
+  });
+
+  const [errorMessages, setErrorMessages] = useState({
+    name: "",
+    age: "",
+    gender: "",
+    idProof: "",
+    idProofNumber: "",
+    address: "",
+  });
+
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
     const { name, value } = e.target;
 
-    onChange(index, {
-      name: name === "name" ? value : "",
-      age: name === "age" ? value : "",
-      gender:
-        name === "gender" ? (value as "male" | "female" | "other") : "male",
-      idProof: name === "idProof" ? (value as "aadhar" | "pan" | "") : "",
-      idProofNumber: name === "idProofNumber" ? value : "",
-      address: name === "address" ? value : "",
+    const updatedData: PassengerData = {
+      ...passengers[index],
+      [name]: value,
+    };
+
+    onChange(index, updatedData);
+
+    setErrors((prevErrors) => ({
+      ...prevErrors,
+      [name]: value.trim() === "",
+    }));
+  };
+
+  const validateFields = () => {
+    let isValid = true;
+    let newErrors = { ...errors };
+    let newErrorMessages = { ...errorMessages };
+
+    Object.keys(errors).forEach((key) => {
+      const field = key as keyof typeof errors;
+      if (!passengers[index][field]?.trim()) {
+        newErrors[field] = true;
+        newErrorMessages[field] = `${field} is required`;
+        isValid = false;
+      } else {
+        newErrors[field] = false;
+        newErrorMessages[field] = "";
+      }
     });
+
+    setErrors(newErrors);
+    setErrorMessages(newErrorMessages);
+    return isValid;
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (validateFields()) {
+      console.log("Form submitted", passengers[index]);
+    }
   };
 
   return (
@@ -55,98 +106,147 @@ export const PassengerForm = ({
       <h3 className="font-medium mb-4">
         Passenger {index + 1} - Seat {seatNumber}
       </h3>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Full Name
-          </label>
-          <input
-            type="text"
-            name="name"
-            onChange={handleChange}
-            className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-            required
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Age
-          </label>
-          <input
-            type="number"
-            name="age"
-            min="1"
-            max="120"
-            onChange={handleChange}
-            className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-            required
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Gender
-          </label>
-          <select
-            name="gender"
-            onChange={handleChange}
-            className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-            required
-          >
-            <option value="male">Male</option>
-            <option value="female">Female</option>
-            <option value="other">Other</option>
-          </select>
-        </div>
+      <form onSubmit={handleSubmit}>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Full Name
+            </label>
+            <input
+              type="text"
+              name="name"
+              value={passengers[index]?.name || ""}
+              onChange={handleChange}
+              className={`w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${
+                errors.name ? "border-red-500" : ""
+              }`}
+              aria-invalid={errors.name ? "true" : "false"}
+              required
+            />
+            {errors.name && <p className="text-red-500 text-xs">{errorMessages.name}</p>}
+          </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            ID Proof (Aadhar/PAN)
-          </label>
-          <select
-            name="idProof"
-            onChange={handleChange}
-            className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-            required
-          >
-            <option value="aadhar">Aadhar</option>
-            <option value="pan">PAN</option>
-          </select>
-        </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Age
+            </label>
+            <input
+              type="number"
+              name="age"
+              value={passengers[index]?.age || ""}
+              min="1"
+              max="120"
+              onChange={handleChange}
+              className={`w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${
+                errors.age ? "border-red-500" : ""
+              }`}
+              aria-invalid={errors.age ? "true" : "false"}
+              required
+            />
+            {errors.age && <p className="text-red-500 text-xs">{errorMessages.age}</p>}
+          </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            ID Proof Number
-          </label>
-          <input
-            type="text"
-            name="idProofNumber"
-            onChange={handleChange}
-            className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-            required
-          />
-        </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Gender
+            </label>
+            <select
+              name="gender"
+              value={passengers[index]?.gender || ""}
+              onChange={handleChange}
+              className={`w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${
+                errors.gender ? "border-red-500" : ""
+              }`}
+              aria-invalid={errors.gender ? "true" : "false"}
+              required
+            >
+              <option value="" disabled>Select Gender</option>
+              <option value="male">Male</option>
+              <option value="female">Female</option>
+              <option value="other">Other</option>
+            </select>
+            {errors.gender && <p className="text-red-500 text-xs">{errorMessages.gender}</p>}
+          </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Pickup Address
-          </label>
-          <select
-            name="address"
-            onChange={handleChange}
-            className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-            required
-          >
-            <option value="" disabled selected>
-              Select Pickup Location
-            </option>
-            {tripDetails.boardingPoints.map((point) => (
-              <option key={point._id} value={point.location}>
-                {point.location} - {point.time}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              ID Proof (Aadhar/PAN)
+            </label>
+            <select
+              name="idProof"
+              value={passengers[index]?.idProof || ""}
+              onChange={handleChange}
+              className={`w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${
+                errors.idProof ? "border-red-500" : ""
+              }`}
+              aria-invalid={errors.idProof ? "true" : "false"}
+              required
+            >
+              <option value="" disabled>Select ID Proof</option>
+              <option value="aadhar">Aadhar</option>
+              <option value="pan">PAN</option>
+            </select>
+            {errors.idProof && <p className="text-red-500 text-xs">{errorMessages.idProof}</p>}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              ID Proof Number
+            </label>
+            <input
+              type="text"
+              name="idProofNumber"
+              value={passengers[index]?.idProofNumber || ""}
+              onChange={handleChange}
+              className={`w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${
+                errors.idProofNumber ? "border-red-500" : ""
+              }`}
+              aria-invalid={errors.idProofNumber ? "true" : "false"}
+              required
+            />
+            {errors.idProofNumber && <p className="text-red-500 text-xs">{errorMessages.idProofNumber}</p>}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Pickup Address
+            </label>
+            <select
+              name="address"
+              value={passengers[index]?.address || ""}
+              onChange={handleChange}
+              className={`w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${
+                errors.address ? "border-red-500" : ""
+              }`}
+              aria-invalid={errors.address ? "true" : "false"}
+              required
+            >
+              <option value="" disabled>
+                Select Pickup Location
               </option>
-            ))}
-          </select>
+              {tripDetails.boardingPoints.length > 0 ? (
+                tripDetails.boardingPoints.map((point) => (
+                  <option key={point._id} value={point.location}>
+                    {point.location} - {point.time}
+                  </option>
+                ))
+              ) : (
+                <option disabled>No boarding points available</option>
+              )}
+            </select>
+            {errors.address && <p className="text-red-500 text-xs">{errorMessages.address}</p>}
+          </div>
         </div>
-      </div>
+
+        <div className="mt-4">
+          <button
+            type="submit"
+            className="w-full py-2 bg-blue-500 text-white rounded-md focus:ring-4 focus:ring-blue-500"
+          >
+            Submit
+          </button>
+        </div>
+      </form>
     </motion.div>
   );
 };
