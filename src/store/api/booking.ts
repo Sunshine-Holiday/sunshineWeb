@@ -5,7 +5,7 @@ const apiWithTag = apiSlice.enhanceEndpoints({
 });
 export const BookingApiSlice = apiWithTag.injectEndpoints({
   endpoints: (builder) => ({
-    createbooking: builder.mutation<void, void>({
+    createbooking: builder.mutation<any, any>({
       query: (credentials) => ({
         url: "/api/v1/booking",
         method: "post",
@@ -15,7 +15,7 @@ export const BookingApiSlice = apiWithTag.injectEndpoints({
 
       invalidatesTags: ["booking"],
     }),
-    editTtips: builder.mutation<void, void>({
+    editTtips: builder.mutation<any, any>({
       query: (credentials) => ({
         url: `/api/v1/booking/${credentials._id}`,
         method: "PUT",
@@ -24,7 +24,7 @@ export const BookingApiSlice = apiWithTag.injectEndpoints({
 
       invalidatesTags: ["booking"],
     }),
-    deleteTtips: builder.mutation<void, void>({
+    deleteTtips: builder.mutation<any, any>({
       query: (id) => ({
         url: `/api/v1/booking/${id}`,
         method: "DELETE",
@@ -32,7 +32,7 @@ export const BookingApiSlice = apiWithTag.injectEndpoints({
 
       invalidatesTags: ["booking"],
     }),
-    getbookingID: builder.query<void, void>({
+    getbookingID: builder.query<any, any>({
       query: (credentials: any) => ({
         url: `/api/v1/booking/${credentials.id}`,
         method: "GET",

@@ -11,8 +11,6 @@ import { useCreatebookingMutation } from "@/store/api/booking";
 
 const SEAT_PRICE = 1499;
 const INITIAL_STEP = "select-seats";
-
-// Simulated booked seats
 const BOOKED_SEATS = ["3", "8", "12", "15", "22"];
 
 const BookingPage = () => {
@@ -25,35 +23,26 @@ const BookingPage = () => {
   const [step, setStep] = useState<"select-seats" | "passenger-details">(
     INITIAL_STEP
   );
+  const [loading, setLoading] = useState(false);
 
   const { data, isLoading, isError } = useGettripsIDQuery({ id: tripId });
 
   useEffect(() => {
     if (data) {
-      console.log(data);
       setTrip(data);
     }
   }, [data]);
 
   const isTripToday = () => {
-    const today = new Date().toDateString(); // Current date
-    if (
-      trip?.startDates?.some(
-        (date: string) => new Date(date).toDateString() === today
-      )
-    ) {
-      console.log("One of the trip dates matches today's date!");
-      return true;
-    }
-    return false;
+    const today = new Date().toDateString();
+    return trip?.startDates?.some(
+      (date: string) => new Date(date).toDateString() === today
+    );
   };
 
   useEffect(() => {
-    if (trip) {
-      const matchFound = isTripToday();
-      if (matchFound) {
-        console.log("Trip is happening today!");
-      }
+    if (trip && isTripToday()) {
+      console.log("Trip is happening today!");
     }
   }, [trip]);
 
@@ -68,57 +57,55 @@ const BookingPage = () => {
   const handlePassengerChange = (index: number, data: PassengerData) => {
     setPassengers((prev) => {
       const updatedPassengers = [...prev];
-      updatedPassengers[index] = data; // Update the passenger data at the specified index
+      updatedPassengers[index] = data;
       return updatedPassengers;
     });
   };
 
-  const handleProceed = async () => {
-    // Validate passenger details
-    let allFieldsFilled = true;
- 
-    passengers.forEach((passenger, index) => {
-      if (
-        !passenger.name ||
-        !passenger.age ||
-        !passenger.gender ||
-        !passenger.idProof ||
-        !passenger.idProofNumber ||
-        !passenger.address
-      ) {
-        allFieldsFilled = false;
-      }
-    });
+  const validatePassengerDetails = () => {
+    return passengers.every(
+      (passenger) =>
+        passenger.name &&
+        passenger.age &&
+        passenger.gender &&
+        passenger.idProof &&
+        passenger.idProofNumber &&
+        passenger.address
+    );
+  };
 
-    if (!allFieldsFilled) {
+  const handleProceed = async () => {
+    if (!validatePassengerDetails()) {
       toast.error("Please fill in all the passenger details.");
-      return; // Prevent proceeding if fields are not filled
+      return;
     }
 
-    // Proceed to the next step or action
     if (step === "select-seats") {
       setStep("passenger-details");
     } else {
-      if (passengers.length === 0) {
-        toast.error("Please fill in all the passenger details.");
-        return;
-      }
-      const totalAmount = selectedSeats.length * tripDetails.price;
-      const gst = totalAmount * 0.18; // 18% GST
-      const finalAmount = totalAmount + gst;
-    
+      setLoading(true);
       try {
+        const totalAmount = selectedSeats.length * tripDetails.price;
+        const gst = totalAmount * 0.18; // 18% GST
+        const finalAmount = totalAmount + gst;
+
         console.log("Proceeding to payment", { selectedSeats, passengers });
         const resp = await createBooking({
           tripId,
           selectedSeats,
-          selectedDate:Date.now(),
+          selectedDate: Date.now(),
           passengers,
-          price:finalAmount,
+          price: finalAmount,
         }).unwrap();
         console.log(resp);
-      } catch (e) {
-        console.log(e);
+        toast.success("trip book succesfully")
+      } catch (error:any) {
+        console.error(error);
+        toast.error(
+          error.data.message || "Please fill in all the passenger details."
+        );
+      } finally {
+        setLoading(false);
       }
     }
   };
@@ -176,12 +163,12 @@ const BookingPage = () => {
               <div className="space-y-4">
                 {selectedSeats.map((seat, index) => (
                   <PassengerForm
-                    tripDetails={tripDetails}
                     key={seat}
+                    tripDetails={tripDetails}
                     seatNumber={seat}
                     index={index}
                     onChange={handlePassengerChange}
-                    passengers={passengers} // Passing passengers state to form
+                    passengers={passengers}
                   />
                 ))}
               </div>
@@ -191,6 +178,7 @@ const BookingPage = () => {
           <div className="md:col-span-1">
             <BookingSummary
               tripDetails={tripDetails}
+              loading={loading}
               selectedSeats={selectedSeats}
               seatPrice={tripDetails.price}
               onProceed={handleProceed}

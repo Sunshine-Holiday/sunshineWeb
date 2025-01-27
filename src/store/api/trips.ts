@@ -32,7 +32,7 @@ export const TripsApiSlice = apiWithTag.injectEndpoints({
 
       invalidatesTags: ["trips"],
     }),
-    gettripsID: builder.query<void, void>({
+    gettripsID: builder.query<any, any>({
       query: (credentials: any) => ({
         url: `/api/v1/trips/${credentials.id}`,
         method: "GET",
@@ -40,7 +40,7 @@ export const TripsApiSlice = apiWithTag.injectEndpoints({
       keepUnusedDataFor: 0,
       providesTags: ["trips"],
     }),
-    gettrips: builder.query<void, void>({
+    gettrips: builder.query<any, any>({
       query: (credentials: any) => ({
         url: `/api/v1/trips`,
         method: "GET",
