@@ -7,6 +7,7 @@ import { fadeInUp } from "../../utils/animations";
 import { useLocation } from "react-router-dom";
 import { useGettripsIDQuery } from "@/store/api/trips";
 import { toast } from "react-toastify";
+import { useCreatebookingMutation } from "@/store/api/booking";
 
 const SEAT_PRICE = 1499;
 const INITIAL_STEP = "select-seats";
@@ -17,13 +18,14 @@ const BOOKED_SEATS = ["3", "8", "12", "15", "22"];
 const BookingPage = () => {
   const location = useLocation();
   const { tripId } = location.state;
-
+  const [createBooking] = useCreatebookingMutation();
   const [trip, setTrip] = useState<any | null>(null);
   const [selectedSeats, setSelectedSeats] = useState<string[]>([]);
   const [passengers, setPassengers] = useState<PassengerData[]>([]);
-  const [step, setStep] = useState<"select-seats" | "passenger-details">(INITIAL_STEP);
+  const [step, setStep] = useState<"select-seats" | "passenger-details">(
+    INITIAL_STEP
+  );
 
-  
   const { data, isLoading, isError } = useGettripsIDQuery({ id: tripId });
 
   useEffect(() => {
@@ -71,13 +73,10 @@ const BookingPage = () => {
     });
   };
 
-  const handleProceed = () => {
+  const handleProceed = async () => {
     // Validate passenger details
     let allFieldsFilled = true;
-    if (passengers.length===0) {
-      toast.error("Please fill in all the passenger details.");
-      return; 
-    }
+ 
     passengers.forEach((passenger, index) => {
       if (
         !passenger.name ||
@@ -90,17 +89,37 @@ const BookingPage = () => {
         allFieldsFilled = false;
       }
     });
-  
+
     if (!allFieldsFilled) {
       toast.error("Please fill in all the passenger details.");
       return; // Prevent proceeding if fields are not filled
     }
-  
+
     // Proceed to the next step or action
     if (step === "select-seats") {
       setStep("passenger-details");
     } else {
-      console.log("Proceeding to payment", { selectedSeats, passengers });
+      if (passengers.length === 0) {
+        toast.error("Please fill in all the passenger details.");
+        return;
+      }
+      const totalAmount = selectedSeats.length * tripDetails.price;
+      const gst = totalAmount * 0.18; // 18% GST
+      const finalAmount = totalAmount + gst;
+    
+      try {
+        console.log("Proceeding to payment", { selectedSeats, passengers });
+        const resp = await createBooking({
+          tripId,
+          selectedSeats,
+          selectedDate:Date.now(),
+          passengers,
+          price:finalAmount,
+        }).unwrap();
+        console.log(resp);
+      } catch (e) {
+        console.log(e);
+      }
     }
   };
 
@@ -133,7 +152,9 @@ const BookingPage = () => {
           className="text-center mb-12"
         >
           <h1 className="text-4xl font-bold text-gray-900 mb-4">
-            {step === "select-seats" ? "Select Your Seats" : "Passenger Details"}
+            {step === "select-seats"
+              ? "Select Your Seats"
+              : "Passenger Details"}
           </h1>
           <p className="text-gray-600">
             {step === "select-seats"
