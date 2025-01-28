@@ -4,6 +4,7 @@ import { useGetIDbookingQuery } from "@/store/api/booking";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 import logo from "../../asserts/Sunshine.png"; // Adjust the path based on your project structure
+import { FaSpinner } from "react-icons/fa";
 
 const BookingDetail = () => {
   const { id } = useParams(); // Get the booking ID from the URL
@@ -226,9 +227,12 @@ const BookingDetail = () => {
   };
 
   if (isLoading) {
-    return <div className="h-screen flex items-center justify-center">Loading...</div>;
+    return (
+      <div className="h-screen flex items-center justify-center">
+    <FaSpinner className="animate-spin text-4xl text-gray-500" />
+      </div>
+    );
   }
-
   if (isError) {
     console.log(error)
     return (
