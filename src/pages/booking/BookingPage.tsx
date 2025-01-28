@@ -8,6 +8,10 @@ import { useLocation } from "react-router-dom";
 import { useGettripsIDQuery } from "@/store/api/trips";
 import { toast } from "react-toastify";
 import { useCreatebookingMutation } from "@/store/api/booking";
+import { useCreatePaymentIntentMutation } from "@/store/api/terms";
+import { RAZORPAY_API_KEY } from "@/store/store";
+import { useSelector } from "react-redux";
+import { selectCurrentUser } from "@/store/reducer/auth";
 
 const SEAT_PRICE = 1499;
 const INITIAL_STEP = "select-seats";
@@ -15,9 +19,13 @@ const BOOKED_SEATS = ["3", "8", "12", "15", "22"];
 
 const BookingPage = () => {
   const location = useLocation();
+  const userDetails = useSelector(selectCurrentUser);
   const { tripId } = location.state;
+
   const [createBooking] = useCreatebookingMutation();
-  const [trip, setTrip] = useState<any | null>(null);
+  const [createPayment] = useCreatePaymentIntentMutation();
+
+  const [trip, setTrip] = useState(null);
   const [selectedSeats, setSelectedSeats] = useState<string[]>([]);
   const [passengers, setPassengers] = useState<PassengerData[]>([]);
   const [step, setStep] = useState<"select-seats" | "passenger-details">(
@@ -28,9 +36,7 @@ const BookingPage = () => {
   const { data, isLoading, isError } = useGettripsIDQuery({ id: tripId });
 
   useEffect(() => {
-    if (data) {
-      setTrip(data);
-    }
+    if (data) setTrip(data);
   }, [data]);
 
   const isTripToday = () => {
@@ -74,36 +80,76 @@ const BookingPage = () => {
     );
   };
 
-  const handleProceed = async () => {
-    if (!validatePassengerDetails()) {
-      toast.error("Please fill in all the passenger details.");
-      return;
-    }
+  const handlePayment = async (paymentDetail: any, finalAmount: number) => {
+    const options = {
+      key: RAZORPAY_API_KEY,
+      amount: paymentDetail.amount,
+      currency: paymentDetail.currency,
+      name: "Your Store Name",
+      description: "Purchase Description",
+      order_id: paymentDetail.id,
+      handler: async (response: any) => {
+        console.log("Payment Successful:", response);
+        try {
+          const resp = await createBooking({
+            tripId,
+            selectedSeats,
+            selectedDate: Date.now(),
+            passengers,
+            price: finalAmount,
+          }).unwrap();
+          console.log(resp);
+          toast.success("Trip booked successfully");
+        } catch (error) {
+          console.error(error);
+          toast.error("Order failed!");
+        }
+      },
+      prefill: {
+        name: `${userDetails?.username}`,
+        email: userDetails?.email,
+        contact: "",
+      },
+      theme: {
+        color: "#3399cc",
+      },method: {
+        netbanking: true,
+        card: true,
+        wallet: true,
+        upi: true, // UPI is enabled here
+      },
+    };
 
+    const razorpay = new window.Razorpay(options);
+    razorpay.open();
+  };
+
+  const handleProceed = async () => {
     if (step === "select-seats") {
+      if (selectedSeats.length === 0) {
+        toast.error("Please select at least one seat.");
+        return;
+      }
       setStep("passenger-details");
     } else {
+      if (!validatePassengerDetails()) {
+        toast.error("Please fill in all the passenger details.");
+        return;
+      }
+
       setLoading(true);
       try {
-        const totalAmount = selectedSeats.length * tripDetails.price;
+        const totalAmount = selectedSeats.length * trip.price;
         const gst = totalAmount * 0.18; // 18% GST
         const finalAmount = totalAmount + gst;
 
-        console.log("Proceeding to payment", { selectedSeats, passengers });
-        const resp = await createBooking({
-          tripId,
-          selectedSeats,
-          selectedDate: Date.now(),
-          passengers,
-          price: finalAmount,
-        }).unwrap();
-        console.log(resp);
-        toast.success("trip book succesfully")
-      } catch (error:any) {
+        const respPayment = await createPayment({ amount: finalAmount }).unwrap();
+        if (respPayment.success) {
+          handlePayment(respPayment.paymentDetail, finalAmount);
+        }
+      } catch (error: any) {
         console.error(error);
-        toast.error(
-          error.data.message || "Please fill in all the passenger details."
-        );
+        toast.error(error.data?.message || "Payment processing failed.");
       } finally {
         setLoading(false);
       }
@@ -139,9 +185,7 @@ const BookingPage = () => {
           className="text-center mb-12"
         >
           <h1 className="text-4xl font-bold text-gray-900 mb-4">
-            {step === "select-seats"
-              ? "Select Your Seats"
-              : "Passenger Details"}
+            {step === "select-seats" ? "Select Your Seats" : "Passenger Details"}
           </h1>
           <p className="text-gray-600">
             {step === "select-seats"

@@ -15,6 +15,16 @@ export const TermsApiSlice = apiWithTag.injectEndpoints({
 
       invalidatesTags: ["term"],
     }),
+    createPaymentIntent: builder.mutation<any, any>({
+      query: (credentials) => ({
+        url: "/api/v1/payment/create",
+        method: "POST",
+
+        body: credentials,
+      }),
+
+     
+    }),
 
     createPrivacy: builder.mutation<void, void>({
       query: (credentials) => ({
@@ -71,5 +81,6 @@ export const {
   useAboutTermsMutation,
   useCreatePrivacyMutation,
   useGetPrivacyQuery,
+  useCreatePaymentIntentMutation,
   useGetAboutQuery,
 } = TermsApiSlice;
