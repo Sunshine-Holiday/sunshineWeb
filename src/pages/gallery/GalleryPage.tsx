@@ -2,11 +2,13 @@ import { useEffect, useState } from "react";
 import Masonry from "react-masonry-css";
 import { motion } from "framer-motion";
 import { X } from "lucide-react";
-import { FaPlus } from "react-icons/fa"; // Import the plus icon
-import { fadeInUp } from "../../utils/animations";
 
+import { fadeInUp } from "../../utils/animations";
+import logo from "../../asserts/Sunshine.png";
 import { useNavigate } from "react-router-dom";
 import { useGetGalleryQuery } from "@/store/api/gallery";
+import { FaSpinner } from "react-icons/fa";
+
 
 interface MediaFile {
   public_id: string;
@@ -60,19 +62,29 @@ const GalleryPage: React.FC = () => {
   const closeModal = () => {
     setSelectedItem(null);
   };
-
+ const LoadingState = () => (
+  <div className="flex justify-center items-center ">
+    <FaSpinner className="animate-spin text-4xl text-gray-500" />
+  </div>
+);
   // Conditional rendering: Check if data is loading or empty
   const renderGallery = () => {
-    if (isLoading) {
-      return <p>Loading gallery...</p>;
-    }
+    if (isLoading) return <LoadingState />;
 
     if (gallery.length === 0) {
       return (
-<div className="flex items-center justify-center min-h-screen">
-  <p className="text-3xl font-semibold text-gray-500">Gallery images coming soon!</p>
-</div>
-
+        <motion.div
+          variants={fadeInUp}
+          className="col-span-full text-center text-gray-600 text-4xl flex flex-col items-center space-y-4"
+        >
+          <img
+            src={logo}
+            alt="404 Electronics"
+            className="w-64 mx-auto mb-6 rounded-lg shadow-lg"
+          />
+          <p className="text-2xl">Adding Gallery soon. Stay tuned!</p>{" "}
+          {/* Larger text */}
+        </motion.div>
       );
     }
 

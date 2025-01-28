@@ -8,8 +8,10 @@ import ReactQuill from "react-quill";
 import { useCreateBlogMutation } from "@/store/api/blogs";
 import { toast } from "react-toastify";
 import { FaSpinner } from "react-icons/fa";
+import { useNavigate } from "react-router-dom";
 
 const BlogCreatePage: React.FC = () => {
+  const navigate=useNavigate()
   const [createBlog] = useCreateBlogMutation();
   const user = useSelector(selectCurrentUser);
   const [formData, setFormData] = useState({
@@ -68,6 +70,7 @@ const BlogCreatePage: React.FC = () => {
     try {
       const resp = await createBlog(formDataToSend).unwrap();
       console.log(resp);
+      navigate("/admin/blog")
       toast.success("Blog submitted successfully!");
     } catch (error: any) {
       console.log(error?.data?.message);

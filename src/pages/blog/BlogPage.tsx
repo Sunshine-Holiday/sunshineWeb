@@ -67,7 +67,7 @@ const BlogPage = () => {
                 alt="404 Electronics"
                 className="w-64 mx-auto mb-6 rounded-lg shadow-lg"
               />
-              <p className="text-2xl">Adding blogs soon. Stay tuned!</p>{" "}
+              <p className="text-2xl">Adding Blogs soon. Stay tuned!</p>{" "}
               {/* Larger text */}
             </motion.div>
           )}

@@ -34,7 +34,7 @@ const PassengerDetails = ({ passenger }) => (
 );
 
 // Component for loading state
-const LoadingState = () => (
+export const LoadingState = () => (
   <div className="flex justify-center items-center min-h-screen">
     <FaSpinner className="animate-spin text-4xl text-gray-500" />
   </div>
@@ -71,6 +71,7 @@ const Booked = () => {
                 "Selected Date",
                 "Selected Seats",
                 "Passengers",
+                "View Details",
               ].map((header) => (
                 <TableHead
                   key={header}
@@ -86,10 +87,6 @@ const Booked = () => {
               <TableRow
                 key={booking._id}
                 className="border-b hover:bg-gray-50 cursor-pointer"
-                onClick={() => {
-                  navigate(`/booked/${booking._id}`);
-                  console.log(`Navigating to user ${booking._id}`);
-                }}
               >
                 <TableCell className="px-4 py-2 text-sm text-gray-700">
                   {booking.trip.title}
@@ -116,6 +113,14 @@ const Booked = () => {
                   {booking.passengers.map((passenger, index) => (
                     <PassengerDetails key={index} passenger={passenger} />
                   ))}
+                </TableCell>
+                <TableCell className="px-4 py-2 text-sm text-gray-700">
+                  <button
+                    className="text-blue-500 hover:underline"
+                    onClick={() => navigate(`/booked/${booking._id}`)}
+                  >
+                    View Details
+                  </button>
                 </TableCell>
               </TableRow>
             ))}

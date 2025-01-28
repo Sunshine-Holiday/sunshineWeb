@@ -33,8 +33,9 @@ const GalleryPage: React.FC = () => {
   const [gallery, setGallery] = useState<MediaItem[]>([]);
   const { data, isLoading } = useGetGalleryQuery();
   const [selectedItem, setSelectedItem] = useState<MediaItem | null>(null);
-  const [deleteGalleryItem, { isLoading: isDeleting }] = useDeleteGalleryMutation(); // Hook for deletion
+  const [deleteGalleryItem, { isLoading: isDeleting }] = useDeleteGalleryMutation();
   const [loadingId, setLoadingId] = useState<string | null>(null); // Track item being deleted
+  const [confirmDeleteItem, setConfirmDeleteItem] = useState<MediaItem | null>(null); // Track item for confirmation
 
   useEffect(() => {
     if (data) {
@@ -67,15 +68,29 @@ const GalleryPage: React.FC = () => {
   };
 
   const handleDeleteItem = async (_id: string) => {
-    console.log(_id)
     setLoadingId(_id); // Start loading for the specific item
     try {
-      await deleteGalleryItem({_id}).unwrap(); // Delete gallery item
+      await deleteGalleryItem({ _id }).unwrap(); // Delete gallery item
       setGallery(gallery.filter((item) => item._id !== _id)); // Update gallery state
     } catch (error) {
       console.error("Error deleting item:", error);
     } finally {
       setLoadingId(null); // Stop loading
+    }
+  };
+
+  const confirmDelete = (item: MediaItem) => {
+    setConfirmDeleteItem(item);
+  };
+
+  const cancelDelete = () => {
+    setConfirmDeleteItem(null);
+  };
+
+  const confirmAndDelete = () => {
+    if (confirmDeleteItem) {
+      handleDeleteItem(confirmDeleteItem._id);
+      setConfirmDeleteItem(null); // Close confirmation modal
     }
   };
 
@@ -136,7 +151,7 @@ const GalleryPage: React.FC = () => {
                 className="absolute top-4 right-4 bg-red-600 text-white p-2 rounded-full shadow-lg hover:bg-red-700 focus:outline-none"
                 onClick={(e) => {
                   e.stopPropagation(); // Prevent modal from opening on button click
-                  handleDeleteItem(item._id);
+                  confirmDelete(item);
                 }}
                 disabled={isDeleting || loadingId === item._id} // Disable while deleting
               >
@@ -166,10 +181,7 @@ const GalleryPage: React.FC = () => {
             >
               <X size={24} />
             </button>
-            <div
-              className="flex items-center justify-center"
-              style={{ height: "50%" }}
-            >
+            <div className="flex items-center justify-center" style={{ height: "50%" }}>
               {selectedItem.mediaType === "image" ? (
                 <img
                   src={selectedItem.file.url}
@@ -200,6 +212,31 @@ const GalleryPage: React.FC = () => {
               <p className="text-gray-600">
                 Date: {new Date(selectedItem.date).toLocaleDateString("en-GB")}
               </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Modal */}
+      {confirmDeleteItem && (
+        <div className="fixed inset-0 bg-black bg-opacity-70 z-50 flex items-center justify-center">
+          <div className="bg-white rounded-lg shadow-lg p-6 max-w-sm w-full">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">
+              Are you sure you want to delete this item?
+            </h2>
+            <div className="flex justify-end space-x-4">
+              <button
+                className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400"
+                onClick={cancelDelete}
+              >
+                No
+              </button>
+              <button
+                className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+                onClick={confirmAndDelete}
+              >
+                Yes
+              </button>
             </div>
           </div>
         </div>

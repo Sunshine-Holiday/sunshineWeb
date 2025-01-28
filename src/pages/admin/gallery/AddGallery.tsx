@@ -1,10 +1,12 @@
 import { useCreateGalleryMutation } from "@/store/api/gallery";
 import React, { useState } from "react";
 import { FaImage, FaVideo } from "react-icons/fa"; // Icons for file type selection
+import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 
 const AddGallery: React.FC = () => {
   // State to manage form input values
+  const navigate = useNavigate();
   const [createGallery] = useCreateGalleryMutation();
   const [mediaType, setMediaType] = useState<"image" | "video">("image"); // Default to image
   const [file, setFile] = useState<File | null>(null); // To hold the selected file
@@ -49,12 +51,14 @@ const AddGallery: React.FC = () => {
       // Create a custom fetch function to track progress
       const uploadProgress = (progressEvent: ProgressEvent) => {
         if (progressEvent.total) {
-          setProgress(Math.round((progressEvent.loaded * 100) / progressEvent.total)); // Update progress
+          setProgress(
+            Math.round((progressEvent.loaded * 100) / progressEvent.total)
+          ); // Update progress
         }
       };
 
       const resp = await createGallery(formData).unwrap();
-
+      navigate("/admin/gallery");
       toast.success("Gallery item uploaded successfully");
       console.log(resp);
     } catch (error) {
@@ -74,15 +78,22 @@ const AddGallery: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50 pt-16 pb-16">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <h2 className="text-3xl font-bold text-gray-900 mb-6">Add New Gallery Item</h2>
-        <form onSubmit={handleSubmit} className="bg-white p-6 rounded-lg shadow-lg">
+        <h2 className="text-3xl font-bold text-gray-900 mb-6">
+          Add New Gallery Item
+        </h2>
+        <form
+          onSubmit={handleSubmit}
+          className="bg-white p-6 rounded-lg shadow-lg"
+        >
           {/* Media Type Selector */}
           <div className="flex space-x-4 mb-6">
             <button
               type="button"
               onClick={() => handleMediaTypeChange("image")}
               className={`${
-                mediaType === "image" ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-700"
+                mediaType === "image"
+                  ? "bg-blue-600 text-white"
+                  : "bg-gray-200 text-gray-700"
               } p-4 rounded-lg flex items-center space-x-2`}
             >
               <FaImage size={24} />
@@ -92,7 +103,9 @@ const AddGallery: React.FC = () => {
               type="button"
               onClick={() => handleMediaTypeChange("video")}
               className={`${
-                mediaType === "video" ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-700"
+                mediaType === "video"
+                  ? "bg-blue-600 text-white"
+                  : "bg-gray-200 text-gray-700"
               } p-4 rounded-lg flex items-center space-x-2`}
             >
               <FaVideo size={24} />
@@ -152,7 +165,11 @@ const AddGallery: React.FC = () => {
           {/* Submit Button with Loading Spinner */}
           <button
             type="submit"
-            className={`w-full ${loading ? "bg-gray-500" : "bg-blue-600"} text-white p-3 rounded-lg flex items-center justify-center space-x-2 ${loading ? "cursor-not-allowed" : "hover:bg-blue-700"}`}
+            className={`w-full ${
+              loading ? "bg-gray-500" : "bg-blue-600"
+            } text-white p-3 rounded-lg flex items-center justify-center space-x-2 ${
+              loading ? "cursor-not-allowed" : "hover:bg-blue-700"
+            }`}
             disabled={loading}
           >
             {loading ? (

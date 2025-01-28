@@ -87,7 +87,7 @@ const EditPrivacy: React.FC = () => {
       <div className="max-w-4xl mx-auto">
         <div className="bg-white rounded-xl shadow-lg p-6 space-y-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-4 text-center">
-            privacy-policy
+            Privacy Policy
           </h1>
           <div className="space-y-6">
             <div>
@@ -95,7 +95,7 @@ const EditPrivacy: React.FC = () => {
                 htmlFor="terms"
                 className="block text-sm font-medium text-gray-700 mb-2"
               >
-                privacy-policy
+       
               </label>
               <ReactQuill
                 value={termsText}
