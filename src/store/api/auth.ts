@@ -95,7 +95,15 @@ export const authApiSlice = apiWithTag.injectEndpoints({
       }),
       invalidatesTags: ["user"],
     }),
-
+    updateProfile_Pic: builder.mutation<any, any>({
+      query: (credential) => ({
+        url: "/api/v1/user/profile-pic",
+        method: "PUT",
+     
+        body: credential,
+      }),
+      invalidatesTags: ["user"],
+    }),
     sendContact: builder.mutation<UserResponse, contact>({
       query: (credential) => ({
         url: "/api/v1/user/contact",
@@ -154,5 +162,6 @@ export const {
   useVerifyEmailMutation,
   useSendContactMutation,
   useAdminUpdateUserMutation,
+  useUpdateProfile_PicMutation,
   useAllUserDetailQuery,
 } = authApiSlice;

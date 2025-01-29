@@ -3,22 +3,46 @@ import { useSelector } from "react-redux";
 import { motion } from "framer-motion";
 import { selectCurrentLoading, selectCurrentUser } from "@/store/reducer/auth";
 import UpdateProfile from "./UpdateProfile";
+import { useUpdateProfile_PicMutation } from "@/store/api/auth";
+import { toast } from "react-toastify";
+import { IMAGE_URL } from "@/store/store";
 
 const Profile: React.FC = () => {
+  const [UpdateProfile_Pic] = useUpdateProfile_PicMutation();
   const user = useSelector(selectCurrentUser);
   const loading = useSelector(selectCurrentLoading);
   const [isEditing, setIsEditing] = useState(false);
-  const [profilePicture, setProfilePicture] = useState(user?.profilePicture || "/default-profile.png");
-
-  const handleProfilePictureChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const [profilePicture, setProfilePicture] = useState(
+    `${IMAGE_URL}/${user?.profile}`
+  );
+  // console.log(`${IMAGE_URL}/${user?.profile}`);
+  const handleProfilePictureChange = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       const reader = new FileReader();
-      reader.onload = () => {
-        setProfilePicture(reader.result as string);
-        // Here, you can send the file to the server via API
-        // Example: uploadProfilePictureAPI(file);
+
+      reader.onload = async () => {
+        const imageBase64 = reader.result as string;
+        setProfilePicture(imageBase64); // Optimistically update UI
+
+        try {
+          // Send the file to the server
+          const formData = new FormData();
+          formData.append("file", file);
+
+          const response = await UpdateProfile_Pic(formData).unwrap();
+
+          if (response.success) {
+            toast.success(response.message);
+          }
+        } catch (error) {
+          console.error("Error updating profile picture:", error);
+          toast.error("Failed to update profile picture. Please try again.");
+        }
       };
+
       reader.readAsDataURL(file);
     }
   };
@@ -85,7 +109,9 @@ const Profile: React.FC = () => {
                 className="hidden"
               />
             </motion.label>
-            <h1 className="text-3xl font-bold text-white">Hello, {username}!</h1>
+            <h1 className="text-3xl font-bold text-white">
+              Hello, {username}!
+            </h1>
           </motion.div>
           <motion.div
             className="p-6"
