@@ -7,6 +7,7 @@ import { enUS } from "date-fns/locale";
 import { useCreatetripsMutation } from "@/store/api/trips";
 import { toast } from "react-toastify";
 import { FaSpinner } from "react-icons/fa";
+import { useNavigate } from "react-router-dom";
 
 const locales = { "en-US": enUS };
 const localizer = dateFnsLocalizer({
@@ -45,6 +46,7 @@ const availableAmenities = [
 const AdminTripForm: React.FC = () => {
   const [createTrips] = useCreatetripsMutation();
   const [loading, setloading] = useState(false);
+  const navigate=useNavigate()
   const [tripDetails, setTripDetails] = useState<TripDetails>({
     title: "",
     price: "",
@@ -106,7 +108,7 @@ const AdminTripForm: React.FC = () => {
     if (!tripDetails.title) newErrors.title = true;
     if (!tripDetails.price) newErrors.price = true;
     if (!tripDetails.location) newErrors.location = true;
-    if (!tripDetails.duration) newErrors.duration = true;
+   
     if (!tripDetails.busSize) newErrors.busSize = true;
     if (!tripDetails.category) newErrors.category = true;
     setErrors(newErrors);
@@ -122,6 +124,7 @@ const AdminTripForm: React.FC = () => {
     try {
       const resp = await createTrips(tripDetails).unwrap();
       toast.success("Trip created successfully!");
+      navigate("/admin/trips")
       console.log(resp);
     } catch (error) {
       toast.error("Unable to create trip.");
@@ -170,7 +173,7 @@ const AdminTripForm: React.FC = () => {
                   errors.location ? "border-red-500" : "border-gray-300"
                 }`}
               />
-              <input
+              {/* <input
                 type="text"
                 placeholder="Duration"
                 value={tripDetails.duration}
@@ -178,7 +181,7 @@ const AdminTripForm: React.FC = () => {
                 className={`w-full rounded-lg p-2 ${
                   errors.duration ? "border-red-500" : "border-gray-300"
                 }`}
-              />
+              /> */}
               <input
                 type="text"
                 placeholder="Bus Size"
@@ -198,7 +201,7 @@ const AdminTripForm: React.FC = () => {
                 <option value="" disabled>
                   Select Category
                 </option>
-                <option value="Day Trips">Day Trips</option>
+                <option value="One Trips">One Trips</option>
                 <option value="Night Stays">Night Stays</option>
                 <option value="National">National</option>
                 <option value="International">International</option>

@@ -7,7 +7,7 @@ import { enUS } from "date-fns/locale";
 import {   useEditTripsMutation, useGettripsIDQuery } from "@/store/api/trips";
 import { toast } from "react-toastify";
 import { FaSpinner } from "react-icons/fa";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
 const locales = { "en-US": enUS };
 const localizer = dateFnsLocalizer({
@@ -48,7 +48,7 @@ const EditTrips: React.FC = () => {
   const location = useLocation();
   const { id } = location.state;
   const { data, isError, isLoading } = useGettripsIDQuery({ id });
-
+const navigate=useNavigate()
   const [createTrips] = useEditTripsMutation();
   const [loading, setLoading] = useState(false);
   const [tripDetails, setTripDetails] = useState<TripDetails>({
@@ -131,7 +131,7 @@ const EditTrips: React.FC = () => {
     if (!tripDetails.title) newErrors.title = true;
     if (!tripDetails.price) newErrors.price = true;
     if (!tripDetails.location) newErrors.location = true;
-    if (!tripDetails.duration) newErrors.duration = true;
+    // if (!tripDetails.duration) newErrors.duration = true;
     if (!tripDetails.busSize) newErrors.busSize = true;
     if (!tripDetails.category) newErrors.category = true;
     setErrors(newErrors);
@@ -148,6 +148,7 @@ const EditTrips: React.FC = () => {
       const resp = await createTrips(tripDetails).unwrap();
       toast.success("Trip updated successfully!");
       console.log(resp);
+      navigate("/admin/trips")
     } catch (error) {
       toast.error("Unable to update trip.");
       console.log(error);
@@ -195,7 +196,7 @@ const EditTrips: React.FC = () => {
                   errors.location ? "border-red-500" : "border-gray-300"
                 }`}
               />
-              <input
+              {/* <input
                 type="text"
                 placeholder="Duration"
                 value={tripDetails.duration}
@@ -203,7 +204,7 @@ const EditTrips: React.FC = () => {
                 className={`w-full rounded-lg p-2 ${
                   errors.duration ? "border-red-500" : "border-gray-300"
                 }`}
-              />
+              /> */}
               <input
                 type="text"
                 placeholder="Bus Size"
@@ -223,7 +224,7 @@ const EditTrips: React.FC = () => {
                 <option value="" disabled>
                   Select Category
                 </option>
-                <option value="Day Trips">Day Trips</option>
+                <option value="One Trips">One Trips</option>
                 <option value="Night Stays">Night Stays</option>
                 <option value="National">National</option>
                 <option value="International">International</option>
