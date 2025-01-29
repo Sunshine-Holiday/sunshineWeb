@@ -6,7 +6,7 @@ const contactInfo = [
     icon: MapPin,
     title: "Address",
     content: "Sr No 53/1 Ashtavinayak Chowk, Sainath Nagar, Vadgaon Sheri, Pune - 411014",
-    link: "https://maps.app.goo.gl/BjcqnKcWXQLYo7Cm9",
+    link: "https://maps.app.goo.gl/r7yCJp5CLY7voxLt9",
   },
   {
     icon: Phone,
