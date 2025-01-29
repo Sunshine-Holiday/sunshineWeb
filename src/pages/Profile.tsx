@@ -13,9 +13,9 @@ const Profile: React.FC = () => {
   const loading = useSelector(selectCurrentLoading);
   const [isEditing, setIsEditing] = useState(false);
   const [profilePicture, setProfilePicture] = useState(
-    `${IMAGE_URL}/${user?.profile}`
+    `${IMAGE_URL}${user?.profile}`
   );
-  // console.log(`${IMAGE_URL}/${user?.profile}`);
+  console.log(`${IMAGE_URL}/${user?.profile}`);
   const handleProfilePictureChange = async (
     e: React.ChangeEvent<HTMLInputElement>
   ) => {
