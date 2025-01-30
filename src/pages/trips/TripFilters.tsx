@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 
-const categories = ['All', 'One Trips', 'Night Stays', 'National', 'International'];
+const categories = ['All', 'One Trips', 'Night Stays', 'National', ];
 
 export const TripFilters = ({ filterTrips, selectedCategory }) => {
   return (

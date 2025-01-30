@@ -12,6 +12,7 @@ import { useCreatePaymentIntentMutation } from "@/store/api/terms";
 import { RAZORPAY_API_KEY } from "@/store/store";
 import { useSelector } from "react-redux";
 import { selectCurrentUser } from "@/store/reducer/auth";
+import { FaSpinner } from "react-icons/fa";
 
 const SEAT_PRICE = 1499;
 const INITIAL_STEP = "select-seats";
@@ -157,7 +158,9 @@ const BookingPage = () => {
   };
 
   if (isLoading) {
-    return <div className="text-center">Loading trip details...</div>;
+    return   <div className="flex justify-center items-center min-h-screen">
+        <FaSpinner className="animate-spin text-4xl text-gray-500" />
+      </div>
   }
 
   if (isError || !trip) {

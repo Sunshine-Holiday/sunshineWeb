@@ -204,7 +204,7 @@ const AdminTripForm: React.FC = () => {
                 <option value="One Trips">One Trips</option>
                 <option value="Night Stays">Night Stays</option>
                 <option value="National">National</option>
-                <option value="International">International</option>
+                {/* <option value="International">International</option> */}
               </select>
             </div>
 
