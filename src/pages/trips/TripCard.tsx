@@ -73,10 +73,10 @@ export const TripCard = ({ trip }: TripCardProps) => {
             <MapPin className="h-4 w-4 mr-2" />
             <span>{trip.location}</span>
           </div>
-          <div className="flex items-center text-gray-600">
+          {/* <div className="flex items-center text-gray-600">
             <Clock className="h-4 w-4 mr-2" />
             <span>{trip.duration}</span>
-          </div>
+          </div> */}
           <div className="flex items-center text-gray-600">
             <Users className="h-4 w-4 mr-2" />
             <span>{trip.busSize}</span>

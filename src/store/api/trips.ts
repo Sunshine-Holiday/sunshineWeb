@@ -28,7 +28,7 @@ export const TripsApiSlice = apiWithTag.injectEndpoints({
     }),
     deleteTtips: builder.mutation<void, void>({
       query: (id) => ({
-        url: `/api/v1/trips/${id}`,
+        url: `/api/v1/trips/trip/${id}`,
         method: "DELETE",
       }),
 

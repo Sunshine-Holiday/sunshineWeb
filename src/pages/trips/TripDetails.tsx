@@ -146,10 +146,10 @@ const TripDetails = () => {
                     <MapPin className="h-5 w-5 mr-2" />
                     <span>{trip.location}</span>
                   </div>
-                  <div className="flex items-center text-gray-600">
+                  {/* <div className="flex items-center text-gray-600">
                     <Clock className="h-5 w-5 mr-2" />
                     <span>{trip.duration}</span>
-                  </div>
+                  </div> */}
                   <div className="flex items-start text-gray-600">
                     <Calendar className="h-5 w-5 mr-2" />
                     <div>
