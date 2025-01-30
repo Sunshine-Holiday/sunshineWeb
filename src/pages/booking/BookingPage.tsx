@@ -4,7 +4,7 @@ import { SeatLayout } from "./components/SeatLayout";
 import { BookingSummary } from "./components/BookingSummary";
 import { PassengerForm, PassengerData } from "./components/PassengerForm";
 import { fadeInUp } from "../../utils/animations";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useGettripsIDQuery } from "@/store/api/trips";
 import { toast } from "react-toastify";
 import { useCreatebookingMutation } from "@/store/api/booking";
@@ -22,7 +22,7 @@ const BookingPage = () => {
   const location = useLocation();
   const userDetails = useSelector(selectCurrentUser);
   const { tripId } = location.state;
-
+const navigate=useNavigate()
   const [createBooking] = useCreatebookingMutation();
   const [createPayment] = useCreatePaymentIntentMutation();
 
@@ -101,6 +101,7 @@ const BookingPage = () => {
           }).unwrap();
           console.log(resp);
           toast.success("Trip booked successfully");
+          navigate("/booked")
         } catch (error) {
           console.error(error);
           toast.error("Order failed!");
