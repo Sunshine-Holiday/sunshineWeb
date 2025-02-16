@@ -164,21 +164,14 @@ const TripDetails = () => {
                   </div>
                 </div>
 
-                <div className="border-t border-gray-200 pt-6">
-                  <h2 className="text-xl font-semibold mb-4">
-                    Bus Information
-                  </h2>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="flex items-center text-gray-600">
-                      <Bus className="h-5 w-5 mr-2" />
-                      <span>AC Sleeper</span>
-                    </div>
-                    <div className="flex items-center text-gray-600">
-                      <span>2x2 Configuration</span>
+                {trip.description && (
+                  <div className="border-t border-gray-200 pt-6">
+                    <h2 className="text-xl font-semibold mb-4">Descriptions</h2>
+                    <div className="grid grid-cols-2 gap-4">
+                      {trip?.description}
                     </div>
                   </div>
-                </div>
-
+                )}
                 <div className="border-t border-gray-200 pt-6 mt-6">
                   <h2 className="text-xl font-semibold mb-4">Amenities</h2>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

@@ -29,6 +29,7 @@ interface TripDetails {
   price: string;
   location: string;
   duration: string;
+  description: string; // Added description field
   startDates: Date[];
   busSize: string;
   category: string;
@@ -46,12 +47,13 @@ const availableAmenities = [
 const AdminTripForm: React.FC = () => {
   const [createTrips] = useCreatetripsMutation();
   const [loading, setloading] = useState(false);
-  const navigate=useNavigate()
+  const navigate = useNavigate();
   const [tripDetails, setTripDetails] = useState<TripDetails>({
     title: "",
     price: "",
     location: "",
     duration: "",
+    description: "", // Initialize description
     startDates: [],
     busSize: "",
     category: "",
@@ -108,7 +110,7 @@ const AdminTripForm: React.FC = () => {
     if (!tripDetails.title) newErrors.title = true;
     if (!tripDetails.price) newErrors.price = true;
     if (!tripDetails.location) newErrors.location = true;
-   
+    if (!tripDetails.description) newErrors.description = true; // Added description validation
     if (!tripDetails.busSize) newErrors.busSize = true;
     if (!tripDetails.category) newErrors.category = true;
     setErrors(newErrors);
@@ -124,7 +126,7 @@ const AdminTripForm: React.FC = () => {
     try {
       const resp = await createTrips(tripDetails).unwrap();
       toast.success("Trip created successfully!");
-      navigate("/admin/trips")
+      navigate("/admin/trips");
       console.log(resp);
     } catch (error) {
       toast.error("Unable to create trip.");
@@ -173,15 +175,6 @@ const AdminTripForm: React.FC = () => {
                   errors.location ? "border-red-500" : "border-gray-300"
                 }`}
               />
-              {/* <input
-                type="text"
-                placeholder="Duration"
-                value={tripDetails.duration}
-                onChange={(e) => handleChange("duration", e.target.value)}
-                className={`w-full rounded-lg p-2 ${
-                  errors.duration ? "border-red-500" : "border-gray-300"
-                }`}
-              /> */}
               <input
                 type="text"
                 placeholder="Bus Size"
@@ -201,11 +194,21 @@ const AdminTripForm: React.FC = () => {
                 <option value="" disabled>
                   Select Category
                 </option>
-                <option value="One Trips">One Trips</option>
-                <option value="Night Stays">Night Stays</option>
-                <option value="National">National</option>
-                {/* <option value="International">International</option> */}
+                <option value="One Day Tours">One Day Tours</option>
+                <option value="Stay Package">Stay Package</option>
+                <option value="Domestic Tours"> Domestic Tours</option>
               </select>
+              {/* Added Description Textarea */}
+              <div className="sm:col-span-2">
+                <textarea
+                  placeholder="Trip Description"
+                  value={tripDetails.description}
+                  onChange={(e) => handleChange("description", e.target.value)}
+                  className={`w-full rounded-lg p-2 h-32 resize-none ${
+                    errors.description ? "border-red-500" : "border-gray-300"
+                  }`}
+                />
+              </div>
             </div>
 
             {/* Calendar for Date Selection */}
@@ -287,7 +290,7 @@ const AdminTripForm: React.FC = () => {
                     />
                     <input
                       type="text"
-                       placeholder="Pick Up Location Details"
+                      placeholder="Pick Up Location Details"
                       value={boardingPoint.details}
                       onChange={(e) =>
                         handleBoardingPointChange(
@@ -319,7 +322,7 @@ const AdminTripForm: React.FC = () => {
                 {loading ? (
                   <FaSpinner className="animate-spin mx-auto" />
                 ) : (
-                  "      Save Trip"
+                  "Save Trip"
                 )}
               </button>
             </div>

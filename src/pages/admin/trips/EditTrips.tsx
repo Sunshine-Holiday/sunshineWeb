@@ -4,7 +4,7 @@ import { format, parse, startOfWeek, getDay } from "date-fns";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import { Wifi, Coffee, Snowflake, Power } from "lucide-react";
 import { enUS } from "date-fns/locale";
-import {   useEditTripsMutation, useGettripsIDQuery } from "@/store/api/trips";
+import { useEditTripsMutation, useGettripsIDQuery } from "@/store/api/trips";
 import { toast } from "react-toastify";
 import { FaSpinner } from "react-icons/fa";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -25,11 +25,12 @@ interface BoardingPoint {
 }
 
 interface TripDetails {
-    _id?:string;
+  _id?: string;
   title: string;
   price: string;
   location: string;
   duration: string;
+  description: string; // Added description field
   startDates: Date[];
   busSize: string;
   category: string;
@@ -48,15 +49,16 @@ const EditTrips: React.FC = () => {
   const location = useLocation();
   const { id } = location.state;
   const { data, isError, isLoading } = useGettripsIDQuery({ id });
-const navigate=useNavigate()
+  const navigate = useNavigate();
   const [createTrips] = useEditTripsMutation();
   const [loading, setLoading] = useState(false);
   const [tripDetails, setTripDetails] = useState<TripDetails>({
-    _id:id,
+    _id: id,
     title: "",
     price: "",
     location: "",
     duration: "",
+    description: "", // Initialize description
     startDates: [],
     busSize: "",
     category: "",
@@ -67,11 +69,12 @@ const navigate=useNavigate()
   useEffect(() => {
     if (data) {
       setTripDetails({
-        _id:data._id,
+        _id: data._id,
         title: data.title,
         price: data.price,
         location: data.location,
         duration: data.duration,
+        description: data.description || "", // Set description from data
         startDates: data.startDates.map((date: string) => new Date(date)),
         busSize: data.busSize,
         category: data.category,
@@ -131,7 +134,7 @@ const navigate=useNavigate()
     if (!tripDetails.title) newErrors.title = true;
     if (!tripDetails.price) newErrors.price = true;
     if (!tripDetails.location) newErrors.location = true;
-    // if (!tripDetails.duration) newErrors.duration = true;
+    if (!tripDetails.description) newErrors.description = true; // Add description validation
     if (!tripDetails.busSize) newErrors.busSize = true;
     if (!tripDetails.category) newErrors.category = true;
     setErrors(newErrors);
@@ -148,7 +151,7 @@ const navigate=useNavigate()
       const resp = await createTrips(tripDetails).unwrap();
       toast.success("Trip updated successfully!");
       console.log(resp);
-      navigate("/admin/trips")
+      navigate("/admin/trips");
     } catch (error) {
       toast.error("Unable to update trip.");
       console.log(error);
@@ -196,15 +199,6 @@ const navigate=useNavigate()
                   errors.location ? "border-red-500" : "border-gray-300"
                 }`}
               />
-              {/* <input
-                type="text"
-                placeholder="Duration"
-                value={tripDetails.duration}
-                onChange={(e) => handleChange("duration", e.target.value)}
-                className={`w-full rounded-lg p-2 ${
-                  errors.duration ? "border-red-500" : "border-gray-300"
-                }`}
-              /> */}
               <input
                 type="text"
                 placeholder="Bus Size"
@@ -224,11 +218,21 @@ const navigate=useNavigate()
                 <option value="" disabled>
                   Select Category
                 </option>
-                <option value="One Trips">One Trips</option>
-                <option value="Night Stays">Night Stays</option>
-                <option value="National">National</option>
-                {/* <option value="International">International</option> */}
+                <option value="One Day Tours">One Day Tours</option>
+                <option value="Stay Package">Stay Package</option>
+                <option value="Domestic Tours"> Domestic Tours</option>
               </select>
+              {/* Description Textarea - Added as full width */}
+              <div className="sm:col-span-2">
+                <textarea
+                  placeholder="Trip Description"
+                  value={tripDetails.description}
+                  onChange={(e) => handleChange("description", e.target.value)}
+                  className={`w-full rounded-lg p-2 min-h-[100px] ${
+                    errors.description ? "border-red-500" : "border-gray-300"
+                  }`}
+                />
+              </div>
             </div>
 
             {/* Calendar for Date Selection */}
@@ -291,7 +295,7 @@ const navigate=useNavigate()
                     onChange={(e) =>
                       handleBoardingPointChange(index, "location", e.target.value)
                     }
-                   placeholder="Pick Up Location"
+                    placeholder="Pick Up Location"
                     className="w-full rounded-lg p-2"
                   />
                   <input
@@ -309,7 +313,7 @@ const navigate=useNavigate()
                     onChange={(e) =>
                       handleBoardingPointChange(index, "details", e.target.value)
                     }
-                  placeholder="Pick Up Location Details"
+                    placeholder="Pick Up Location Details"
                     className="w-full rounded-lg p-2"
                   />
                 </div>
