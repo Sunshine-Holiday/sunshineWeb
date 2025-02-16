@@ -25,7 +25,7 @@ const PassengerDetails = ({ passenger }) => (
       <strong>Gender:</strong> {passenger.gender}
     </div>
     <div>
-      <strong>Address:</strong> {passenger.address}
+      <strong> Boarding Points:</strong> {passenger.address}
     </div>
     <div>
       <strong>ID Proof:</strong> {passenger.idProof} ({passenger.idProofNumber})
@@ -69,7 +69,7 @@ const Booked = () => {
                 "User Email",
                 "User Phone",
                 "Selected Date",
-                "Selected Seats",
+         
                 "Passengers",
                 "View Details",
               ].map((header) => (
@@ -106,9 +106,9 @@ const Booked = () => {
                 <TableCell className="px-4 py-2 text-sm text-gray-700">
                   {new Date(booking.selectedDate).toLocaleString()}
                 </TableCell>
-                <TableCell className="px-4 py-2 text-sm text-gray-700">
+                {/* <TableCell className="px-4 py-2 text-sm text-gray-700">
                   {booking.selectedSeats.join(", ")}
-                </TableCell>
+                </TableCell> */}
                 <TableCell className="px-4 py-2 text-sm text-gray-700">
                   {booking.passengers.map((passenger, index) => (
                     <PassengerDetails key={index} passenger={passenger} />

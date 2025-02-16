@@ -57,7 +57,7 @@ const BookingDetail = () => {
             ["Location", booking.trip?.location || "N/A"],
             ["Price", `INR ${booking.price || 0}`],
             ["User Email", booking.user?.email || "N/A"],
-            ["Selected Date", new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(booking.selectedDate))],
+            ["Selected Date and time", new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(booking.selectedDate))],
             ["Selected Seats", booking.selectedSeats.join(", ")],
           ],
           theme: "striped",
@@ -164,20 +164,20 @@ const BookingDetail = () => {
               </tr>
               <tr>
                 <th className="border border-gray-300 px-4 py-2 text-left">
-                  Selected Date
+                  Selected Date and time
                 </th>
                 <td className="border border-gray-300 px-4 py-2">
                   {new Date(booking.selectedDate).toLocaleString()}
                 </td>
               </tr>
-              <tr>
+              {/* <tr>
                 <th className="border border-gray-300 px-4 py-2 text-left">
                   Selected Seats
                 </th>
                 <td className="border border-gray-300 px-4 py-2">
                   {booking.selectedSeats.join(", ")}
                 </td>
-              </tr>
+              </tr> */}
             </tbody>
           </table>
         </div>
@@ -189,7 +189,7 @@ const BookingDetail = () => {
               <th className="border border-gray-300 px-4 py-2">Name</th>
               <th className="border border-gray-300 px-4 py-2">Age</th>
               <th className="border border-gray-300 px-4 py-2">Gender</th>
-              <th className="border border-gray-300 px-4 py-2">Address</th>
+              <th className="border border-gray-300 px-4 py-2">Boarding Points</th>
               <th className="border border-gray-300 px-4 py-2">ID Proof</th>
             </tr>
           </thead>
@@ -209,7 +209,7 @@ const BookingDetail = () => {
                   {passenger.address}
                 </td>
                 <td className="border border-gray-300 px-4 py-2">
-                  {passenger.idProof} ({passenger.idProofNumber})
+                  {passenger.idProof} - {passenger.idProofNumber}
                 </td>
               </tr>
             ))}
