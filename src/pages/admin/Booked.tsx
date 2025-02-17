@@ -9,7 +9,7 @@ import {
   TableHead,
 } from "@/components/ui/table";
 import { FaSpinner } from "react-icons/fa";
-import Skeleton from "react-loading-skeleton";
+
 import "react-loading-skeleton/dist/skeleton.css";
 import { useNavigate } from "react-router-dom";
 
@@ -98,10 +98,10 @@ const Booked = () => {
             {bookings.map((booking) => (
               <TableRow key={booking._id} className="border-b hover:bg-gray-50">
                 <TableCell className="px-4 py-2 text-sm text-gray-700">
-                  {booking.trip.title}
+                  {booking.trip?.title}
                 </TableCell>
                 <TableCell className="px-4 py-2 text-sm text-gray-700">
-                  {booking.trip.location}
+                  {booking.trip?.location}
                 </TableCell>
                 <TableCell className="px-4 py-2 text-sm text-gray-700">
                   {booking.price}
