@@ -20,7 +20,7 @@ interface TripCardProps {
 const isValidStartDate = (startDate: string) => {
   // const today = new Date();
   const tripDate = new Date(startDate);
-  return tripDate 
+  return tripDate;
 };
 
 const formatDate = (date: string) => {
@@ -95,7 +95,7 @@ export const TripCard = ({ trip }: TripCardProps) => {
             {...scaleOnHover}
             onClick={(e) => {
               e.stopPropagation();
-              navigate("/booking", { state: { tripId: trip._id } });
+              navigate(`/trips/${trip._id}`, { state: { tripId: trip._id } });
             }}
             className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
           >

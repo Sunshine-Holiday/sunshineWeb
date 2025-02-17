@@ -21,8 +21,8 @@ const BOOKED_SEATS = ["3", "8", "12", "15", "22"];
 const BookingPage = () => {
   const location = useLocation();
   const userDetails = useSelector(selectCurrentUser);
-  const { tripId } = location.state;
-const navigate=useNavigate()
+  const { tripId, selectedDate } = location.state;
+  const navigate = useNavigate();
   const [createBooking] = useCreatebookingMutation();
   const [createPayment] = useCreatePaymentIntentMutation();
 
@@ -101,7 +101,7 @@ const navigate=useNavigate()
           }).unwrap();
           console.log(resp);
           toast.success("Trip booked successfully");
-          navigate("/booked")
+          navigate("/booked");
         } catch (error) {
           console.error(error);
           toast.error("Order failed!");
@@ -114,7 +114,8 @@ const navigate=useNavigate()
       },
       theme: {
         color: "#3399cc",
-      },method: {
+      },
+      method: {
         netbanking: true,
         card: true,
         wallet: true,
@@ -145,7 +146,9 @@ const navigate=useNavigate()
         const gst = totalAmount * 0.18; // 18% GST
         const finalAmount = totalAmount + gst;
 
-        const respPayment = await createPayment({ amount: finalAmount }).unwrap();
+        const respPayment = await createPayment({
+          amount: finalAmount,
+        }).unwrap();
         if (respPayment.success) {
           handlePayment(respPayment.paymentDetail, finalAmount);
         }
@@ -159,9 +162,11 @@ const navigate=useNavigate()
   };
 
   if (isLoading) {
-    return   <div className="flex justify-center items-center min-h-screen">
+    return (
+      <div className="flex justify-center items-center min-h-screen">
         <FaSpinner className="animate-spin text-4xl text-gray-500" />
       </div>
+    );
   }
 
   if (isError || !trip) {
@@ -177,6 +182,7 @@ const navigate=useNavigate()
     amenities: trip.amenities || [],
     price: trip?.price || SEAT_PRICE,
     boardingPoints: trip?.boardingPoints || [],
+    busSize: trip.busSize || 20,
   };
 
   return (
@@ -189,7 +195,9 @@ const navigate=useNavigate()
           className="text-center mb-12"
         >
           <h1 className="text-4xl font-bold text-gray-900 mb-4">
-            {step === "select-seats" ? "Select Your Seats" : "Passenger Details"}
+            {step === "select-seats"
+              ? "Select Your Seats"
+              : "Passenger Details"}
           </h1>
           <p className="text-gray-600">
             {step === "select-seats"
@@ -202,6 +210,7 @@ const navigate=useNavigate()
           <div className="md:col-span-2">
             {step === "select-seats" ? (
               <SeatLayout
+                totalSeats={tripDetails?.busSize}
                 selectedSeats={selectedSeats}
                 onSeatSelect={handleSeatSelect}
                 bookedSeats={BOOKED_SEATS}
@@ -229,6 +238,7 @@ const navigate=useNavigate()
               loading={loading}
               selectedSeats={selectedSeats}
               seatPrice={tripDetails.price}
+              selectedDate={selectedDate}
               onProceed={handleProceed}
             />
           </div>

@@ -12,6 +12,7 @@ interface BookingSummaryProps {
     time: string;
     busType: string;
   };
+  selectedDate: string;
   selectedSeats: string[];
   seatPrice: number;
   onProceed: () => void;
@@ -23,12 +24,20 @@ export const BookingSummary = ({
   tripDetails,
   selectedSeats,
   seatPrice,
+  selectedDate,
   onProceed,
 }: BookingSummaryProps) => {
   const totalAmount = selectedSeats.length * seatPrice;
   const gst = totalAmount * 0.18; // 18% GST
   const finalAmount = totalAmount + gst;
-
+  const formatDate = (date: string) => {
+    const options: Intl.DateTimeFormatOptions = {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    };
+    return new Date(date).toLocaleDateString("en-US", options);
+  };
   return (
     <motion.div
       variants={fadeInUp}
@@ -47,7 +56,7 @@ export const BookingSummary = ({
         </div>
         <div className="flex items-center text-gray-600">
           <Calendar className="w-5 h-5 mr-2" />
-          <span>{tripDetails.date}</span>
+          <span>{formatDate(selectedDate)}</span>
         </div>
         {/* <div className="flex items-center text-gray-600">
           <Clock className="w-5 h-5 mr-2" />
@@ -69,7 +78,7 @@ export const BookingSummary = ({
           <span>₹{totalAmount.toLocaleString("en-IN")}</span>
         </div>
         <div className="flex justify-between mb-2">
-          <span>GST (18%)</span>
+          <span>GST (5%)</span>
           <span>₹{gst.toLocaleString("en-IN")}</span>
         </div>
         <div className="flex justify-between font-semibold text-lg mt-4">
