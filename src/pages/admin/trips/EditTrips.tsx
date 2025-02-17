@@ -22,6 +22,7 @@ interface BoardingPoint {
   location: string;
   time: string;
   details: string;
+  maplink: string;
 }
 
 interface TripDetails {
@@ -63,7 +64,7 @@ const EditTrips: React.FC = () => {
     busSize: "",
     category: "",
     amenities: [],
-    boardingPoints: [{ location: "", time: "", details: "" }],
+    boardingPoints: [{ location: "", time: "", details: "", maplink: "" }],
   });
 
   useEffect(() => {
@@ -199,15 +200,17 @@ const EditTrips: React.FC = () => {
                   errors.location ? "border-red-500" : "border-gray-300"
                 }`}
               />
-              <input
-                type="text"
-                placeholder="Bus Size"
+              <select
                 value={tripDetails.busSize}
                 onChange={(e) => handleChange("busSize", e.target.value)}
                 className={`w-full rounded-lg p-2 ${
-                  errors.busSize ? "border-red-500" : "border-gray-300"
+                  errors.category ? "border-red-500" : "border-gray-300"
                 }`}
-              />
+              >
+                <option value="">Select Bus Size *</option>
+                <option value="20">20</option>
+                <option value="32">32</option>
+              </select>
               <select
                 value={tripDetails.category}
                 onChange={(e) => handleChange("category", e.target.value)}
@@ -293,11 +296,30 @@ const EditTrips: React.FC = () => {
                     type="text"
                     value={point.location}
                     onChange={(e) =>
-                      handleBoardingPointChange(index, "location", e.target.value)
+                      handleBoardingPointChange(
+                        index,
+                        "location",
+                        e.target.value
+                      )
                     }
                     placeholder="Pick Up Location"
                     className="w-full rounded-lg p-2"
                   />
+
+                  <input
+                    type="text"
+                    value={point.maplink}
+                    onChange={(e) =>
+                      handleBoardingPointChange(
+                        index,
+                        "maplink",
+                        e.target.value
+                      )
+                    }
+                    placeholder="Map Link (URL)"
+                    className="w-full rounded-lg p-2"
+                  />
+
                   <input
                     type="time"
                     value={point.time}
@@ -311,7 +333,11 @@ const EditTrips: React.FC = () => {
                     type="text"
                     value={point.details}
                     onChange={(e) =>
-                      handleBoardingPointChange(index, "details", e.target.value)
+                      handleBoardingPointChange(
+                        index,
+                        "details",
+                        e.target.value
+                      )
                     }
                     placeholder="Pick Up Location Details"
                     className="w-full rounded-lg p-2"

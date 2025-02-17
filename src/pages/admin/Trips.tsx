@@ -4,7 +4,7 @@ import { FaPlus } from "react-icons/fa";
 import { fadeInUp, staggerChildren } from "../../utils/animations";
 import { TripFilters } from "../trips/TripFilters";
 import { useNavigate } from "react-router-dom";
-import { useDeleteTtipsMutation, useGettripsQuery } from "@/store/api/trips";
+import { useDeleteTripsMutation, useGettripsQuery } from "@/store/api/trips";
 import { TripCard } from "./components/trips/TripsCard";
 import { toast } from "react-toastify";
 
@@ -15,7 +15,7 @@ const TripsPage = () => {
   const [tripToDelete, setTripToDelete] = useState(null);
 
   const { data, isLoading, error } = useGettripsQuery();
-  const [deleteTrips] = useDeleteTtipsMutation();
+  const [deleteTrips] = useDeleteTripsMutation();
   const navigate = useNavigate();
 
   useEffect(() => {
