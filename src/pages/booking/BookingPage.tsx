@@ -4,7 +4,7 @@ import { SeatLayout } from "./components/SeatLayout";
 import { BookingSummary } from "./components/BookingSummary";
 import { PassengerForm, PassengerData } from "./components/PassengerForm";
 import { fadeInUp } from "../../utils/animations";
-import { useLocation, useNavigate } from "react-router-dom";
+import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useGettripsIDQuery } from "@/store/api/trips";
 import { toast } from "react-toastify";
 import { useCreatebookingMutation } from "@/store/api/booking";
@@ -143,7 +143,7 @@ const BookingPage = () => {
       setLoading(true);
       try {
         const totalAmount = selectedSeats.length * trip.price;
-        const gst = totalAmount * 0.18; // 18% GST
+        const gst = totalAmount * 0.05; // 5% GST
         const finalAmount = totalAmount + gst;
 
         const respPayment = await createPayment({
@@ -210,7 +210,7 @@ const BookingPage = () => {
           <div className="md:col-span-2">
             {step === "select-seats" ? (
               <SeatLayout
-                totalSeats={tripDetails?.busSize}
+                totalSeats={Number(tripDetails?.busSize)}
                 selectedSeats={selectedSeats}
                 onSeatSelect={handleSeatSelect}
                 bookedSeats={BOOKED_SEATS}

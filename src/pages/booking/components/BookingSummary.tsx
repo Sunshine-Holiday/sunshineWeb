@@ -28,7 +28,7 @@ export const BookingSummary = ({
   onProceed,
 }: BookingSummaryProps) => {
   const totalAmount = selectedSeats.length * seatPrice;
-  const gst = totalAmount * 0.18; // 18% GST
+  const gst = totalAmount * 0.05; // 18% GST
   const finalAmount = totalAmount + gst;
   const formatDate = (date: string) => {
     const options: Intl.DateTimeFormatOptions = {

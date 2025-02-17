@@ -1,13 +1,12 @@
-import React, { useState, useEffect } from "react";
+import React from "react";
 import { motion } from "framer-motion";
-import { Plus, Armchair } from "lucide-react";
+import { Armchair } from "lucide-react";
 
 interface SeatProps {
   id: string;
   isBooked: boolean;
   isSelected: boolean;
   onSelect: (id: string) => void;
-  price: number;
 }
 
 const Seat = ({ id, isBooked, isSelected, onSelect }: SeatProps) => {
@@ -47,7 +46,6 @@ interface SeatLayoutProps {
   selectedSeats: string[];
   onSeatSelect: (id: string) => void;
   bookedSeats: string[];
-  seatPrice: number;
   totalSeats: 20 | 32;
 }
 
@@ -55,39 +53,46 @@ export const SeatLayout = ({
   selectedSeats,
   onSeatSelect,
   bookedSeats,
-  seatPrice,
   totalSeats,
 }: SeatLayoutProps) => {
-  const [showLayoutModal, setShowLayoutModal] = useState(false);
 
-  // Generate seat layout dynamically based on totalSeats
-  const generateSeatLayout = (totalSeats: number) => {
+  const generateSeatLayout = () => {
     const layout = [];
-    let seatNumber = 1;
-
-    for (let i = 0; i < totalSeats / 4; i++) {
-      const row = [];
-
-      for (let j = 0; j < 4; j++) {
-        if (j === 1) {
-          row.push(""); // Aisle
-        } else if (seatNumber <= totalSeats) {
-          row.push(seatNumber.toString());
-          seatNumber++;
-        }
-      }
-      layout.push(row);
+  
+    // First row (Driver and Coordinator)
+    layout.push([
+      { id: "coordinator", type: "text" },
+      { id: "", type: "empty" },
+      { id: "", type: "empty" },
+      { id: "driver", type: "text" },
+    ]);
+  
+    // Door row
+    layout.push([
+      { id: "door", type: "text" },
+      { id: "", type: "empty" },
+      { id: "2", type: "seat" },
+      { id: "1", type: "seat" },
+    ]);
+  
+    // Generate remaining seat rows
+    let seatNumber = 3;
+    const rows = totalSeats === 20 ? 5 : 8;
+  
+    for (let i = 0; i < rows; i++) {
+      layout.push([
+        { id: seatNumber.toString(), type: "seat" },
+        { id: (seatNumber + 1).toString(), type: "seat" },
+        { id: (seatNumber + 2).toString(), type: "seat" },
+        { id: (seatNumber + 3).toString(), type: "seat" },
+      ]);
+      seatNumber += 4;
     }
+  
     return layout;
   };
-
-  const seats = generateSeatLayout(Number(totalSeats));
-
-  useEffect(() => {
-    if (bookedSeats.length === seats.flat().length) {
-      setShowLayoutModal(true);
-    }
-  }, [bookedSeats, seats]);
+  
+  const seatLayout = generateSeatLayout();
 
   return (
     <div className="bg-gray-100 p-6 rounded-xl">
@@ -107,46 +112,35 @@ export const SeatLayout = ({
             <span className="text-sm">Available</span>
           </div>
         </div>
-        <div className="text-sm font-medium">
-          Price per seat: ₹{seatPrice.toLocaleString("en-IN")}
-        </div>
       </div>
 
-      {/* Seat layout */}
-      <div className="flex flex-col items-center">
-        {/* Driver's cabin */}
-        <div className="flex flex-row gap-10 items-center">
-          <div className="w-20 h-20 bg-gray-300 rounded-lg flex items-center justify-center text-sm text-gray-600 mb-4">
-            {totalSeats}
-          </div>
-          <div className="w-20 h-20 bg-gray-300 rounded-lg flex items-center justify-center text-sm text-gray-600 mb-4">
-            Driver
-          </div>
-        </div>
-        {/* Seats */}
-        <div className="grid grid-cols-4 gap-4">
-          {seats.flatMap((row, rowIndex) =>
-            row.map((seatId, colIndex) => (
-              <div
-                key={`${rowIndex}-${colIndex}`}
-                className="flex justify-center"
-              >
-                {seatId ? (
+      {/* Seat Layout */}
+      <div className="flex flex-col gap-4">
+        {seatLayout.map((row, rowIndex) => (
+          <div key={rowIndex} className="flex justify-center gap-4">
+            {row.map((seat, seatIndex) => (
+              <div key={`${rowIndex}-${seatIndex}`} className="w-12">
+                {seat.type === "seat" ? (
                   <Seat
-                    id={seatId}
-                    isBooked={bookedSeats.includes(seatId)}
-                    isSelected={selectedSeats.includes(seatId)}
+                    id={seat.id}
+                    isBooked={bookedSeats.includes(seat.id)}
+                    isSelected={selectedSeats.includes(seat.id)}
                     onSelect={onSeatSelect}
-                    price={seatPrice}
                   />
+                ) : seat.type === "text" ? (
+                  <div className="w-12 h-12 bg-gray-300 rounded-lg flex items-center justify-center text-xs text-gray-600">
+                    {seat.id.charAt(0).toUpperCase() + seat.id.slice(1)}
+                  </div>
                 ) : (
-                  <div className="w-12 h-12"></div> // Empty space for aisle
+                  <div className="w-12 h-12" /> // Empty space
                 )}
               </div>
-            ))
-          )}
-        </div>
+            ))}
+          </div>
+        ))}
       </div>
     </div>
   );
 };
+
+export default SeatLayout;
