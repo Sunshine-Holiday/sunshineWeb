@@ -101,7 +101,7 @@ const BookingDetail = () => {
 
   const renderWebInvoice = () => {
     return (
-      <div className="w-full max-w-4xl bg-white p-8 shadow-lg rounded-lg text-center my-8">
+      <div className=" mx-auto max-w-4xl bg-white p-8 shadow-lg rounded-lg text-center my-8">
         <div className="mb-8">
           <img
             src={logo}
