@@ -23,7 +23,7 @@ const Booked = () => {
     if (!isLoading) {
       if (data && data.bookings) {
         setBookings(data.bookings);
-        console.log(data.message);
+        console.log(data);
       } else if (data.bookings.length === 0) {
         setBookings([]);
       }

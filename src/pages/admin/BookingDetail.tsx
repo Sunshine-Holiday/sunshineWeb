@@ -3,21 +3,24 @@ import { useParams } from "react-router-dom";
 import { useGetIDbookingQuery } from "@/store/api/booking";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
-import logo from "../../asserts/Sunshine.png"; // Adjust the path based on your project structure
+import logo from "../../asserts/Sunshine.png";
 import { FaSpinner } from "react-icons/fa";
 
 const BookingDetail = () => {
-  const { id } = useParams(); // Get the booking ID from the URL
-  const { data, isLoading, isError, error } = useGetIDbookingQuery({ id }); // Adjust the query to get individual booking
+  const { id } = useParams();
+  const { data, isLoading, isError, error } = useGetIDbookingQuery({ id });
   const [booking, setBooking] = useState(null);
 
   useEffect(() => {
     if (data && data.booking) {
-     
       const selectedBooking = data.booking;
       setBooking(selectedBooking);
     }
   }, [data, id]);
+
+  const totalAmount = booking?.selectedSeats?.length * booking?.trip?.price;
+  const gst = totalAmount * 0.05; // 5% GST
+  const finalAmount = totalAmount + gst;
 
   const handleDownloadInvoice = () => {
     if (booking) {
@@ -55,10 +58,13 @@ const BookingDetail = () => {
             ["Booking ID", booking._id],
             ["Trip Title", booking.trip?.title || "N/A"],
             ["Location", booking.trip?.location || "N/A"],
-            ["Price", `INR ${booking.price || 0}`],
+            ["Price per seat", `INR ${booking?.trip?.price || 0}*${booking?.selectedSeats?.length}`],
+            ["Subtotal", `INR ${totalAmount.toFixed(2)}`],
+            ["GST (5%)", `INR ${gst.toFixed(2)}`],
+            ["Total Amount", `INR ${finalAmount.toFixed(2)}`],
             ["User Email", booking.user?.email || "N/A"],
             ["Selected Date and time", new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(booking.selectedDate))],
-            ["Selected Seats", booking.selectedSeats.join(", ")],
+         
           ],
           theme: "striped",
           styles: { fontSize: 10 },
@@ -92,13 +98,10 @@ const BookingDetail = () => {
       };
     }
   };
-  
-  
-  
 
   const renderWebInvoice = () => {
     return (
-      <div className="max-w-3xl mx-auto bg-white p-8 shadow-lg rounded-lg text-center">
+      <div className="w-full max-w-4xl bg-white p-8 shadow-lg rounded-lg text-center my-8">
         <div className="mb-8">
           <img
             src={logo}
@@ -148,11 +151,23 @@ const BookingDetail = () => {
               </tr>
               <tr>
                 <th className="border border-gray-300 px-4 py-2 text-left">
-                  Price
+                  Price per seat
                 </th>
                 <td className="border border-gray-300 px-4 py-2">
-                  ₹{booking.price}
+                  ₹{booking?.trip?.price} * {booking?.selectedSeats?.length}
                 </td>
+              </tr>
+              <tr>
+                <th className="border border-gray-300 px-4 py-2 text-left">Subtotal</th>
+                <td className="border border-gray-300 px-4 py-2">₹{totalAmount.toFixed(2)}</td>
+              </tr>
+              <tr>
+                <th className="border border-gray-300 px-4 py-2 text-left">GST (5%)</th>
+                <td className="border border-gray-300 px-4 py-2">₹{gst.toFixed(2)}</td>
+              </tr>
+              <tr className="bg-gray-100 font-semibold">
+                <th className="border border-gray-300 px-4 py-2 text-left">Total Amount</th>
+                <td className="border border-gray-300 px-4 py-2">₹{finalAmount.toFixed(2)}</td>
               </tr>
               <tr>
                 <th className="border border-gray-300 px-4 py-2 text-left">
@@ -170,55 +185,50 @@ const BookingDetail = () => {
                   {new Date(booking.selectedDate).toLocaleString()}
                 </td>
               </tr>
-              {/* <tr>
-                <th className="border border-gray-300 px-4 py-2 text-left">
-                  Selected Seats
-                </th>
-                <td className="border border-gray-300 px-4 py-2">
-                  {booking.selectedSeats.join(", ")}
-                </td>
-              </tr> */}
+             
             </tbody>
           </table>
         </div>
 
         <h3 className="text-xl font-semibold mb-4">Passengers</h3>
-        <table className="w-full border-collapse border border-gray-300 text-sm">
-          <thead>
-            <tr className="bg-gray-200">
-              <th className="border border-gray-300 px-4 py-2">Name</th>
-              <th className="border border-gray-300 px-4 py-2">Age</th>
-              <th className="border border-gray-300 px-4 py-2">Gender</th>
-              <th className="border border-gray-300 px-4 py-2">Boarding Points</th>
-              <th className="border border-gray-300 px-4 py-2">ID Proof</th>
-            </tr>
-          </thead>
-          <tbody>
-            {booking.passengers.map((passenger, index) => (
-              <tr key={index}>
-                <td className="border border-gray-300 px-4 py-2">
-                  {passenger.name || "Unnamed"}
-                </td>
-                <td className="border border-gray-300 px-4 py-2">
-                  {passenger.age}
-                </td>
-                <td className="border border-gray-300 px-4 py-2">
-                  {passenger.gender}
-                </td>
-                <td className="border border-gray-300 px-4 py-2">
-                  {passenger.address}
-                </td>
-                <td className="border border-gray-300 px-4 py-2">
-                  {passenger.idProof} - {passenger.idProofNumber}
-                </td>
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse border border-gray-300 text-sm mb-6">
+            <thead>
+              <tr className="bg-gray-200">
+                <th className="border border-gray-300 px-4 py-2">Name</th>
+                <th className="border border-gray-300 px-4 py-2">Age</th>
+                <th className="border border-gray-300 px-4 py-2">Gender</th>
+                <th className="border border-gray-300 px-4 py-2">Boarding Points</th>
+                <th className="border border-gray-300 px-4 py-2">ID Proof</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {booking.passengers.map((passenger, index) => (
+                <tr key={index}>
+                  <td className="border border-gray-300 px-4 py-2">
+                    {passenger.name || "Unnamed"}
+                  </td>
+                  <td className="border border-gray-300 px-4 py-2">
+                    {passenger.age}
+                  </td>
+                  <td className="border border-gray-300 px-4 py-2">
+                    {passenger.gender}
+                  </td>
+                  <td className="border border-gray-300 px-4 py-2">
+                    {passenger.address}
+                  </td>
+                  <td className="border border-gray-300 px-4 py-2">
+                    {passenger.idProof} - {passenger.idProofNumber}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
 
         <button
           onClick={handleDownloadInvoice}
-          className="mt-6 px-6 py-3 bg-blue-600 text-white rounded-lg shadow hover:bg-blue-700"
+          className="mt-6 px-6 py-3 bg-blue-600 text-white rounded-lg shadow hover:bg-blue-700 transition-colors duration-200"
         >
           Download Invoice (PDF)
         </button>
@@ -228,27 +238,30 @@ const BookingDetail = () => {
 
   if (isLoading) {
     return (
-      <div className="h-screen flex items-center justify-center">
-    <FaSpinner className="animate-spin text-4xl text-gray-500" />
+      <div className="min-h-screen flex items-center justify-center">
+        <FaSpinner className="animate-spin text-4xl text-gray-500" />
       </div>
     );
   }
+
   if (isError) {
-    console.log(error)
+    console.log(error);
     return (
-      <div className="h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center">
         Error fetching booking details.
       </div>
     );
   }
 
   return (
-    <div className="h-screen flex items-center justify-center bg-gray-100">
-      {booking ? (
-        renderWebInvoice()
-      ) : (
-        <div>No booking found with the provided ID.</div>
-      )}
+    <div className="min-h-screen  flex items-center justify-center bg-gray-100 py-8">
+      <div className="w-full px-4 flex ">
+        {booking ? (
+          renderWebInvoice()
+        ) : (
+          <div>No booking found with the provided ID.</div>
+        )}
+      </div>
     </div>
   );
 };
