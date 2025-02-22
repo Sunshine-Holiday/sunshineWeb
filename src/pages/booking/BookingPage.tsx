@@ -21,7 +21,12 @@ const BOOKED_SEATS = ["3", "8", "12", "15", "22"];
 const BookingPage = () => {
   const location = useLocation();
   const userDetails = useSelector(selectCurrentUser);
-  const { tripId, selectedDate } = location.state;
+  const { tripId } = location.state;
+  const [selectedDate,setSelectedData]=useState(location.state.selectedDate)
+  const changeDate=(data)=>{
+    setSelectedData(data)
+  }
+  console.log(selectedDate)
   const navigate = useNavigate();
   const [createBooking] = useCreatebookingMutation();
   const [createPayment] = useCreatePaymentIntentMutation();
@@ -95,7 +100,7 @@ const BookingPage = () => {
           const resp = await createBooking({
             tripId,
             selectedSeats,
-            selectedDate: Date.now(),
+            selectedDate: selectedDate,
             passengers,
             price: finalAmount,
           }).unwrap();
@@ -176,7 +181,7 @@ const BookingPage = () => {
   const tripDetails = {
     from: trip.location || "Unknown",
     to: trip.category || "Unknown",
-    date: new Date(trip.startDates[0]).toLocaleDateString(),
+    date: trip.startDates,
     time: trip.duration,
     busType: trip.busSize || "Standard",
     amenities: trip.amenities || [],
@@ -238,6 +243,7 @@ const BookingPage = () => {
               loading={loading}
               selectedSeats={selectedSeats}
               seatPrice={tripDetails.price}
+              setSelectedData={changeDate}
               selectedDate={selectedDate}
               onProceed={handleProceed}
             />

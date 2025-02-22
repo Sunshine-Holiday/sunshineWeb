@@ -1,6 +1,6 @@
 import React from "react";
 import { motion } from "framer-motion";
-import { Calendar, Clock, MapPin } from "lucide-react";
+import { Calendar, MapPin } from "lucide-react";
 import { fadeInUp } from "../../../utils/animations";
 import { FaSpinner } from "react-icons/fa";
 
@@ -8,11 +8,12 @@ interface BookingSummaryProps {
   tripDetails: {
     from: string;
     to: string;
-    date: string;
+    date: string[];
     time: string;
     busType: string;
   };
   selectedDate: string;
+  setSelectedDate: (date: string) => void;
   selectedSeats: string[];
   seatPrice: number;
   onProceed: () => void;
@@ -25,11 +26,13 @@ export const BookingSummary = ({
   selectedSeats,
   seatPrice,
   selectedDate,
+  setSelectedData,
   onProceed,
 }: BookingSummaryProps) => {
   const totalAmount = selectedSeats.length * seatPrice;
-  const gst = totalAmount * 0.05; // 18% GST
+  const gst = totalAmount * 0.05; // 5% GST
   const finalAmount = totalAmount + gst;
+
   const formatDate = (date: string) => {
     const options: Intl.DateTimeFormatOptions = {
       year: "numeric",
@@ -38,6 +41,12 @@ export const BookingSummary = ({
     };
     return new Date(date).toLocaleDateString("en-US", options);
   };
+
+  // Filter dates to only include present or future dates
+  const validDates = tripDetails.date.filter(
+    (date) => new Date(date) >= new Date()
+  );
+
   return (
     <motion.div
       variants={fadeInUp}
@@ -56,12 +65,18 @@ export const BookingSummary = ({
         </div>
         <div className="flex items-center text-gray-600">
           <Calendar className="w-5 h-5 mr-2" />
-          <span>{formatDate(selectedDate)}</span>
+          <select
+            className="border p-2 rounded-md"
+            value={selectedDate}
+            onChange={(e) => setSelectedData(e.target.value)}
+          >
+            {validDates.map((date) => (
+              <option key={date} value={date}>
+                {formatDate(date)}
+              </option>
+            ))}
+          </select>
         </div>
-        {/* <div className="flex items-center text-gray-600">
-          <Clock className="w-5 h-5 mr-2" />
-          <span>{tripDetails.time}</span>
-        </div> */}
       </div>
 
       <div className="border-t border-gray-200 pt-4 mb-6">
