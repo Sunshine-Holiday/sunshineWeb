@@ -14,12 +14,12 @@ interface SeatProps {
 const Seat = ({ id, isBooked, isSelected, onSelect }: SeatProps) => {
   return (
     <div className="items-center flex flex-col">
-    <motion.button
-      whileHover={{ scale: 1.1 }}
-      whileTap={{ scale: 0.95 }}
-      onClick={() => !isBooked && onSelect(id)}
-      disabled={isBooked}
-      className={`w-10 h-16 rounded-lg m-1 flex flex-col items-center justify-center transition-colors
+      <motion.button
+        whileHover={{ scale: 1.1 }}
+        whileTap={{ scale: 0.95 }}
+        onClick={() => !isBooked && onSelect(id)}
+        disabled={isBooked}
+        className={`w-10 h-16 rounded-lg m-1 flex flex-col items-center justify-center transition-colors
         ${
           isBooked
             ? "bg-gray-300 cursor-not-allowed"
@@ -27,21 +27,20 @@ const Seat = ({ id, isBooked, isSelected, onSelect }: SeatProps) => {
             ? "bg-blue-600 text-white"
             : "bg-white hover:bg-blue-50"
         }`}
-    >
-      <Armchair 
-        size={20} 
-        className={`mt-1 ${
-          isBooked 
-          ? "text-gray-400" 
-          : isSelected 
-          ? "text-white" 
-          : "text-gray-600"
-        }`}
+      >
+        <Armchair
+          size={20}
+          className={`mt-1 ${
+            isBooked
+              ? "text-gray-400"
+              : isSelected
+              ? "text-white"
+              : "text-gray-600"
+          }`}
         />
-   
-    </motion.button>
-       <span className="text-sm font-medium">{id}</span>
-        </div>
+      </motion.button>
+      <span className="text-sm font-medium">{id}</span>
+    </div>
   );
 };
 
@@ -50,7 +49,7 @@ interface SeatLayoutProps {
   onSeatSelect: (id: string) => void;
   bookedSeats: string[];
   seatPrice: number;
-  totalSeats:number
+  totalSeats: number;
 }
 
 export const SeatLayout = ({
@@ -131,46 +130,13 @@ export const SeatLayout = ({
         </div>
       </div>
 
-      {/* Icon to change layout */}
-      {shouldShowLayoutChange && (
-        <div
-          onClick={handleIconClick}
-          className="flex justify-center mb-4 cursor-pointer"
-        >
-          <Plus className="text-blue-600 text-2xl" />
-          <span className="ml-2 text-blue-600 text-sm">
-            Change to 32 seater
-          </span>
-        </div>
-      )}
-
       {/* Modal for layout change */}
-      {showLayoutModal && (
-        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-xl text-center">
-            <h2 className="text-lg font-medium mb-4">
-              Do you want to change to 32 seater?
-            </h2>
-            <div className="flex justify-center gap-4">
-              <button
-                className="bg-gray-500 text-white px-4 py-2 rounded-md"
-                onClick={() => setShowLayoutModal(false)}
-              >
-                No
-              </button>
-              <button
-                className="bg-blue-600 text-white px-4 py-2 rounded-md"
-                onClick={handleLayoutChange}
-              >
-                Yes
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Seat layout */}
       <div className="flex flex-col items-center">
+        <div className="my-3">
+          <p className="text-red-600">Your seats can be change by admin</p>
+        </div>
         {/* Driver's cabin */}
         <div className="flex flex-row gap-10 items-center">
           <div className="w-20 h-20 bg-gray-300 rounded-lg flex items-center justify-center text-sm text-gray-600 mb-4">
