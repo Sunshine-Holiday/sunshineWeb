@@ -1,44 +1,47 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Armchair } from "lucide-react";
+import { Plus, Armchair } from "lucide-react";
 
 interface SeatProps {
   id: string;
   isBooked: boolean;
   isSelected: boolean;
   onSelect: (id: string) => void;
+  price: number;
+  totalSeats: number;
 }
 
 const Seat = ({ id, isBooked, isSelected, onSelect }: SeatProps) => {
   return (
-    <div className="flex flex-col items-center">
-      <motion.button
-        whileHover={{ scale: 1.1 }}
-        whileTap={{ scale: 0.95 }}
-        onClick={() => !isBooked && onSelect(id)}
-        disabled={isBooked}
-        className={`w-12 h-12 rounded-lg flex items-center justify-center transition-colors
-          ${
-            isBooked
-              ? "bg-gray-300 cursor-not-allowed"
-              : isSelected
-              ? "bg-blue-600 text-white"
-              : "bg-white hover:bg-blue-50"
-          }`}
-      >
-        <Armchair
-          size={28}
-          className={
-            isBooked
-              ? "text-gray-500"
-              : isSelected
-              ? "text-white"
-              : "text-blue-600"
-          }
+    <div className="items-center flex flex-col">
+    <motion.button
+      whileHover={{ scale: 1.1 }}
+      whileTap={{ scale: 0.95 }}
+      onClick={() => !isBooked && onSelect(id)}
+      disabled={isBooked}
+      className={`w-10 h-16 rounded-lg m-1 flex flex-col items-center justify-center transition-colors
+        ${
+          isBooked
+            ? "bg-gray-300 cursor-not-allowed"
+            : isSelected
+            ? "bg-blue-600 text-white"
+            : "bg-white hover:bg-blue-50"
+        }`}
+    >
+      <Armchair 
+        size={20} 
+        className={`mt-1 ${
+          isBooked 
+          ? "text-gray-400" 
+          : isSelected 
+          ? "text-white" 
+          : "text-gray-600"
+        }`}
         />
-      </motion.button>
-      <span className="text-xs mt-1 text-gray-700">{id}</span>
-    </div>
+   
+    </motion.button>
+       <span className="text-sm font-medium">{id}</span>
+        </div>
   );
 };
 
@@ -46,53 +49,64 @@ interface SeatLayoutProps {
   selectedSeats: string[];
   onSeatSelect: (id: string) => void;
   bookedSeats: string[];
-  totalSeats: 20 | 32;
+  seatPrice: number;
+  totalSeats:number
 }
 
 export const SeatLayout = ({
   selectedSeats,
   onSeatSelect,
   bookedSeats,
+  seatPrice,
   totalSeats,
 }: SeatLayoutProps) => {
+  const [isTwoSeaterLayout, setIsTwoSeaterLayout] = useState(
+    totalSeats !== 20 ? true : false
+  );
+  const [showLayoutModal, setShowLayoutModal] = useState(false);
 
-  const generateSeatLayout = () => {
-    const layout = [];
-  
-    // First row (Driver and Coordinator)
-    layout.push([
-      { id: "coordinator", type: "text" },
-      { id: "", type: "empty" },
-      { id: "", type: "empty" },
-      { id: "driver", type: "text" },
-    ]);
-  
-    // Door row
-    layout.push([
-      { id: "door", type: "text" },
-      { id: "", type: "empty" },
-      { id: "2", type: "seat" },
-      { id: "1", type: "seat" },
-    ]);
-  
-    // Generate remaining seat rows
-    let seatNumber = 3;
-    const rows = totalSeats === 20 ? 5 : 8;
-  
-    for (let i = 0; i < rows; i++) {
-      layout.push([
-        { id: seatNumber.toString(), type: "seat" },
-        { id: (seatNumber + 1).toString(), type: "seat" },
-        { id: (seatNumber + 2).toString(), type: "seat" },
-        { id: (seatNumber + 3).toString(), type: "seat" },
-      ]);
-      seatNumber += 4;
+  // Define seat layout
+  const seats = isTwoSeaterLayout
+    ? [
+        ["1", "", "2", "3"],
+        ["4", "", "5", "6"],
+        ["7", "", "8", "9"],
+        ["10", "", "11", "12"],
+        ["13", "", "14", "15"],
+        ["16", "", "17", "18"],
+        ["19", "", "20", "21"],
+        ["22", "", "23", "24"],
+        ["25", "", "26", "27"],
+        ["28", "29", "30", "31"],
+      ]
+    : [
+        ["1", "", "2", "3"],
+        ["4", "", "5", "6"],
+        ["7", "", "8", "9"],
+        ["10", "", "11", "12"],
+        ["13", "", "14", "15"],
+        ["16", "17", "18", "19"],
+      ];
+
+  // Condition to show modal when more than 15 seats are selected
+  const shouldShowLayoutChange = selectedSeats.length > 11;
+
+  useEffect(() => {
+    if (bookedSeats.length === seats.flat().length) {
+      setShowLayoutModal(true); // All seats booked, show modal
     }
-  
-    return layout;
+  }, [bookedSeats, seats]);
+
+  const handleLayoutChange = () => {
+    setIsTwoSeaterLayout(true);
+    setShowLayoutModal(false);
   };
-  
-  const seatLayout = generateSeatLayout();
+
+  const handleIconClick = () => {
+    if (shouldShowLayoutChange) {
+      setShowLayoutModal(true); // Show modal when more than 15 seats are selected
+    }
+  };
 
   return (
     <div className="bg-gray-100 p-6 rounded-xl">
@@ -100,47 +114,96 @@ export const SeatLayout = ({
       <div className="mb-6 flex justify-between items-center">
         <div className="flex gap-4">
           <div className="flex items-center">
-            <Armchair className="text-blue-600 mr-2" size={20} />
+            <div className="w-4 h-4 bg-white rounded mr-2"></div>
+            <span className="text-sm">Available</span>
+          </div>
+          <div className="flex items-center">
+            <div className="w-4 h-4 bg-blue-600 rounded mr-2"></div>
             <span className="text-sm">Selected</span>
           </div>
           <div className="flex items-center">
-            <Armchair className="text-gray-500 mr-2" size={20} />
+            <div className="w-4 h-4 bg-gray-300 rounded mr-2"></div>
             <span className="text-sm">Booked</span>
           </div>
-          <div className="flex items-center">
-            <Armchair className="text-blue-600 opacity-50 mr-2" size={20} />
-            <span className="text-sm">Available</span>
-          </div>
+        </div>
+        <div className="text-sm font-medium">
+          Price per seat: ₹{seatPrice.toLocaleString("en-IN")}
         </div>
       </div>
 
-      {/* Seat Layout */}
-      <div className="flex flex-col gap-4">
-        {seatLayout.map((row, rowIndex) => (
-          <div key={rowIndex} className="flex justify-center gap-4">
-            {row.map((seat, seatIndex) => (
-              <div key={`${rowIndex}-${seatIndex}`} className="w-12">
-                {seat.type === "seat" ? (
+      {/* Icon to change layout */}
+      {shouldShowLayoutChange && (
+        <div
+          onClick={handleIconClick}
+          className="flex justify-center mb-4 cursor-pointer"
+        >
+          <Plus className="text-blue-600 text-2xl" />
+          <span className="ml-2 text-blue-600 text-sm">
+            Change to 32 seater
+          </span>
+        </div>
+      )}
+
+      {/* Modal for layout change */}
+      {showLayoutModal && (
+        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-xl text-center">
+            <h2 className="text-lg font-medium mb-4">
+              Do you want to change to 32 seater?
+            </h2>
+            <div className="flex justify-center gap-4">
+              <button
+                className="bg-gray-500 text-white px-4 py-2 rounded-md"
+                onClick={() => setShowLayoutModal(false)}
+              >
+                No
+              </button>
+              <button
+                className="bg-blue-600 text-white px-4 py-2 rounded-md"
+                onClick={handleLayoutChange}
+              >
+                Yes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Seat layout */}
+      <div className="flex flex-col items-center">
+        {/* Driver's cabin */}
+        <div className="flex flex-row gap-10 items-center">
+          <div className="w-20 h-20 bg-gray-300 rounded-lg flex items-center justify-center text-sm text-gray-600 mb-4">
+            {isTwoSeaterLayout ? 32 : 20}
+          </div>
+          <div className="w-20 h-20 bg-gray-300 rounded-lg flex items-center justify-center text-sm text-gray-600 mb-4">
+            Driver
+          </div>
+        </div>
+        {/* Seats */}
+        <div className="grid grid-cols-4 gap-2">
+          {seats.flatMap((row, rowIndex) =>
+            row.map((seatId, colIndex) => (
+              <div
+                key={`${rowIndex}-${colIndex}`}
+                className="flex justify-center"
+              >
+                {seatId ? (
                   <Seat
-                    id={seat.id}
-                    isBooked={bookedSeats.includes(seat.id)}
-                    isSelected={selectedSeats.includes(seat.id)}
+                    id={seatId}
+                    isBooked={bookedSeats.includes(seatId)}
+                    isSelected={selectedSeats.includes(seatId)}
                     onSelect={onSeatSelect}
+                    price={seatPrice}
                   />
-                ) : seat.type === "text" ? (
-                  <div className="w-12 h-12 bg-gray-300 rounded-lg flex items-center justify-center text-xs text-gray-600">
-                    {seat.id.charAt(0).toUpperCase() + seat.id.slice(1)}
-                  </div>
                 ) : (
-                  <div className="w-12 h-12" /> // Empty space
+                  <div className="w-10 h-16"></div> // Empty space for aisle, adjusted height
                 )}
               </div>
-            ))}
-          </div>
-        ))}
+            ))
+          )}
+        </div>
       </div>
     </div>
   );
 };
-
-export default SeatLayout;
