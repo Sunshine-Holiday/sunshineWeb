@@ -58,7 +58,6 @@ const BookingPage = () => {
       console.log("Trip is happening today!");
     }
   }, [trip]);
-
   const handleSeatSelect = (seatId: string) => {
     setSelectedSeats((prev) =>
       prev.includes(seatId)
