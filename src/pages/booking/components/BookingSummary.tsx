@@ -13,7 +13,7 @@ interface BookingSummaryProps {
     busType: string;
   };
   selectedDate: string;
-  setSelectedDate: (date: string) => void;
+  setSelectedData: (date: string) => void;
   selectedSeats: string[];
   seatPrice: number;
   onProceed: () => void;
@@ -44,7 +44,11 @@ export const BookingSummary = ({
 
   // Filter dates to only include present or future dates
   const validDates = tripDetails.date.filter(
-    (date) => new Date(date) >= new Date()
+    (date) => { 
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const checkDate = new Date(date);
+      return checkDate >= today;}
   );
 
   return (

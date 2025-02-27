@@ -126,7 +126,7 @@ export const PassengerForm = ({
               Age
             </label>
             <input
-              type="number"
+              type="text"
               name="age"
               value={passengers[index]?.age || ""}
               onChange={handleChange}

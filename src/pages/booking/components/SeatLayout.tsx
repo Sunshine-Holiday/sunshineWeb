@@ -67,16 +67,15 @@ export const SeatLayout = ({
   // Define seat layout
   const seats = isTwoSeaterLayout
     ? [
-        ["1", "", "2", "3"],
-        ["4", "", "5", "6"],
-        ["7", "", "8", "9"],
-        ["10", "", "11", "12"],
-        ["13", "", "14", "15"],
-        ["16", "", "17", "18"],
-        ["19", "", "20", "21"],
-        ["22", "", "23", "24"],
-        ["25", "", "26", "27"],
-        ["28", "29", "30", "31"],
+        ["", "", "", "1", "2"],
+        ["3", "4", "", "5", "6"],
+        ["7", "8", "", "9", "10"],
+        ["11", "12", "", "13", "14"],
+        ["15", "16", "", "17", "18"],
+        ["19", "20", "", "21", "22"],
+        ["23", "24", "", "25", "26"],
+        ["27", "28", "29", "30", "31"],
+        
       ]
     : [
         ["1", "", "2", "3"],
@@ -91,7 +90,7 @@ export const SeatLayout = ({
   const shouldShowLayoutChange = selectedSeats.length > 11;
 
   useEffect(() => {
-    if (bookedSeats.length === seats.flat().length) {
+    if (bookedSeats.length === seats.flat().filter(Boolean).length) {
       setShowLayoutModal(true); // All seats booked, show modal
     }
   }, [bookedSeats, seats]);
@@ -130,12 +129,10 @@ export const SeatLayout = ({
         </div>
       </div>
 
-      {/* Modal for layout change */}
-
       {/* Seat layout */}
       <div className="flex flex-col items-center">
         <div className="my-3">
-          <p className="text-red-600">Your seats can be change by admin</p>
+          <p className="text-red-600">Your seats can be changed by admin</p>
         </div>
         {/* Driver's cabin */}
         <div className="flex flex-row gap-10 items-center">
@@ -147,7 +144,11 @@ export const SeatLayout = ({
           </div>
         </div>
         {/* Seats */}
-        <div className="grid grid-cols-4 gap-2">
+        <div
+          className={`grid ${
+            isTwoSeaterLayout ? "grid-cols-5" : "grid-cols-4"
+          } gap-2`}
+        >
           {seats.flatMap((row, rowIndex) =>
             row.map((seatId, colIndex) => (
               <div
@@ -161,9 +162,10 @@ export const SeatLayout = ({
                     isSelected={selectedSeats.includes(seatId)}
                     onSelect={onSeatSelect}
                     price={seatPrice}
+                    totalSeats={totalSeats}
                   />
                 ) : (
-                  <div className="w-10 h-16"></div> // Empty space for aisle, adjusted height
+                  <div className="w-10 h-16"></div> // Empty space for aisle
                 )}
               </div>
             ))

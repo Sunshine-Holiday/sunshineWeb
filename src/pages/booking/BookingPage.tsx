@@ -24,6 +24,7 @@ const BookingPage = () => {
   const { tripId } = location.state;
   const [selectedDate,setSelectedData]=useState(location.state.selectedDate)
   const changeDate=(data)=>{
+    console.log(data)
     setSelectedData(data)
   }
   console.log(selectedDate)
