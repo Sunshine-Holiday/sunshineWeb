@@ -49,6 +49,25 @@ export const BookingApiSlice = apiWithTag.injectEndpoints({
       keepUnusedDataFor: 0,
       providesTags: ["booking"],
     }),
+
+    getTripBookingStats: builder.query<any, any>({
+      query: ({ trip }: any) => ({
+        url: `/api/v1/booking/stats/${trip}`,
+        method: "GET",
+      }),
+      keepUnusedDataFor: 0,
+      providesTags: ["booking"],
+    }),
+
+    getTripBookingHistory: builder.query<any, any>({
+      query: ({ trip, date }: any) => ({
+        url: `/api/v1/booking/history/${trip}/${date}`,
+        method: "GET",
+      }),
+      keepUnusedDataFor: 0,
+      providesTags: ["booking"],
+    }),
+
     getIDbooking: builder.query<any, any>({
       query: ({ id }: any) => ({
         url: `/api/v1/booking/${id}`,
@@ -75,5 +94,7 @@ export const {
   useGetbookingIDQuery,
   useGetbookingQuery,
   useGetuserAllbookingQuery,
-  useGetIDbookingQuery
+  useGetIDbookingQuery,
+  useGetTripBookingStatsQuery,
+  useGetTripBookingHistoryQuery
 } = BookingApiSlice;

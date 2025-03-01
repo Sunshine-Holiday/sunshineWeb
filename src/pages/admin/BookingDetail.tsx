@@ -9,7 +9,7 @@ import { FaSpinner } from "react-icons/fa";
 const BookingDetail = () => {
   const { id } = useParams();
   const { data, isLoading, isError, error } = useGetIDbookingQuery({ id });
-  const [booking, setBooking] = useState(null);
+  const [booking, setBooking] = useState <any> (null);
 
   useEffect(() => {
     if (data && data.booking) {
@@ -24,7 +24,7 @@ const BookingDetail = () => {
 
   const handleDownloadInvoice = () => {
     if (booking) {
-      const doc = new jsPDF();
+      const doc = new jsPDF()  as any;
       const pageWidth = doc.internal.pageSize.getWidth();
   
       // Add logo
@@ -77,7 +77,7 @@ const BookingDetail = () => {
         doc.autoTable({
           startY: passengersStartY + 5,
           head: [["Name", "Age", "Gender", "Address", "ID Proof"]],
-          body: booking.passengers.map((passenger) => [
+          body: booking.passengers.map((passenger:any) => [
             passenger.name || "Unnamed",
             passenger.age || "N/A",
             passenger.gender || "N/A",
@@ -203,7 +203,7 @@ const BookingDetail = () => {
               </tr>
             </thead>
             <tbody>
-              {booking.passengers.map((passenger, index) => (
+              {booking.passengers.map((passenger:any, index:number) => (
                 <tr key={index}>
                   <td className="border border-gray-300 px-4 py-2">
                     {passenger.name || "Unnamed"}

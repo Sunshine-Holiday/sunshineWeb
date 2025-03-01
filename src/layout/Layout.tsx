@@ -16,6 +16,8 @@ import AboutPage from "@/pages/admin/aboutPage";
 import EditTrips from "@/pages/admin/trips/EditTrips";
 import EditPrivacy from "@/pages/admin/EditPrivacy";
 import BookingDetail from "@/pages/admin/BookingDetail";
+import BookedPage from "@/pages/admin/Booked/Booked";
+import BookingDetails from "@/pages/admin/Booked/booking-details";
 const Layout = () => {
   return (
     <div className="flex h-screen bg-background pt-14">
@@ -29,7 +31,9 @@ const Layout = () => {
           <Route path="/trips" element={<Trips />} />
           <Route path="/trips/add-trips" element={<AddTrips />} />
           <Route path="/trips/edit" element={<EditTrips />} />
-          <Route path="/booked" element={<Booked />} />
+          <Route path="/booked" element={<BookedPage />} />
+          <Route path="/booked-data/:id" element={<Booked />} />
+          <Route path="/booking-details" element={<BookingDetails />} />
           <Route path="/booked/:id" element={<BookingDetail />} />
           <Route path="/gallery" element={<Gallery />} />
           <Route path="/gallery/add-gallery" element={<AddGallery />} />

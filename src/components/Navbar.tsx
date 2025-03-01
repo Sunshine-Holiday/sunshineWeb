@@ -19,8 +19,8 @@ export const Navbar: React.FC = () => {
 
   const handleLogout = () => {
     dispatch(logout());
-    setIsLogoutModalOpen(false); // Close the modal after logout
-    navigate("/"); // Redirect to the Sign In page
+    setIsLogoutModalOpen(false);
+    navigate("/");
   };
 
   const openLogoutModal = () => {
@@ -39,15 +39,15 @@ export const Navbar: React.FC = () => {
         className="fixed w-full bg-white/70 backdrop-blur-sm z-50 shadow-sm"
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-around items-center h-16">
+          <div className="flex justify-between items-center h-16">
             <Link to="/" className="flex items-center space-x-2">
-              <img className="h-24 w-24 text-blue-600" src={logo} alt="Logo" />
-              <span className="text-xl font-bold text-gray-900">
+              <img className="h-12 w-12 sm:h-16 sm:w-16 md:h-20 md:w-20 text-blue-600" src={logo} alt="Logo" />
+              <span className="text-sm sm:text-lg md:text-xl font-bold text-gray-900 truncate max-w-xs">
                 Sunshine Holiday Packages
               </span>
             </Link>
 
-            <div className="hidden md:flex items-center space-x-8">
+            <div className="hidden md:flex items-center space-x-4 lg:space-x-8">
               {user?.role === "admin" && <NavLink to="/admin">Admin</NavLink>}
               <NavLink to="/trips">Trips</NavLink>
               <NavLink to="/blog">Blog</NavLink>
@@ -60,10 +60,10 @@ export const Navbar: React.FC = () => {
                   <motion.button
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
-                    className="bg-red-600 text-white px-4 py-2 rounded-full flex items-center space-x-2 shadow-md"
+                    className="bg-red-600 text-white px-3 py-1.5 text-sm lg:px-4 lg:py-2 lg:text-base rounded-full flex items-center space-x-1 lg:space-x-2 shadow-md"
                     onClick={openLogoutModal}
                   >
-                    <LogOut className="h-4 w-4" />
+                    <LogOut className="h-3 w-3 lg:h-4 lg:w-4" />
                     <span>Logout</span>
                   </motion.button>
                 </>
@@ -71,17 +71,17 @@ export const Navbar: React.FC = () => {
                 <motion.button
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
-                  className="bg-blue-600 text-white px-4 py-2 rounded-full flex items-center space-x-2 shadow-md"
+                  className="bg-blue-600 text-white px-3 py-1.5 text-sm lg:px-4 lg:py-2 lg:text-base rounded-full flex items-center space-x-1 lg:space-x-2 shadow-md"
                   onClick={() => navigate("/signin")}
                 >
-                  <User className="h-4 w-4" />
+                  <User className="h-3 w-3 lg:h-4 lg:w-4" />
                   <span>Sign In</span>
                 </motion.button>
               )}
             </div>
 
             {/* Mobile menu button */}
-            <button className="md:hidden" onClick={handleMobileMenuToggle}>
+            <button className="md:hidden p-2" onClick={handleMobileMenuToggle}>
               {isMobileMenuOpen ? (
                 <X className="h-6 w-6" />
               ) : (
@@ -101,6 +101,11 @@ export const Navbar: React.FC = () => {
               className="md:hidden bg-white/90 backdrop-blur-sm shadow-md absolute top-16 w-full"
             >
               <div className="flex flex-col space-y-4 p-4">
+                {user?.role === "admin" && (
+                  <NavLink to="/admin" onClick={handleMobileMenuToggle}>
+                    Admin
+                  </NavLink>
+                )}
                 <NavLink to="/trips" onClick={handleMobileMenuToggle}>
                   Trips
                 </NavLink>
@@ -114,27 +119,20 @@ export const Navbar: React.FC = () => {
                   Contact
                 </NavLink>
                 {user && (
-                  <NavLink to="/profile" onClick={handleMobileMenuToggle}>
-                    Profile
-                  </NavLink>
-                  
-                )}
-                      {user && (
-                  <NavLink to="/booked" onClick={handleMobileMenuToggle}>
-                    Booked
-                  </NavLink>
-                  
-                )}
-                    {user && (
-                  <NavLink to="/admin" onClick={handleMobileMenuToggle}>
-                    Admin
-                  </NavLink>
+                  <>
+                    <NavLink to="/profile" onClick={handleMobileMenuToggle}>
+                      Profile
+                    </NavLink>
+                    <NavLink to="/booked" onClick={handleMobileMenuToggle}>
+                      Booked
+                    </NavLink>
+                  </>
                 )}
                 {user ? (
                   <motion.button
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
-                    className="bg-red-600 text-white px-4 py-2 rounded-full flex items-center space-x-2 shadow-md"
+                    className="bg-red-600 text-white px-4 py-2 rounded-full flex items-center space-x-2 shadow-md self-start"
                     onClick={() => {
                       openLogoutModal();
                       handleMobileMenuToggle();
@@ -147,7 +145,7 @@ export const Navbar: React.FC = () => {
                   <motion.button
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
-                    className="bg-blue-600 text-white px-4 py-2 rounded-full flex items-center space-x-2 shadow-md"
+                    className="bg-blue-600 text-white px-4 py-2 rounded-full flex items-center space-x-2 shadow-md self-start"
                     onClick={() => {
                       navigate("/signin");
                       handleMobileMenuToggle();
@@ -167,7 +165,7 @@ export const Navbar: React.FC = () => {
       <AnimatePresence>
         {isLogoutModalOpen && (
           <motion.div
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}

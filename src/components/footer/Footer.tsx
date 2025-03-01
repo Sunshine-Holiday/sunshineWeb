@@ -18,7 +18,7 @@ export const Footer = () => {
                 Sunshine Holidays
               </span>
             </Link>
-            <NewsletterForm />
+            {/* <NewsletterForm /> */}
           </div>
 
           {/* Navigation Links */}
