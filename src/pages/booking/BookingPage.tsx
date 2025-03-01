@@ -4,7 +4,7 @@ import { SeatLayout } from "./components/SeatLayout";
 import { BookingSummary } from "./components/BookingSummary";
 import { PassengerForm, PassengerData } from "./components/PassengerForm";
 import { fadeInUp } from "../../utils/animations";
-import { Navigate, useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useGettripsIDQuery } from "@/store/api/trips";
 import { toast } from "react-toastify";
 import { useCreatebookingMutation } from "@/store/api/booking";
@@ -13,39 +13,98 @@ import { RAZORPAY_API_KEY } from "@/store/store";
 import { useSelector } from "react-redux";
 import { selectCurrentUser } from "@/store/reducer/auth";
 import { FaSpinner } from "react-icons/fa";
+import { useSelectedDateBookingQuery } from "@/store/api/auth";
 
-const SEAT_PRICE = 1499;
 const INITIAL_STEP = "select-seats";
-const BOOKED_SEATS = ["3", "8", "12", "15", "22"];
 
 const BookingPage = () => {
   const location = useLocation();
   const userDetails = useSelector(selectCurrentUser);
-  const { tripId } = location.state;
-  const [selectedDate,setSelectedData]=useState(location.state.selectedDate)
-  const changeDate=(data)=>{
-    console.log(data)
-    setSelectedData(data)
-  }
-  console.log(selectedDate)
+  const tripId = location.state?.tripId;
+  const [selectedDate, setSelectedDate] = useState(
+    location.state?.selectedDate || ""
+  );
   const navigate = useNavigate();
-  const [createBooking] = useCreatebookingMutation();
-  const [createPayment] = useCreatePaymentIntentMutation();
 
-  const [trip, setTrip] = useState(null);
+  // State variables
   const [selectedSeats, setSelectedSeats] = useState<string[]>([]);
+  const [bookedSeats, setBookedSeats] = useState<string[]>([]);
   const [passengers, setPassengers] = useState<PassengerData[]>([]);
   const [step, setStep] = useState<"select-seats" | "passenger-details">(
     INITIAL_STEP
   );
   const [loading, setLoading] = useState(false);
+  const [trip, setTrip] = useState(null);
+  function formatDate(dateInput, format = "yyyy-mm-dd") {
+    // Convert input to Date object
+    const date = dateInput instanceof Date ? dateInput : new Date(dateInput);
 
-  const { data, isLoading, isError } = useGettripsIDQuery({ id: tripId });
+    // Check if date is valid
+    if (isNaN(date.getTime())) {
+      throw new Error("Invalid date input");
+    }
 
+    // Get date components
+    const year = date.getFullYear();
+    const month = date.getMonth() + 1; // getMonth() returns 0-11
+    const day = date.getDate();
+    const hours = date.getHours();
+    const minutes = date.getMinutes();
+    const seconds = date.getSeconds();
+
+    // Pad single digits with leading zero
+    const pad = (num) => num.toString().padStart(2, "0");
+
+    // Replace format tokens with actual values
+    return format
+      .replace("yyyy", year)
+      .replace("mm", pad(month))
+      .replace("dd", pad(day))
+      .replace("HH", pad(hours))
+      .replace("MM", pad(minutes))
+      .replace("SS", pad(seconds));
+  }
+  // API queries and mutations
+  const {
+    data: tripData,
+    isLoading: tripLoading,
+    isError: tripError,
+  } = useGettripsIDQuery({ id: tripId });
+
+  const {
+    data: bookingData,
+    isLoading: bookingLoading,
+    isError: bookingError,
+  } = useSelectedDateBookingQuery(
+    {
+      trip_id: tripId,
+      selectedDate: formatDate(selectedDate),
+    },
+  
+  );
+
+  const [createBooking] = useCreatebookingMutation();
+  const [createPayment] = useCreatePaymentIntentMutation();
+
+  // Update trip data when API response is received
   useEffect(() => {
-    if (data) setTrip(data);
-  }, [data]);
+    if (tripData) setTrip(tripData);
+  }, [tripData]);
 
+  // Update booked seats when booking data is received
+  useEffect(() => {
+    if (bookingData?.selectedSeats) {
+      console.log(bookingData)
+      setBookedSeats(bookingData.selectedSeats);
+    }
+  }, [bookingData]);
+
+  // Handle date change
+  const changeDate = (date) => {
+    setSelectedDate(date);
+  };
+
+  // Check if trip is scheduled for today
   const isTripToday = () => {
     const today = new Date().toDateString();
     return trip?.startDates?.some(
@@ -53,12 +112,14 @@ const BookingPage = () => {
     );
   };
 
-  useEffect(() => {
-    if (trip && isTripToday()) {
-      console.log("Trip is happening today!");
-    }
-  }, [trip]);
+  // Handle seat selection
   const handleSeatSelect = (seatId: string) => {
+    if (bookedSeats.includes(seatId)) {
+      // Seat is already booked, don't allow selection
+      toast.error("This seat is already booked");
+      return;
+    }
+
     setSelectedSeats((prev) =>
       prev.includes(seatId)
         ? prev.filter((id) => id !== seatId)
@@ -66,6 +127,7 @@ const BookingPage = () => {
     );
   };
 
+  // Update passenger data
   const handlePassengerChange = (index: number, data: PassengerData) => {
     setPassengers((prev) => {
       const updatedPassengers = [...prev];
@@ -74,6 +136,7 @@ const BookingPage = () => {
     });
   };
 
+  // Validate passenger details
   const validatePassengerDetails = () => {
     return passengers.every(
       (passenger) =>
@@ -86,6 +149,7 @@ const BookingPage = () => {
     );
   };
 
+  // Initialize Razorpay payment
   const handlePayment = async (paymentDetail: any, finalAmount: number) => {
     const options = {
       key: RAZORPAY_API_KEY,
@@ -124,7 +188,7 @@ const BookingPage = () => {
         netbanking: true,
         card: true,
         wallet: true,
-        upi: true, // UPI is enabled here
+        upi: true,
       },
     };
 
@@ -132,12 +196,26 @@ const BookingPage = () => {
     razorpay.open();
   };
 
+  // Handle proceed button clicks
   const handleProceed = async () => {
     if (step === "select-seats") {
       if (selectedSeats.length === 0) {
         toast.error("Please select at least one seat.");
         return;
       }
+
+      // Initialize passenger data array with empty objects
+      setPassengers(
+        Array(selectedSeats.length).fill({
+          name: "",
+          age: "",
+          gender: "",
+          idProof: "",
+          idProofNumber: "",
+          address: "",
+        })
+      );
+
       setStep("passenger-details");
     } else {
       if (!validatePassengerDetails()) {
@@ -166,7 +244,8 @@ const BookingPage = () => {
     }
   };
 
-  if (isLoading) {
+  // Loading state
+  if (tripLoading || (bookingLoading && selectedDate)) {
     return (
       <div className="flex justify-center items-center min-h-screen">
         <FaSpinner className="animate-spin text-4xl text-gray-500" />
@@ -174,10 +253,12 @@ const BookingPage = () => {
     );
   }
 
-  if (isError || !trip) {
+  // Error state
+  if (tripError || !trip) {
     return <div className="text-center">Failed to load trip details.</div>;
   }
 
+  // Trip details object
   const tripDetails = {
     from: trip.location || "Unknown",
     to: trip.category || "Unknown",
@@ -185,7 +266,7 @@ const BookingPage = () => {
     time: trip.duration,
     busType: trip.busSize || "Standard",
     amenities: trip.amenities || [],
-    price: trip?.price || SEAT_PRICE,
+    price: trip?.price || 1499,
     boardingPoints: trip?.boardingPoints || [],
     busSize: trip.busSize || 20,
   };
@@ -218,13 +299,14 @@ const BookingPage = () => {
                 totalSeats={Number(tripDetails?.busSize)}
                 selectedSeats={selectedSeats}
                 onSeatSelect={handleSeatSelect}
-                bookedSeats={BOOKED_SEATS}
+                bookedSeats={bookedSeats}
                 seatPrice={tripDetails.price}
               />
             ) : (
               <div className="space-y-4">
                 {selectedSeats.map((seat, index) => (
                   <PassengerForm
+                  
                     key={seat}
                     tripDetails={tripDetails}
                     seatNumber={seat}
