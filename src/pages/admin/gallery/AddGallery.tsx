@@ -1,188 +1,267 @@
 import { useCreateGalleryMutation } from "@/store/api/gallery";
 import React, { useState } from "react";
-import { FaImage, FaVideo } from "react-icons/fa"; // Icons for file type selection
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Progress } from "@/components/ui/progress";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ImageIcon, VideoIcon, Loader2, UploadCloud } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const AddGallery: React.FC = () => {
-  // State to manage form input values
   const navigate = useNavigate();
   const [createGallery] = useCreateGalleryMutation();
-  const [mediaType, setMediaType] = useState<"image" | "video">("image"); // Default to image
-  const [file, setFile] = useState<File | null>(null); // To hold the selected file
-  const [location, setLocation] = useState<string>(""); // To store location
-  const [date, setDate] = useState<string>(""); // To store date
-  const [error, setError] = useState<string>(""); // To manage form errors
-  const [loading, setLoading] = useState<boolean>(false); // To manage button loading state
-  const [progress, setProgress] = useState<number>(0); // To manage the file upload progress
+  
+  // Form state
+  const [formData, setFormData] = useState({
+    mediaType: "image" as "image" | "video",
+    file: null as File | null,
+    location: "",
+    date: "",
+  });
+  const [error, setError] = useState<string>("");
+  const [loading, setLoading] = useState<boolean>(false);
+  const [progress, setProgress] = useState<number>(0);
 
-  // Handle file selection (Image or Video)
+  // Handlers
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      setFile(e.target.files[0]);
+    const selectedFile = e.target.files?.[0];
+    if (selectedFile) {
+      setFormData((prev) => ({ ...prev, file: selectedFile }));
     }
   };
 
-  // Handle media type toggle
   const handleMediaTypeChange = (type: "image" | "video") => {
-    setMediaType(type);
-    setFile(null); // Clear the previous file when media type changes
+    setFormData((prev) => ({ ...prev, mediaType: type, file: null }));
   };
 
-  // Handle form submission
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!file || !location || !date) {
+    
+    if (!formData.file || !formData.location || !formData.date) {
       setError("Please fill in all fields and select a file.");
       return;
     }
 
-    // Construct FormData to handle file upload
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("location", location);
-    formData.append("date", date);
-    formData.append("mediaType", mediaType);
+    const uploadData = new FormData();
+    uploadData.append("file", formData.file);
+    uploadData.append("location", formData.location);
+    uploadData.append("date", formData.date);
+    uploadData.append("mediaType", formData.mediaType);
 
     try {
-      setLoading(true); // Start loading
-      setProgress(0); // Reset progress
+      setLoading(true);
+      setProgress(0);
 
-      // Create a custom fetch function to track progress
       const uploadProgress = (progressEvent: ProgressEvent) => {
         if (progressEvent.total) {
-          setProgress(
-            Math.round((progressEvent.loaded * 100) / progressEvent.total)
-          ); // Update progress
+          setProgress(Math.round((progressEvent.loaded * 100) / progressEvent.total));
         }
       };
 
-      const resp = await createGallery(formData).unwrap();
+      await createGallery(uploadData).unwrap();
       navigate("/admin/gallery");
-      toast.success("Gallery item uploaded successfully");
-      console.log(resp);
+      toast.success("Gallery item uploaded successfully", {
+        position: "top-right",
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+      });
+      
+      // Reset form
+      setFormData({
+        mediaType: "image",
+        file: null,
+        location: "",
+        date: "",
+      });
+      setError("");
     } catch (error) {
       console.error(error);
-      toast.error("Failed to upload gallery item");
+      toast.error("Failed to upload gallery item", {
+        position: "top-right",
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+      });
     } finally {
-      setLoading(false); // Stop loading
-      setProgress(100); // Ensure progress reaches 100%
-      // Reset the form after submission
-      setFile(null);
-      setLocation("");
-      setDate("");
-      setError(""); // Clear error message
+      setLoading(false);
+      setProgress(100);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 pt-16 pb-16">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <h2 className="text-3xl font-bold text-gray-900 mb-6">
-          Add New Gallery Item
-        </h2>
-        <form
-          onSubmit={handleSubmit}
-          className="bg-white p-6 rounded-lg shadow-lg"
-        >
-          {/* Media Type Selector */}
-          <div className="flex space-x-4 mb-6">
-            <button
-              type="button"
-              onClick={() => handleMediaTypeChange("image")}
-              className={`${
-                mediaType === "image"
-                  ? "bg-blue-600 text-white"
-                  : "bg-gray-200 text-gray-700"
-              } p-4 rounded-lg flex items-center space-x-2`}
-            >
-              <FaImage size={24} />
-              <span>Image</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => handleMediaTypeChange("video")}
-              className={`${
-                mediaType === "video"
-                  ? "bg-blue-600 text-white"
-                  : "bg-gray-200 text-gray-700"
-              } p-4 rounded-lg flex items-center space-x-2`}
-            >
-              <FaVideo size={24} />
-              <span>Video</span>
-            </button>
-          </div>
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 py-16 px-4 sm:px-6 lg:px-8 flex items-center justify-center">
+      <Card className="max-w-2xl w-full shadow-2xl hover:shadow-3xl transition-shadow duration-300 ease-in-out transform hover:-translate-y-2 bg-white">
+        <CardHeader className="bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-t-lg">
+          <CardTitle className="text-3xl font-bold flex items-center justify-center space-x-3">
+            <UploadCloud className="h-8 w-8" />
+            <span>Add New Gallery Item</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-8 space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Media Type Selector */}
+            <div className="flex gap-4">
+              <Button
+                type="button"
+                variant={formData.mediaType === "image" ? "default" : "outline"}
+                onClick={() => handleMediaTypeChange("image")}
+                className={cn(
+                  "flex-1 transition-all duration-300 ease-in-out",
+                  formData.mediaType === "image" 
+                    ? "bg-blue-600 hover:bg-blue-700" 
+                    : "border-gray-300 hover:border-blue-500"
+                )}
+              >
+                <ImageIcon className="mr-2 h-5 w-5" />
+                Image
+              </Button>
+              <Button
+                type="button"
+                variant={formData.mediaType === "video" ? "default" : "outline"}
+                onClick={() => handleMediaTypeChange("video")}
+                className={cn(
+                  "flex-1 transition-all duration-300 ease-in-out",
+                  formData.mediaType === "video" 
+                    ? "bg-purple-600 hover:bg-purple-700" 
+                    : "border-gray-300 hover:border-purple-500"
+                )}
+              >
+                <VideoIcon className="mr-2 h-5 w-5" />
+                Video
+              </Button>
+            </div>
 
-          {/* File Input */}
-          <div className="mb-6">
-            <label className="block text-gray-700 mb-2">Select File</label>
-            <input
-              type="file"
-              accept={mediaType === "image" ? "image/*" : "video/*"}
-              onChange={handleFileChange}
-              className="w-full p-3 border rounded-lg"
-            />
-          </div>
-
-          {/* Location Input */}
-          <div className="mb-6">
-            <label className="block text-gray-700 mb-2">Location</label>
-            <input
-              type="text"
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
-              placeholder="Enter the location"
-              className="w-full p-3 border rounded-lg"
-            />
-          </div>
-
-          {/* Date Input */}
-          <div className="mb-6">
-            <label className="block text-gray-700 mb-2">Date</label>
-            <input
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className="w-full p-3 border rounded-lg"
-            />
-          </div>
-
-          {/* Error Message */}
-          {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
-
-          {/* Progress Bar */}
-          {loading && (
-            <div className="mb-6">
-              <div className="w-full bg-gray-200 rounded-full h-2">
-                <div
-                  className="bg-blue-600 h-2 rounded-full"
-                  style={{ width: `${progress}%` }}
-                ></div>
+            {/* File Input */}
+            <div className="space-y-2">
+              <Label 
+                htmlFor="file" 
+                className="block text-sm font-medium text-gray-700 mb-2"
+              >
+                Select File
+              </Label>
+              <div className="relative">
+                <Input
+                  id="file"
+                  type="file"
+                  accept={formData.mediaType === "image" ? "image/*" : "video/*"}
+                  onChange={handleFileChange}
+                  disabled={loading}
+                  className="
+                    file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 
+                    file:text-sm file:font-semibold file:bg-blue-500 
+                    file:text-white hover:file:bg-blue-600
+                    cursor-pointer
+                    block w-full text-sm text-gray-500
+                    file:transition-colors file:duration-300
+                    focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50
+                  "
+                />
+                {formData.file && (
+                  <div className="mt-2 text-sm text-gray-500 truncate">
+                    Selected: {formData.file.name}
+                  </div>
+                )}
               </div>
             </div>
-          )}
 
-          {/* Submit Button with Loading Spinner */}
-          <button
-            type="submit"
-            className={`w-full ${
-              loading ? "bg-gray-500" : "bg-blue-600"
-            } text-white p-3 rounded-lg flex items-center justify-center space-x-2 ${
-              loading ? "cursor-not-allowed" : "hover:bg-blue-700"
-            }`}
-            disabled={loading}
-          >
-            {loading ? (
-              <>
-                <div className="w-5 h-5 border-4 border-t-4 border-white border-solid rounded-full animate-spin"></div>
-                <span>Uploading...</span>
-              </>
-            ) : (
-              <span>Add Item</span>
+            {/* Location Input */}
+            <div className="space-y-2">
+              <Label 
+                htmlFor="location" 
+                className="block text-sm font-medium text-gray-700 mb-2"
+              >
+                Location
+              </Label>
+              <Input
+                id="location"
+                name="location"
+                value={formData.location}
+                onChange={handleInputChange}
+                placeholder="Enter the location"
+                disabled={loading}
+                className="
+                  focus:ring-2 focus:ring-blue-500 focus:border-blue-500
+                  transition-all duration-300 ease-in-out
+                "
+              />
+            </div>
+
+            {/* Date Input */}
+            <div className="space-y-2">
+              <Label 
+                htmlFor="date" 
+                className="block text-sm font-medium text-gray-700 mb-2"
+              >
+                Date
+              </Label>
+              <Input
+                id="date"
+                name="date"
+                type="date"
+                value={formData.date}
+                onChange={handleInputChange}
+                disabled={loading}
+                className="
+                  focus:ring-2 focus:ring-blue-500 focus:border-blue-500
+                  transition-all duration-300 ease-in-out
+                "
+              />
+            </div>
+
+            {/* Error Message */}
+            {error && (
+              <p className="text-red-500 text-sm animate-pulse">
+                {error}
+              </p>
             )}
-          </button>
-        </form>
-      </div>
+
+            {/* Progress Bar */}
+            {loading && (
+              <Progress 
+                value={progress} 
+                className="w-full" 
+              />
+            )}
+
+            {/* Submit Button */}
+            <Button
+              type="submit"
+              disabled={loading}
+              className="
+                w-full py-3 mt-4 
+                bg-gradient-to-r from-blue-600 to-purple-600 
+                hover:from-blue-700 hover:to-purple-700 
+                text-white font-bold
+                transition-all duration-300 ease-in-out
+                transform hover:scale-105 active:scale-95
+                disabled:opacity-50 disabled:cursor-not-allowed
+              "
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                  Uploading...
+                </>
+              ) : (
+                "Add Item"
+              )}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
     </div>
   );
 };
