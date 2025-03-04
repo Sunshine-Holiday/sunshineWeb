@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import { NewsletterForm } from './NewsletterForm';
 import { SocialLinks } from './SocialLinks';
 import { FooterLinks } from './FooterLinks';
-
+import logo from "../../asserts/1-removebg-preview.png";
 export const Footer = () => {
   return (
     <footer className="bg-gray-50 border-t border-gray-200 pt-16 pb-8">
@@ -13,7 +13,8 @@ export const Footer = () => {
           {/* Brand and Newsletter */}
           <div className="lg:col-span-1">
             <Link to="/" className="flex items-center space-x-2 mb-6">
-              <Plane className="h-8 w-8 text-blue-600" />
+            <img className="h-12 w-12 sm:h-16 sm:w-16 md:h-20 md:w-20 text-blue-600" src={logo} alt="Logo" />
+              {/* <Plane className="h-8 w-8 text-blue-600" /> */}
               <span className="text-xl font-bold text-gray-900">
                 Sunshine Holidays
               </span>

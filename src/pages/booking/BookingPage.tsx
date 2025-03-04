@@ -5,7 +5,10 @@ import { BookingSummary } from "./components/BookingSummary";
 import { PassengerForm, PassengerData } from "./components/PassengerForm";
 import { fadeInUp } from "../../utils/animations";
 import { useLocation, useNavigate } from "react-router-dom";
-import { useGettripsIDQuery } from "@/store/api/trips";
+import {
+  useGettripsIDQuery,
+  useSelectedDateBookingQuery,
+} from "@/store/api/trips";
 import { toast } from "react-toastify";
 import { useCreatebookingMutation } from "@/store/api/booking";
 import { useCreatePaymentIntentMutation } from "@/store/api/terms";
@@ -13,7 +16,6 @@ import { RAZORPAY_API_KEY } from "@/store/store";
 import { useSelector } from "react-redux";
 import { selectCurrentUser } from "@/store/reducer/auth";
 import { FaSpinner } from "react-icons/fa";
-import { useSelectedDateBookingQuery } from "@/store/api/auth";
 
 const INITIAL_STEP = "select-seats";
 
@@ -75,14 +77,19 @@ const BookingPage = () => {
     data: bookingData,
     isLoading: bookingLoading,
     isError: bookingError,
-  } = useSelectedDateBookingQuery(
-    {
-      trip_id: tripId,
-      selectedDate: formatDate(selectedDate),
-    },
-  
-  );
+  } = useSelectedDateBookingQuery({
+    trip_id: tripId,
+    selectedDate: formatDate(
+      new Date(selectedDate).setDate(new Date(selectedDate).getDate()-1)
+    ),
+  });
+  useEffect(() => {
+    if (bookingError) {
+      setBookedSeats([]);
+    }
+  }, [bookingError]);
 
+  console.log("selectedDate", selectedDate);
   const [createBooking] = useCreatebookingMutation();
   const [createPayment] = useCreatePaymentIntentMutation();
 
@@ -94,8 +101,11 @@ const BookingPage = () => {
   // Update booked seats when booking data is received
   useEffect(() => {
     if (bookingData?.selectedSeats) {
-      console.log(bookingData)
+      console.log("bookingData", bookingData);
+      console.log(bookingData);
       setBookedSeats(bookingData.selectedSeats);
+    } else {
+      setBookedSeats([]);
     }
   }, [bookingData]);
 
@@ -306,7 +316,6 @@ const BookingPage = () => {
               <div className="space-y-4">
                 {selectedSeats.map((seat, index) => (
                   <PassengerForm
-                  
                     key={seat}
                     tripDetails={tripDetails}
                     seatNumber={seat}

@@ -84,17 +84,7 @@ export const authApiSlice = apiWithTag.injectEndpoints({
       providesTags: ["user"],
     }),
 
-    selectedDateBooking: builder.query<any, any>({
-      query: ({ trip_id, selectedDate }: any) =>{
-     
-       return ({
-          url: `/api/v1/booking/stats/trip-date/${trip_id}?selectedDate=${selectedDate}`,
-          method: "GET",
-        })
-      },
-      keepUnusedDataFor: 0,
-      providesTags: ["user"],
-    }),
+
 
     updateProfile: builder.mutation<UserResponse, User>({
       query: (credential) => ({
@@ -176,5 +166,5 @@ export const {
   useAdminUpdateUserMutation,
   useUpdateProfile_PicMutation,
   useAllUserDetailQuery,
-  useSelectedDateBookingQuery
+
 } = authApiSlice;

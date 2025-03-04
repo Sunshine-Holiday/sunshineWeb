@@ -31,7 +31,7 @@ interface TripDetails {
   price: string;
   location: string;
   duration: string;
-  description: string; // Added description field
+  description: string;
   startDates: Date[];
   busSize: string;
   category: string;
@@ -59,7 +59,7 @@ const EditTrips: React.FC = () => {
     price: "",
     location: "",
     duration: "",
-    description: "", // Initialize description
+    description: "",
     startDates: [],
     busSize: "",
     category: "",
@@ -75,7 +75,7 @@ const EditTrips: React.FC = () => {
         price: data.price,
         location: data.location,
         duration: data.duration,
-        description: data.description || "", // Set description from data
+        description: data.description || "",
         startDates: data.startDates.map((date: string) => new Date(date)),
         busSize: data.busSize,
         category: data.category,
@@ -99,7 +99,7 @@ const EditTrips: React.FC = () => {
       ...tripDetails,
       boardingPoints: [
         ...tripDetails.boardingPoints,
-        { location: "", time: "", details: "" },
+        { location: "", time: "", details: "", maplink: "" },
       ],
     });
   };
@@ -123,9 +123,12 @@ const EditTrips: React.FC = () => {
         startDates: selectedDates.filter((d) => d.getTime() !== date.getTime()),
       });
     } else {
+      const updatedDates = [...selectedDates, date].sort(
+        (a, b) => a.getTime() - b.getTime()
+      );
       setTripDetails({
         ...tripDetails,
-        startDates: [...selectedDates, date],
+        startDates: updatedDates,
       });
     }
   };
@@ -135,7 +138,7 @@ const EditTrips: React.FC = () => {
     if (!tripDetails.title) newErrors.title = true;
     if (!tripDetails.price) newErrors.price = true;
     if (!tripDetails.location) newErrors.location = true;
-    if (!tripDetails.description) newErrors.description = true; // Add description validation
+    if (!tripDetails.description) newErrors.description = true;
     if (!tripDetails.busSize) newErrors.busSize = true;
     if (!tripDetails.category) newErrors.category = true;
     setErrors(newErrors);
@@ -149,7 +152,14 @@ const EditTrips: React.FC = () => {
     }
     setLoading(true);
     try {
-      const resp = await createTrips(tripDetails).unwrap();
+      const sortedDates = [...tripDetails.startDates].sort(
+        (a, b) => a.getTime() - b.getTime()
+      );
+      const updatedTripDetails = {
+        ...tripDetails,
+        startDates: sortedDates,
+      };
+      const resp = await createTrips(updatedTripDetails).unwrap();
       toast.success("Trip updated successfully!");
       console.log(resp);
       navigate("/admin/trips");
@@ -204,7 +214,7 @@ const EditTrips: React.FC = () => {
                 value={tripDetails.busSize}
                 onChange={(e) => handleChange("busSize", e.target.value)}
                 className={`w-full rounded-lg p-2 ${
-                  errors.category ? "border-red-500" : "border-gray-300"
+                  errors.busSize ? "border-red-500" : "border-gray-300"
                 }`}
               >
                 <option value="">Select Bus Size *</option>
@@ -223,9 +233,9 @@ const EditTrips: React.FC = () => {
                 </option>
                 <option value="One Day Tours">One Day Tours</option>
                 <option value="Stay Package">Stay Package</option>
-                <option value="Domestic Tours"> Domestic Tours</option>
+                <option value="Domestic Tours">Domestic Tours</option>
               </select>
-              {/* Description Textarea - Added as full width */}
+              {/* Description Textarea */}
               <div className="sm:col-span-2">
                 <textarea
                   placeholder="Trip Description"
@@ -303,9 +313,8 @@ const EditTrips: React.FC = () => {
                       )
                     }
                     placeholder="Pick Up Location"
-                    className="w-full rounded-lg p-2"
+                    className="w-full rounded-lg p-2 border-gray-300"
                   />
-
                   <input
                     type="text"
                     value={point.maplink}
@@ -317,9 +326,8 @@ const EditTrips: React.FC = () => {
                       )
                     }
                     placeholder="Map Link (URL)"
-                    className="w-full rounded-lg p-2"
+                    className="w-full rounded-lg p-2 border-gray-300"
                   />
-
                   <input
                     type="time"
                     value={point.time}
@@ -327,7 +335,7 @@ const EditTrips: React.FC = () => {
                       handleBoardingPointChange(index, "time", e.target.value)
                     }
                     placeholder="Time"
-                    className="w-full rounded-lg p-2"
+                    className="w-full rounded-lg p-2 border-gray-300"
                   />
                   <input
                     type="text"
@@ -340,7 +348,7 @@ const EditTrips: React.FC = () => {
                       )
                     }
                     placeholder="Pick Up Location Details"
-                    className="w-full rounded-lg p-2"
+                    className="w-full rounded-lg p-2 border-gray-300"
                   />
                 </div>
               ))}

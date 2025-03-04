@@ -26,7 +26,17 @@ export const TripsApiSlice = apiWithTag.injectEndpoints({
 
       invalidatesTags: ["trips"],
     }),
-   
+    selectedDateBooking: builder.query<any, any>({
+      query: ({ trip_id, selectedDate }: any) =>{
+     
+       return ({
+          url: `/api/v1/booking/stats/trip-date/${trip_id}?selectedDate=${selectedDate}`,
+          method: "GET",
+        })
+      },
+      keepUnusedDataFor: 0,
+      providesTags: ["trips"],
+    }),
     gettripsID: builder.query<any, any>({
       query: (credentials: any) => ({
         url: `/api/v1/trips/${credentials.id}`,
@@ -60,5 +70,6 @@ export const {
   useGettripsQuery,
   useGettripsIDQuery,
   useDeleteTripsMutation,
-  useEditTripsMutation
+  useEditTripsMutation,
+  useSelectedDateBookingQuery
 } = TripsApiSlice;
