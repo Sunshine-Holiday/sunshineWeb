@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { MapPin, Clock, Users, Calendar } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { scaleOnHover } from "@/utils/animations";
+import { IMAGE_URL } from "@/store/store";
 
 interface TripCardProps {
   trip: {
@@ -37,7 +38,7 @@ const formatDate = (date: Date): string => {
 export const TripCard = ({ trip, onDelete, onEdit }: TripCardProps) => {
   const navigate = useNavigate();
   const today = new Date(); // Dynamically get today's date
-
+  const bannerURL = IMAGE_URL + trip.banner;
   // Convert all start dates to Date objects and filter valid ones
   const validStartDates = trip.startDates
     .map(isValidStartDate)
@@ -82,7 +83,7 @@ export const TripCard = ({ trip, onDelete, onEdit }: TripCardProps) => {
       >
         <img
           src={
-            trip?.image ||
+            bannerURL||
             "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b"
           }
           alt={trip.title}

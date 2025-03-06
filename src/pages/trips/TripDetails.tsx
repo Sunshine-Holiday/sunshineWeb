@@ -15,6 +15,7 @@ import { useNavigate, useParams } from "react-router-dom"; // Removed unused use
 import { fadeInUp, staggerChildren } from "../../utils/animations";
 import { useGettripsIDQuery } from "@/store/api/trips";
 import { format, parse, isValid } from "date-fns"; // Import date-fns utilities
+import { IMAGE_URL } from "@/store/store";
 
 interface Amenity {
   icon: React.ElementType;
@@ -30,7 +31,8 @@ const amenitiesList: Amenity[] = [
 
 // Function to format Date objects to "dd-MM-yyyy"
 const formatDateToString = (date: string | Date): string => {
-  const parsedDate = typeof date === "string" ? parse(date, "dd-MM-yyyy", new Date()) : date;
+  const parsedDate =
+    typeof date === "string" ? parse(date, "dd-MM-yyyy", new Date()) : date;
   if (!isValid(parsedDate)) {
     console.error("Invalid date:", date);
     return "Invalid Date";
@@ -44,7 +46,7 @@ const TripDetails = () => {
   const [trip, setTrips] = useState<any>({});
   const [selectedDate, setSelectedDate] = useState<string>("");
   const { data, isLoading, isError } = useGettripsIDQuery({ id: id });
-
+  const bannerURL = IMAGE_URL + trip.banner;
   // Check if a date is valid and in the future
   const isDateValid = (dateStr: string): boolean => {
     const today = new Date();
@@ -61,7 +63,8 @@ const TripDetails = () => {
   useEffect(() => {
     if (data) {
       setTrips(data);
-      const availableDates = data.startDates?.filter((date: string) => isDateValid(date)) || [];
+      const availableDates =
+        data.startDates?.filter((date: string) => isDateValid(date)) || [];
       if (availableDates.length > 0) {
         setSelectedDate(availableDates[0]); // Set the first valid date
       }
@@ -129,7 +132,7 @@ const TripDetails = () => {
               <div className="h-64 relative">
                 <img
                   src={
-                    trip?.image ||
+                    bannerURL ||
                     "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b"
                   }
                   alt={trip.title}
@@ -196,7 +199,10 @@ const TripDetails = () => {
                 {trip.description && (
                   <div className="border-t border-gray-200 pt-6">
                     <h2 className="text-xl font-semibold mb-4">Description</h2>
-                    <p className="text-gray-600">{trip.description}</p>
+                    <div
+                      className=" "
+                      dangerouslySetInnerHTML={{ __html: trip.description }}
+                    />
                   </div>
                 )}
 
@@ -219,7 +225,9 @@ const TripDetails = () => {
                 </div>
 
                 <div className="border-t border-gray-200 pt-6 mt-6">
-                  <h2 className="text-xl font-semibold mb-4">Boarding Points</h2>
+                  <h2 className="text-xl font-semibold mb-4">
+                    Boarding Points
+                  </h2>
                   <div className="space-y-4">
                     {trip.boardingPoints?.map((point: any) => (
                       <a
@@ -256,7 +264,9 @@ const TripDetails = () => {
               {selectedDate && (
                 <div className="mb-4">
                   <p className="text-gray-600">Selected Date:</p>
-                  <p className="font-medium">{formatDateToString(selectedDate)}</p>
+                  <p className="font-medium">
+                    {formatDateToString(selectedDate)}
+                  </p>
                 </div>
               )}
 
@@ -287,7 +297,9 @@ const TripDetails = () => {
                     : "bg-blue-600 text-white hover:bg-blue-700"
                 }`}
               >
-                {availableDates.length === 0 ? "No Available Dates" : "Book Now"}
+                {availableDates.length === 0
+                  ? "No Available Dates"
+                  : "Book Now"}
               </motion.button>
 
               <div className="mt-6 text-sm text-gray-500">

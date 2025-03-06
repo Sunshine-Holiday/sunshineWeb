@@ -85,6 +85,7 @@ const BookingPage = () => {
   useEffect(() => {
     if (bookingData?.selectedSeats) {
       setBookedSeats(bookingData.selectedSeats);
+      console.log(bookingData?.selectedSeats)
     } else {
       setBookedSeats([]);
     }

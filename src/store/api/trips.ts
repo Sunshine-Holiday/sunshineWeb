@@ -17,9 +17,10 @@ export const TripsApiSlice = apiWithTag.injectEndpoints({
     }),
     editTrips: builder.mutation<void, void>({
       query: (credentials) =>{
-        console.log("cred",credentials)
+   const {_id}= Object.fromEntries(credentials)
+        
         return({
-        url: `/api/v1/trips/${credentials._id}`,
+        url: `/api/v1/trips/${_id}`,
         method: "PUT",
         body: credentials,
       })},

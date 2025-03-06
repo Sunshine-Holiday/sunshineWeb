@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { MapPin, Clock, Users, Calendar } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { scaleOnHover } from "@/utils/animations";
+import { IMAGE_URL } from "@/store/store";
 
 interface TripCardProps {
   trip: {
@@ -12,36 +13,65 @@ interface TripCardProps {
     location: string;
     duration: string;
     busSize: string;
-    startDates: string[];
+    startDates: string[]; // e.g., ["04-03-2025", "06-03-2025", ...]
     price: number;
   };
 }
 
-const isValidStartDate = (startDate: string) => {
-  const tripDate = new Date(startDate);
-  return tripDate;
+// Validate and parse a date string in "dd-mm-yyyy" format
+const isValidStartDate = (startDate: string): Date | null => {
+  const [day, month, year] = startDate.split("-").map(Number);
+  const tripDate = new Date(year, month - 1, day); // month - 1 because months are 0-based
+  return isNaN(tripDate.getTime()) ? null : tripDate;
 };
 
-const formatDate = (date: string) => {
-  const options: Intl.DateTimeFormatOptions = {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  };
-  return new Date(date).toLocaleDateString("en-US", options);
+// Format date as "dd-mm-yyyy"
+const formatDate = (date: Date): string => {
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0"); // Months are 0-based
+  const year = date.getFullYear();
+  return `${day}-${month}-${year}`;
 };
 
 export const TripCard = ({ trip }: TripCardProps) => {
   const navigate = useNavigate();
+  const today = new Date(); // Dynamically get today's date
+  const bannerURL = IMAGE_URL + trip.banner;
+  // Convert all start dates to Date objects and filter valid ones
+  const validStartDates = trip.startDates
+    .map(isValidStartDate)
+    .filter((date): date is Date => date !== null)
+    .sort((a, b) => a.getTime() - b.getTime()); // Sort dates chronologically
+
+  // Find if today matches any start date
+  const todayMatch = validStartDates.find((date) => date.toDateString() === today.toDateString());
+
+  // If today matches, use it; otherwise, find the next date after today, or use first available date
+  const displayDate = todayMatch || 
+    validStartDates.find((date) => date > today) || 
+    validStartDates[0];
+
+  // If no valid dates exist, display a message but still render the card
+  const hasValidDate = !!displayDate;
 
   const handleCardClick = () => {
     console.log(trip._id);
-    // navigate(`/admin/booked-data/${trip._id}`, { state: { trip } });
+    navigate(`/admin/block-trip/${trip._id}`, { 
+      state: { 
+        trip,
+        startDate: displayDate ? formatDate(displayDate) : null 
+      } 
+    });
   };
 
   const handleViewBooked = (e: React.MouseEvent) => {
     e.stopPropagation();
-    navigate(`/admin/booked-data/${trip._id}`, { state: { trip } });
+    navigate(`/admin/booked-data/${trip._id}`, { 
+      state: { 
+        trip,
+        startDate: displayDate ? formatDate(displayDate) : null 
+      } 
+    });
   };
 
   return (
@@ -57,7 +87,7 @@ export const TripCard = ({ trip }: TripCardProps) => {
       >
         <img
           src={
-            trip?.image ||
+            bannerURL ||
             "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b"
           }
           alt={trip.title}
@@ -82,12 +112,7 @@ export const TripCard = ({ trip }: TripCardProps) => {
             <div className="flex items-center text-gray-600 text-sm sm:text-base">
               <Calendar className="h-4 w-4 mr-2 flex-shrink-0" />
               <span className="truncate">
-                {trip.startDates && trip.startDates.length > 0
-                  ? formatDate(
-                      trip.startDates.find(isValidStartDate) ||
-                        trip.startDates[0]
-                    )
-                  : "No dates available"}
+                {hasValidDate ? formatDate(displayDate) : "No valid dates available"}
               </span>
             </div>
           </div>

@@ -4,24 +4,26 @@ import { MapPin, Clock, Users, Calendar } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { scaleOnHover } from "@/utils/animations";
 import { format, parse, isSameDay, isAfter } from "date-fns"; // Add isSameDay import
+import { IMAGE_URL } from "@/store/store";
 
 interface TripCardProps {
   trip: {
-    _id: string; 
+    _id: string;
     title: string;
     image: string;
     location: string;
     duration: string;
     busSize: string;
-    startDates: string[]; 
+    startDates: string[];
     price: number;
+    banner: string;
   };
 }
 
 // Function to validate and parse a date string
 const isValidStartDate = (startDate: string): Date | null => {
-  const parsedDate = parse(startDate, "dd-MM-yyyy", new Date()); 
-  return isNaN(parsedDate.getTime()) ? null : parsedDate; 
+  const parsedDate = parse(startDate, "dd-MM-yyyy", new Date());
+  return isNaN(parsedDate.getTime()) ? null : parsedDate;
 };
 
 // Format a Date object to "dd-MM-yyyy"
@@ -35,7 +37,7 @@ const formatDateToString = (date: Date): string => {
 export const TripCard = ({ trip }: TripCardProps) => {
   const navigate = useNavigate();
   const today = new Date(); // Dynamically get today's date
-
+  const bannerURL = IMAGE_URL + trip.banner;
   // Convert all start dates to Date objects and filter valid ones
   const validStartDates = trip.startDates
     .map(isValidStartDate)
@@ -46,7 +48,10 @@ export const TripCard = ({ trip }: TripCardProps) => {
   const todayMatch = validStartDates.find((date) => isSameDay(date, today));
 
   // If today matches, use it; otherwise, find the next date after today
-  const displayDate = todayMatch || validStartDates.find((date) => isAfter(date, today)) || validStartDates[0];
+  const displayDate =
+    todayMatch ||
+    validStartDates.find((date) => isAfter(date, today)) ||
+    validStartDates[0];
 
   // If no valid dates exist, return null
   if (!displayDate) return null;
@@ -68,7 +73,7 @@ export const TripCard = ({ trip }: TripCardProps) => {
       >
         <img
           src={
-            trip?.image ||
+            bannerURL ||
             "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b"
           }
           alt={trip.title}

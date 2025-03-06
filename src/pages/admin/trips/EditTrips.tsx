@@ -8,6 +8,9 @@ import { useEditTripsMutation, useGettripsIDQuery } from "@/store/api/trips";
 import { toast } from "react-toastify";
 import { FaSpinner, FaTrash } from "react-icons/fa";
 import { useLocation, useNavigate } from "react-router-dom";
+import { IMAGE_URL } from "@/store/store";
+import ReactQuill from "react-quill";
+import "react-quill/dist/quill.snow.css";
 
 const locales = { "en-US": enUS };
 const localizer = dateFnsLocalizer({
@@ -37,6 +40,7 @@ interface TripDetails {
   category: string;
   amenities: string[];
   boardingPoints: BoardingPoint[];
+  file?: File | null;
 }
 
 interface FormErrors {
@@ -61,6 +65,7 @@ const formatDateToString = (date: Date): string => {
 const EditTrips: React.FC = () => {
   const location = useLocation();
   const { id } = location.state;
+
   const { data, isError, isLoading } = useGettripsIDQuery({ id });
   const navigate = useNavigate();
   const [editTrips] = useEditTripsMutation();
@@ -78,22 +83,46 @@ const EditTrips: React.FC = () => {
     category: "",
     amenities: [],
     boardingPoints: [{ location: "", time: "", details: "", maplink: "" }],
+    file: null,
   });
 
   const [errors, setErrors] = useState<FormErrors>({});
   const [touched, setTouched] = useState<{ [key: string]: boolean }>({});
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+
+  const quillModules = {
+    toolbar: [
+      [{ 'header': [1, 2, 3, false] }],
+      ['bold', 'italic', 'underline', 'strike'],
+      [{'list': 'ordered'}, {'list': 'bullet'}],
+      ['link'],
+      ['clean']
+    ],
+  };
+
+  const quillFormats = [
+    'header',
+    'bold',
+    'italic',
+    'underline',
+    'strike',
+    'list',
+    'bullet',
+    'link',
+  ];
 
   useEffect(() => {
     if (data) {
       console.log("API Data:", data);
+  
       setTripDetails({
         _id: data._id,
         title: data.title,
         price: data.price,
         location: data.location,
         duration: data.duration || "",
+        file: null,
         description: data.description || "",
-        // Parse "dd-MM-yyyy" strings from API into Date objects
         startDates: data.startDates.map((dateStr: string) => {
           const parsedDate = parse(dateStr, "dd-MM-yyyy", new Date());
           if (isNaN(parsedDate.getTime())) {
@@ -106,6 +135,9 @@ const EditTrips: React.FC = () => {
         amenities: data.amenities,
         boardingPoints: data.boardingPoints,
       });
+      if (data.banner) {
+        setImagePreview(`${IMAGE_URL}${data.banner}`);
+      }
     }
   }, [data]);
 
@@ -113,6 +145,29 @@ const EditTrips: React.FC = () => {
     setTripDetails({ ...tripDetails, [field]: value });
     if (value) {
       setErrors({ ...errors, [field]: "" });
+    }
+  };
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const validTypes = ["image/png", "image/jpeg", "image/jpg"];
+      if (!validTypes.includes(file.type)) {
+        setErrors({ ...errors, file: "Please upload a PNG, JPG, or JPEG file" });
+        return;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        setErrors({ ...errors, file: "File size must be less than 5MB" });
+        return;
+      }
+      
+      setTripDetails({ ...tripDetails, file: file });
+      setErrors({ ...errors, file: "" });
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -143,6 +198,9 @@ const EditTrips: React.FC = () => {
       case "category":
         if (!tripDetails.category) newErrors.category = "Category is required";
         break;
+      case "amenities":
+        if (tripDetails.amenities.length === 0) newErrors.amenities = "At least one amenity is required";
+        break;
     }
     setErrors(newErrors);
   };
@@ -155,11 +213,15 @@ const EditTrips: React.FC = () => {
         { location: "", time: "", details: "", maplink: "" },
       ],
     });
+    setErrors({ ...errors, boardingPoints: "" });
   };
 
   const handleRemoveBoardingPoint = (index: number) => {
     const updatedPoints = tripDetails.boardingPoints.filter((_, i) => i !== index);
     setTripDetails({ ...tripDetails, boardingPoints: updatedPoints });
+    if (updatedPoints.length === 0) {
+      setErrors({ ...errors, boardingPoints: "Boarding points must have at least one entry" });
+    }
   };
 
   const handleBoardingPointChange = (
@@ -194,7 +256,7 @@ const EditTrips: React.FC = () => {
   };
 
   const validateForm = () => {
-    const requiredFields = ["title", "price", "location", "description", "busSize", "category"];
+    const requiredFields = ["title", "price", "location", "description", "busSize", "category", "amenities"];
     let newErrors: FormErrors = {};
     let isValid = true;
 
@@ -210,6 +272,16 @@ const EditTrips: React.FC = () => {
       isValid = false;
     }
 
+    if (tripDetails.boardingPoints.length === 0) {
+      newErrors.boardingPoints = "Boarding points must have at least one entry";
+      isValid = false;
+    }
+
+    if (tripDetails.amenities.length === 0) {
+      newErrors.amenities = "At least one amenity must be selected";
+      isValid = false;
+    }
+
     setErrors(newErrors);
     return isValid;
   };
@@ -221,16 +293,26 @@ const EditTrips: React.FC = () => {
     }
     setLoading(true);
     try {
-      const sortedDates = [...tripDetails.startDates].sort(
-        (a, b) => a.getTime() - b.getTime()
-      );
-      const updatedTripDetails = {
-        ...tripDetails,
-        // Send dates to API in "dd-MM-yyyy" format
-        startDates: sortedDates.map((date) => formatDate(date, "dd-MM-yyyy")),
-      };
-      console.log("Sending to API:", updatedTripDetails);
-      await editTrips(updatedTripDetails).unwrap();
+      const formData = new FormData();
+      
+      formData.append("_id", tripDetails._id || "");
+      formData.append("title", tripDetails.title);
+      formData.append("price", tripDetails.price);
+      formData.append("location", tripDetails.location);
+      formData.append("duration", tripDetails.duration);
+      formData.append("description", tripDetails.description);
+      formData.append("startDates", JSON.stringify(tripDetails.startDates.map(date => formatDate(date, "dd-MM-yyyy"))));
+      formData.append("busSize", tripDetails.busSize);
+      formData.append("category", tripDetails.category);
+      formData.append("amenities", JSON.stringify(tripDetails.amenities));
+      formData.append("boardingPoints", JSON.stringify(tripDetails.boardingPoints));
+      
+      if (tripDetails.file) {
+        formData.append("file", tripDetails.file);
+      }
+
+      console.log("Sending to API:", Object.fromEntries(formData));
+      await editTrips(formData).unwrap();
       toast.success("Trip updated successfully!");
       navigate("/admin/trips");
     } catch (error) {
@@ -260,7 +342,56 @@ const EditTrips: React.FC = () => {
           <h1 className="text-3xl font-bold text-gray-900 mb-6">Edit Trip</h1>
 
           <div className="space-y-8">
-            {/* Basic Info */}
+            <div>
+              <h2 className="text-xl font-semibold mb-4">Update Trip Banner</h2>
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                <input
+                  type="file"
+                  accept=".png,.jpg,.jpeg"
+                  onChange={handleImageUpload}
+                  className="hidden"
+                  id="banner-upload"
+                />
+                <label htmlFor="banner-upload" className="cursor-pointer block">
+                  {imagePreview ? (
+                    <div className="relative">
+                      <img
+                        src={imagePreview}
+                        alt="Banner preview"
+                        className="max-h-48 mx-auto rounded-lg"
+                      />
+                      <p className="mt-2 text-sm text-gray-600">Click to change image</p>
+                    </div>
+                  ) : (
+                    <div>
+                      <svg
+                        className="mx-auto h-12 w-12 text-gray-400"
+                        stroke="currentColor"
+                        fill="none"
+                        viewBox="0 0 48 48"
+                      >
+                        <path
+                          d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                      <p className="mt-1 text-sm text-gray-600">
+                        Drag and drop or click to upload a new banner (PNG, JPG, JPEG)
+                      </p>
+                      <p className="mt-1 text-xs text-gray-500">
+                        Maximum file size: 5MB (Leave empty to keep existing image)
+                      </p>
+                    </div>
+                  )}
+                </label>
+              </div>
+              {touched.file && errors.file && (
+                <p className="mt-2 text-sm text-red-500">{errors.file}</p>
+              )}
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <input
@@ -334,21 +465,27 @@ const EditTrips: React.FC = () => {
               </div>
             </div>
 
-            {/* Description */}
             <div>
-              <textarea
-                placeholder="Trip Description *"
+              <h2 className="text-xl font-semibold mb-2">Trip Description *</h2>
+              <ReactQuill
+                theme="snow"
                 value={tripDetails.description}
-                onChange={(e) => handleChange("description", e.target.value)}
+                onChange={(value) => handleChange("description", value)}
                 onBlur={() => handleBlur("description")}
-                className={`${inputClassName("description")} h-32`}
+                modules={quillModules}
+                formats={quillFormats}
+                className={`border ${
+                  touched.description && errors.description 
+                    ? "border-red-500" 
+                    : "border-gray-300"
+                } rounded-lg`}
+                style={{ height: '200px', marginBottom: '40px' }}
               />
               {touched.description && errors.description && (
                 <p className="mt-1 text-sm text-red-500">{errors.description}</p>
               )}
             </div>
 
-            {/* Calendar */}
             <div>
               <h2 className="text-xl font-semibold mb-4">Select Trip Dates *</h2>
               <BigCalendar
@@ -383,23 +520,21 @@ const EditTrips: React.FC = () => {
               )}
             </div>
 
-            {/* Amenities */}
             <div>
-              <h2 className="text-xl font-semibold mb-4">Amenities</h2>
+              <h2 className="text-xl font-semibold mb-4">Amenities *</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                 {availableAmenities.map((amenity) => (
                   <label key={amenity.name} className="flex items-center space-x-2">
                     <input
                       type="checkbox"
                       checked={tripDetails.amenities.includes(amenity.name)}
-                      onChange={(e) =>
-                        handleChange(
-                          "amenities",
-                          e.target.checked
-                            ? [...tripDetails.amenities, amenity.name]
-                            : tripDetails.amenities.filter((a) => a !== amenity.name)
-                        )
-                      }
+                      onChange={(e) => {
+                        const newAmenities = e.target.checked
+                          ? [...tripDetails.amenities, amenity.name]
+                          : tripDetails.amenities.filter((a) => a !== amenity.name);
+                        handleChange("amenities", newAmenities);
+                        validateField("amenities");
+                      }}
                       className="h-4 w-4 text-blue-600 rounded"
                     />
                     <amenity.icon className="h-5 w-5 text-gray-600" />
@@ -407,11 +542,13 @@ const EditTrips: React.FC = () => {
                   </label>
                 ))}
               </div>
+              {touched.amenities && errors.amenities && (
+                <p className="mt-2 text-sm text-red-500">{errors.amenities}</p>
+              )}
             </div>
 
-            {/* Boarding Points */}
             <div>
-              <h2 className="text-xl font-semibold mb-4">Boarding Points</h2>
+              <h2 className="text-xl font-semibold mb-4">Boarding Points *</h2>
               {tripDetails.boardingPoints.map((boardingPoint, index) => (
                 <div key={index} className="relative mb-6 p-4 bg-gray-50 rounded-lg">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -461,6 +598,9 @@ const EditTrips: React.FC = () => {
                   )}
                 </div>
               ))}
+              {errors.boardingPoints && (
+                <p className="mt-2 text-sm text-red-500">{errors.boardingPoints}</p>
+              )}
               <button
                 onClick={handleAddBoardingPoint}
                 className="mt-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
@@ -469,7 +609,6 @@ const EditTrips: React.FC = () => {
               </button>
             </div>
 
-            {/* Save Button */}
             <button
               onClick={handleSave}
               disabled={loading}
