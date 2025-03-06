@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { Calendar, MapPin } from "lucide-react";
 import { fadeInUp } from "../../../utils/animations";
 import { FaSpinner } from "react-icons/fa";
+import { format, parse, isValid } from "date-fns";
 
 interface BookingSummaryProps {
   tripDetails: {
@@ -18,6 +19,7 @@ interface BookingSummaryProps {
   seatPrice: number;
   onProceed: () => void;
   loading: boolean;
+  disabled?: boolean; // Added disabled prop
 }
 
 export const BookingSummary = ({
@@ -28,35 +30,36 @@ export const BookingSummary = ({
   selectedDate,
   setSelectedData,
   onProceed,
+  disabled = false, // Default to false
 }: BookingSummaryProps) => {
   const totalAmount = selectedSeats.length * seatPrice;
   const gst = totalAmount * 0.05; // 5% GST
   const finalAmount = totalAmount + gst;
 
-  const formatDate = (date: string) => {
-    const options: Intl.DateTimeFormatOptions = {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    };
-    return new Date(date).toLocaleDateString("en-US", options);
+  // Format date to "dd-MM-yyyy"
+  const formatDateToString = (dateInput: string): string => {
+    const date = parse(dateInput, "dd-MM-yyyy", new Date());
+    if (!isValid(date)) {
+      console.error("Invalid date:", dateInput);
+      return "Invalid Date";
+    }
+    return format(date, "dd-MM-yyyy");
   };
 
   // Filter dates to only include present or future dates
-  const validDates = tripDetails.date.filter(
-    (date) => { 
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const checkDate = new Date(date);
-      return checkDate >= today;}
-  );
+  const validDates = tripDetails.date.filter((date) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const checkDate = parse(date, "dd-MM-yyyy", new Date());
+    return isValid(checkDate) && checkDate >= today;
+  });
 
   return (
     <motion.div
       variants={fadeInUp}
       initial="initial"
       animate="animate"
-      className="bg-white rounded-xl shadow-lg p-6"
+      className={`bg-white rounded-xl shadow-lg p-6 ${disabled ? 'opacity-50' : ''}`}
     >
       <h3 className="text-xl font-semibold mb-4">Booking Summary</h3>
 
@@ -70,15 +73,20 @@ export const BookingSummary = ({
         <div className="flex items-center text-gray-600">
           <Calendar className="w-5 h-5 mr-2" />
           <select
-            className="border p-2 rounded-md"
+            className="border p-2 rounded-md w-full disabled:bg-gray-100 disabled:cursor-not-allowed"
             value={selectedDate}
-            onChange={(e) => setSelectedData(e.target.value)}
+            onChange={(e) => !disabled && setSelectedData(e.target.value)} // Prevent change when disabled
+            disabled={disabled || loading} // Disable when parent is disabled or loading
           >
-            {validDates.map((date) => (
-              <option key={date} value={date}>
-                {formatDate(date)}
-              </option>
-            ))}
+            {validDates.length === 0 ? (
+              <option value="">No available dates</option>
+            ) : (
+              validDates.map((date) => (
+                <option key={date} value={date}>
+                  {formatDateToString(date)}
+                </option>
+              ))
+            )}
           </select>
         </div>
       </div>
@@ -86,7 +94,7 @@ export const BookingSummary = ({
       <div className="border-t border-gray-200 pt-4 mb-6">
         <div className="flex justify-between mb-2">
           <span>Selected Seats</span>
-          <span>{selectedSeats.join(", ")}</span>
+          <span>{selectedSeats.join(", ") || "None"}</span>
         </div>
         <div className="flex justify-between mb-2">
           <span>Price per Seat</span>
@@ -107,12 +115,11 @@ export const BookingSummary = ({
       </div>
 
       <motion.button
-        whileHover={{ scale: 1.02 }}
-        whileTap={{ scale: 0.98 }}
-        onClick={onProceed}
-        disabled={selectedSeats.length === 0 || loading}
-        className="w-full bg-blue-600 text-white py-3 rounded-lg font-medium
-          hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed relative"
+        whileHover={{ scale: !disabled && !loading ? 1.02 : 1 }} // Disable hover when disabled/loading
+        whileTap={{ scale: !disabled && !loading ? 0.98 : 1 }} // Disable tap when disabled/loading
+        onClick={() => !disabled && onProceed()} // Prevent click when disabled
+        disabled={selectedSeats.length === 0 || loading || disabled} // Combined disable conditions
+        className="w-full bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed relative"
       >
         {loading ? (
           <div className="absolute inset-0 flex justify-center items-center">

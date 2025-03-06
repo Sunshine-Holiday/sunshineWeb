@@ -16,6 +16,7 @@ import { RAZORPAY_API_KEY } from "@/store/store";
 import { useSelector } from "react-redux";
 import { selectCurrentUser } from "@/store/reducer/auth";
 import { FaSpinner } from "react-icons/fa";
+import { format, parse, isValid } from "date-fns";
 
 const INITIAL_STEP = "select-seats";
 
@@ -23,7 +24,7 @@ const BookingPage = () => {
   const location = useLocation();
   const userDetails = useSelector(selectCurrentUser);
   const tripId = location.state?.tripId;
-  const [selectedDate, setSelectedDate] = useState(
+  const [selectedDate, setSelectedDate] = useState<string>(
     location.state?.selectedDate || ""
   );
   const navigate = useNavigate();
@@ -35,37 +36,24 @@ const BookingPage = () => {
   const [step, setStep] = useState<"select-seats" | "passenger-details">(
     INITIAL_STEP
   );
-  const [loading, setLoading] = useState(false);
-  const [trip, setTrip] = useState(null);
-  function formatDate(dateInput, format = "yyyy-mm-dd") {
-    // Convert input to Date object
-    const date = dateInput instanceof Date ? dateInput : new Date(dateInput);
+  const [isSubmitting, setIsSubmitting] = useState(false); // Changed from loading to isSubmitting for clarity
+  const [trip, setTrip] = useState<any>(null);
 
-    // Check if date is valid
-    if (isNaN(date.getTime())) {
-      throw new Error("Invalid date input");
+  // Date formatting functions
+  const formatDateToString = (dateInput: string | Date): string => {
+    const date = typeof dateInput === "string" ? parse(dateInput, "dd-MM-yyyy", new Date()) : dateInput;
+    return isValid(date) ? format(date, "dd-MM-yyyy") : "Invalid Date";
+  };
+
+  const formatDateForAPI = (dateInput: string | Date): string => {
+    const date = typeof dateInput === "string" ? parse(dateInput, "dd-MM-yyyy", new Date()) : dateInput;
+    if (!isValid(date)) {
+      console.error("Invalid date for API:", dateInput);
+      return "";
     }
+    return format(date, "dd-MM-yyy");
+  };
 
-    // Get date components
-    const year = date.getFullYear();
-    const month = date.getMonth() + 1; // getMonth() returns 0-11
-    const day = date.getDate();
-    const hours = date.getHours();
-    const minutes = date.getMinutes();
-    const seconds = date.getSeconds();
-
-    // Pad single digits with leading zero
-    const pad = (num) => num.toString().padStart(2, "0");
-
-    // Replace format tokens with actual values
-    return format
-      .replace("yyyy", year)
-      .replace("mm", pad(month))
-      .replace("dd", pad(day))
-      .replace("HH", pad(hours))
-      .replace("MM", pad(minutes))
-      .replace("SS", pad(seconds));
-  }
   // API queries and mutations
   const {
     data: tripData,
@@ -79,66 +67,61 @@ const BookingPage = () => {
     isError: bookingError,
   } = useSelectedDateBookingQuery({
     trip_id: tripId,
-    selectedDate: formatDate(
-      new Date(selectedDate).setDate(new Date(selectedDate).getDate()-1)
-    ),
+    selectedDate: selectedDate ? formatDateForAPI(selectedDate) : "",
   });
-  useEffect(() => {
-    if (bookingError) {
-      setBookedSeats([]);
-    }
-  }, [bookingError]);
 
-  console.log("selectedDate", selectedDate);
   const [createBooking] = useCreatebookingMutation();
   const [createPayment] = useCreatePaymentIntentMutation();
 
-  // Update trip data when API response is received
+  // Effects
+  useEffect(() => {
+    if (bookingError) setBookedSeats([]);
+  }, [bookingError]);
+
   useEffect(() => {
     if (tripData) setTrip(tripData);
   }, [tripData]);
 
-  // Update booked seats when booking data is received
   useEffect(() => {
     if (bookingData?.selectedSeats) {
-      console.log("bookingData", bookingData);
-      console.log(bookingData);
       setBookedSeats(bookingData.selectedSeats);
     } else {
       setBookedSeats([]);
     }
   }, [bookingData]);
 
-  // Handle date change
-  const changeDate = (date) => {
+  // Handlers
+  const changeDate = (date: string) => {
     setSelectedDate(date);
   };
 
-  // Check if trip is scheduled for today
   const isTripToday = () => {
-    const today = new Date().toDateString();
+    const today = format(new Date(), "dd-MM-yyyy");
     return trip?.startDates?.some(
-      (date: string) => new Date(date).toDateString() === today
+      (date: string) => formatDateToString(date) === today
     );
   };
 
-  // Handle seat selection
   const handleSeatSelect = (seatId: string) => {
+    if (isSubmitting) return; // Prevent seat selection during submission
     if (bookedSeats.includes(seatId)) {
-      // Seat is already booked, don't allow selection
       toast.error("This seat is already booked");
       return;
     }
-
     setSelectedSeats((prev) =>
       prev.includes(seatId)
         ? prev.filter((id) => id !== seatId)
         : [...prev, seatId].sort()
     );
   };
-
-  // Update passenger data
+//     setSelectedSeats((prev) =>
+//       prev.includes(seatId)
+//         ? prev.filter((id) => id !== seatId)
+//         : [...prev, seatId].sort()
+//     );
+//   };
   const handlePassengerChange = (index: number, data: PassengerData) => {
+    if (isSubmitting) return; // Prevent passenger data changes during submission
     setPassengers((prev) => {
       const updatedPassengers = [...prev];
       updatedPassengers[index] = data;
@@ -146,7 +129,6 @@ const BookingPage = () => {
     });
   };
 
-  // Validate passenger details
   const validatePassengerDetails = () => {
     return passengers.every(
       (passenger) =>
@@ -159,62 +141,73 @@ const BookingPage = () => {
     );
   };
 
-  // Initialize Razorpay payment
   const handlePayment = async (paymentDetail: any, finalAmount: number) => {
-    const options = {
-      key: RAZORPAY_API_KEY,
-      amount: paymentDetail.amount,
-      currency: paymentDetail.currency,
-      name: "Your Store Name",
-      description: "Purchase Description",
-      order_id: paymentDetail.id,
-      handler: async (response: any) => {
-        console.log("Payment Successful:", response);
-        try {
-          const resp = await createBooking({
-            tripId,
-            selectedSeats,
-            selectedDate: selectedDate,
-            passengers,
-            price: finalAmount,
-          }).unwrap();
-          console.log(resp);
-          toast.success("Trip booked successfully");
-          navigate("/booked");
-        } catch (error) {
-          console.error(error);
-          toast.error("Order failed!");
-        }
-      },
-      prefill: {
-        name: `${userDetails?.username}`,
-        email: userDetails?.email,
-        contact: "",
-      },
-      theme: {
-        color: "#3399cc",
-      },
-      method: {
-        netbanking: true,
-        card: true,
-        wallet: true,
-        upi: true,
-      },
-    };
+    return new Promise<void>((resolve, reject) => {
+      const options = {
+        key: RAZORPAY_API_KEY,
+        amount: paymentDetail.amount,
+        currency: paymentDetail.currency,
+        name: "Your Store Name",
+        description: "Purchase Description",
+        order_id: paymentDetail.id,
+        handler: async (response: any) => {
+          try {
+            const resp = await createBooking({
+              tripId,
+              selectedSeats,
+              selectedDate: formatDateToString(selectedDate),
+              passengers,
+              price: finalAmount,
+            }).unwrap();
+            
+            toast.success("Trip booked successfully");
+            navigate("/booked", { 
+              state: { 
+                bookingDetails: resp,
+                paymentResponse: response 
+              } 
+            });
+            resolve();
+          } catch (error) {
+            console.error("Booking error:", error);
+            toast.error("Booking failed!");
+            reject(error);
+          }
+        },
+        prefill: {
+          name: `${userDetails?.username}`,
+          email: userDetails?.email,
+          contact: "",
+        },
+        theme: {
+          color: "#3399cc",
+        },
+        method: {
+          netbanking: true,
+          card: true,
+          wallet: true,
+          upi: true,
+        },
+      };
 
-    const razorpay = new window.Razorpay(options);
-    razorpay.open();
+      const razorpay = new window.Razorpay(options);
+      razorpay.on('payment.failed', (response: any) => {
+        toast.error("Payment failed. Please try again.");
+        reject(response);
+      });
+      razorpay.open();
+    });
   };
 
-  // Handle proceed button clicks
   const handleProceed = async () => {
+    if (isSubmitting) return; // Prevent multiple submissions
+
     if (step === "select-seats") {
       if (selectedSeats.length === 0) {
         toast.error("Please select at least one seat.");
         return;
       }
 
-      // Initialize passenger data array with empty objects
       setPassengers(
         Array(selectedSeats.length).fill({
           name: "",
@@ -225,7 +218,6 @@ const BookingPage = () => {
           address: "",
         })
       );
-
       setStep("passenger-details");
     } else {
       if (!validatePassengerDetails()) {
@@ -233,28 +225,28 @@ const BookingPage = () => {
         return;
       }
 
-      setLoading(true);
+      setIsSubmitting(true);
       try {
         const totalAmount = selectedSeats.length * trip.price;
-        const gst = totalAmount * 0.05; // 5% GST
+        const gst = totalAmount * 0.05;
         const finalAmount = totalAmount + gst;
 
         const respPayment = await createPayment({
           amount: finalAmount,
         }).unwrap();
+
         if (respPayment.success) {
-          handlePayment(respPayment.paymentDetail, finalAmount);
+          await handlePayment(respPayment.paymentDetail, finalAmount);
         }
       } catch (error: any) {
-        console.error(error);
+        console.error("Payment error:", error);
         toast.error(error.data?.message || "Payment processing failed.");
       } finally {
-        setLoading(false);
+        setIsSubmitting(false);
       }
     }
   };
 
-  // Loading state
   if (tripLoading || (bookingLoading && selectedDate)) {
     return (
       <div className="flex justify-center items-center min-h-screen">
@@ -263,27 +255,33 @@ const BookingPage = () => {
     );
   }
 
-  // Error state
   if (tripError || !trip) {
     return <div className="text-center">Failed to load trip details.</div>;
   }
 
-  // Trip details object
   const tripDetails = {
     from: trip.location || "Unknown",
     to: trip.category || "Unknown",
-    date: trip.startDates,
-    time: trip.duration,
+    date: trip.startDates || [],
+    time: trip.duration || "N/A",
     busType: trip.busSize || "Standard",
     amenities: trip.amenities || [],
     price: trip?.price || 1499,
     boardingPoints: trip?.boardingPoints || [],
-    busSize: trip.busSize || 20,
+    busSize: trip.busSize || "20",
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 pt-24 pb-16">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gray-50 pt-24 pb-16 relative">
+      {isSubmitting && (
+        <div className="absolute inset-0 bg-gray-500 bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg flex items-center space-x-4">
+            <FaSpinner className="animate-spin text-4xl text-blue-500" />
+            <span className="text-lg">Processing your booking...</span>
+          </div>
+        </div>
+      )}
+      <div className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 ${isSubmitting ? 'pointer-events-none opacity-50' : ''}`}>
         <motion.div
           variants={fadeInUp}
           initial="initial"
@@ -291,9 +289,7 @@ const BookingPage = () => {
           className="text-center mb-12"
         >
           <h1 className="text-4xl font-bold text-gray-900 mb-4">
-            {step === "select-seats"
-              ? "Select Your Seats"
-              : "Passenger Details"}
+            {step === "select-seats" ? "Select Your Seats" : "Passenger Details"}
           </h1>
           <p className="text-gray-600">
             {step === "select-seats"
@@ -311,6 +307,7 @@ const BookingPage = () => {
                 onSeatSelect={handleSeatSelect}
                 bookedSeats={bookedSeats}
                 seatPrice={tripDetails.price}
+           
               />
             ) : (
               <div className="space-y-4">
@@ -322,6 +319,7 @@ const BookingPage = () => {
                     index={index}
                     onChange={handlePassengerChange}
                     passengers={passengers}
+                
                   />
                 ))}
               </div>
@@ -331,12 +329,13 @@ const BookingPage = () => {
           <div className="md:col-span-1">
             <BookingSummary
               tripDetails={tripDetails}
-              loading={loading}
+              loading={isSubmitting}
               selectedSeats={selectedSeats}
               seatPrice={tripDetails.price}
               setSelectedData={changeDate}
               selectedDate={selectedDate}
               onProceed={handleProceed}
+              disabled={isSubmitting}
             />
           </div>
         </div>
@@ -346,3 +345,4 @@ const BookingPage = () => {
 };
 
 export default BookingPage;
+

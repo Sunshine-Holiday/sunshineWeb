@@ -9,11 +9,12 @@ import {
   Snowflake,
   Power,
   HelpCircle,
-  AlertCircle
+  AlertCircle,
 } from "lucide-react";
-import { useNavigate, useLocation, useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom"; // Removed unused useLocation
 import { fadeInUp, staggerChildren } from "../../utils/animations";
 import { useGettripsIDQuery } from "@/store/api/trips";
+import { format, parse, isValid } from "date-fns"; // Import date-fns utilities
 
 interface Amenity {
   icon: React.ElementType;
@@ -27,6 +28,16 @@ const amenitiesList: Amenity[] = [
   { icon: Power, name: "Charging Points" },
 ];
 
+// Function to format Date objects to "dd-MM-yyyy"
+const formatDateToString = (date: string | Date): string => {
+  const parsedDate = typeof date === "string" ? parse(date, "dd-MM-yyyy", new Date()) : date;
+  if (!isValid(parsedDate)) {
+    console.error("Invalid date:", date);
+    return "Invalid Date";
+  }
+  return format(parsedDate, "dd-MM-yyyy");
+};
+
 const TripDetails = () => {
   const navigate = useNavigate();
   const { id } = useParams();
@@ -34,23 +45,15 @@ const TripDetails = () => {
   const [selectedDate, setSelectedDate] = useState<string>("");
   const { data, isLoading, isError } = useGettripsIDQuery({ id: id });
 
-  const formatDate = (date: string) => {
-    const options: Intl.DateTimeFormatOptions = {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    };
-    return new Date(date).toLocaleDateString("en-US", options);
-  };
-
-  const isDateValid = (date: string) => {
+  // Check if a date is valid and in the future
+  const isDateValid = (dateStr: string): boolean => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const checkDate = new Date(date);
-    return checkDate >= today;
+    const parsedDate = parse(dateStr, "dd-MM-yyyy", new Date());
+    return isValid(parsedDate) && parsedDate >= today;
   };
 
-  const getAvailableDates = () => {
+  const getAvailableDates = (): string[] => {
     if (!trip.startDates) return [];
     return trip.startDates.filter((date: string) => isDateValid(date));
   };
@@ -58,9 +61,9 @@ const TripDetails = () => {
   useEffect(() => {
     if (data) {
       setTrips(data);
-      const availableDates = data.startDates?.filter((date: string) => isDateValid(date));
-      if (availableDates?.length > 0) {
-        setSelectedDate(availableDates[0]);
+      const availableDates = data.startDates?.filter((date: string) => isDateValid(date)) || [];
+      if (availableDates.length > 0) {
+        setSelectedDate(availableDates[0]); // Set the first valid date
       }
     }
   }, [data]);
@@ -125,7 +128,10 @@ const TripDetails = () => {
             <div className="bg-white rounded-xl shadow-lg overflow-hidden">
               <div className="h-64 relative">
                 <img
-                  src={trip?.image || "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b"}
+                  src={
+                    trip?.image ||
+                    "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b"
+                  }
                   alt={trip.title}
                   className="w-full h-full object-cover"
                 />
@@ -148,7 +154,10 @@ const TripDetails = () => {
                   <div className="flex items-start text-gray-600">
                     <Calendar className="h-5 w-5 mr-2" />
                     <div className="w-full">
-                      <label htmlFor="dateSelect" className="block text-sm font-medium text-gray-700 mb-1">
+                      <label
+                        htmlFor="dateSelect"
+                        className="block text-sm font-medium text-gray-700 mb-1"
+                      >
                         Select Travel Date
                       </label>
                       <select
@@ -159,12 +168,13 @@ const TripDetails = () => {
                       >
                         <option value="">Choose a date</option>
                         {trip.startDates.map((date: string, index: number) => (
-                          <option 
-                            key={index} 
+                          <option
+                            key={index}
                             value={date}
                             disabled={!isDateValid(date)}
                           >
-                            {formatDate(date)} {!isDateValid(date) ? '(Past date)' : ''}
+                            {formatDateToString(date)}{" "}
+                            {!isDateValid(date) ? "(Past date)" : ""}
                           </option>
                         ))}
                       </select>
@@ -246,7 +256,7 @@ const TripDetails = () => {
               {selectedDate && (
                 <div className="mb-4">
                   <p className="text-gray-600">Selected Date:</p>
-                  <p className="font-medium">{formatDate(selectedDate)}</p>
+                  <p className="font-medium">{formatDateToString(selectedDate)}</p>
                 </div>
               )}
 
@@ -257,7 +267,7 @@ const TripDetails = () => {
                     ₹{trip.price ? trip.price.toLocaleString("en-IN") : "N/A"}
                   </span>
                 </div>
-          
+
                 <div className="flex justify-between font-semibold text-lg pt-3 border-t">
                   <span>Total</span>
                   <span>
@@ -273,11 +283,11 @@ const TripDetails = () => {
                 disabled={!selectedDate || availableDates.length === 0}
                 className={`w-full py-3 rounded-lg font-medium ${
                   !selectedDate || availableDates.length === 0
-                    ? 'bg-gray-300 cursor-not-allowed'
-                    : 'bg-blue-600 text-white hover:bg-blue-700'
+                    ? "bg-gray-300 cursor-not-allowed"
+                    : "bg-blue-600 text-white hover:bg-blue-700"
                 }`}
               >
-                {availableDates.length === 0 ? 'No Available Dates' : 'Book Now'}
+                {availableDates.length === 0 ? "No Available Dates" : "Book Now"}
               </motion.button>
 
               <div className="mt-6 text-sm text-gray-500">

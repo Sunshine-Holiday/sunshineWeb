@@ -3,42 +3,45 @@ import { motion } from "framer-motion";
 import { MapPin, Clock, Users, Calendar } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { scaleOnHover } from "@/utils/animations";
+import { format, parse } from "date-fns"; // Import format and parse from date-fns
 
 interface TripCardProps {
   trip: {
-    id: number;
+    _id: string; // Changed from 'id: number' to '_id: string' to match usage
     title: string;
     image: string;
     location: string;
     duration: string;
-    busSize: string; // Fixed typo from Busize to busSize
-    startDates: string[]; // Modified to startDates array
+    busSize: string;
+    startDates: string[]; // Array of date strings
     price: number;
   };
 }
 
-const isValidStartDate = (startDate: string) => {
-  // const today = new Date();
-  const tripDate = new Date(startDate);
-  return tripDate;
+// Function to validate and parse a date string
+const isValidStartDate = (startDate: string): Date | null => {
+  const parsedDate = parse(startDate, "dd-MM-yyyy", new Date()); // Assuming API dates are in "dd-MM-yyyy"
+  return isNaN(parsedDate.getTime()) ? null : parsedDate; // Return null if invalid
 };
 
-const formatDate = (date: string) => {
-  const options: Intl.DateTimeFormatOptions = {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  };
-  return new Date(date).toLocaleDateString("en-US", options); // Format date as "March 15, 2024"
+// Format a Date object to "dd-MM-yyyy"
+const formatDateToString = (date: Date): string => {
+  if (!(date instanceof Date) || isNaN(date.getTime())) {
+    return "Invalid Date";
+  }
+  return format(date, "dd-MM-yyyy"); // Use "dd-MM-yyyy" for consistency
 };
 
 export const TripCard = ({ trip }: TripCardProps) => {
   const navigate = useNavigate();
 
-  // Check if any of the trip's start dates are valid
-  const isValid = trip.startDates.some(isValidStartDate);
+  // Find the first valid start date
+  const validStartDate = trip.startDates
+    .map(isValidStartDate)
+    .find((date) => date !== null);
 
-  if (!isValid) return null; // If no valid start date, return null
+  // If no valid start date exists, return null
+  if (!validStartDate) return null;
 
   const handleClick = () => {
     navigate(`/trips/${trip._id}`, { state: { trip } });
@@ -73,18 +76,14 @@ export const TripCard = ({ trip }: TripCardProps) => {
             <MapPin className="h-4 w-4 mr-2" />
             <span>{trip.location}</span>
           </div>
-          {/* <div className="flex items-center text-gray-600">
-            <Clock className="h-4 w-4 mr-2" />
-            <span>{trip.duration}</span>
-          </div> */}
+    
           <div className="flex items-center text-gray-600">
             <Users className="h-4 w-4 mr-2" />
             <span>{trip.busSize}</span>
           </div>
-          {/* Display the first valid start date in the desired format */}
           <div className="flex items-center text-gray-600">
             <Calendar className="h-4 w-4 mr-2" />
-            <span>{formatDate(trip.startDates.find(isValidStartDate)!)}</span>
+            <span>{formatDateToString(validStartDate)}</span>
           </div>
         </div>
         <div className="flex items-center justify-between mt-4">
