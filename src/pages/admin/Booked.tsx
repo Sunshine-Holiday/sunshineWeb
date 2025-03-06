@@ -25,7 +25,7 @@ const Booked = () => {
     trip: trip._id,
   });
   const navigate = useNavigate();
-  
+
   if (isLoading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
@@ -33,7 +33,7 @@ const Booked = () => {
       </div>
     );
   }
-  
+
   if (isError || !data) {
     return (
       <div className="flex justify-center items-center min-h-screen">
@@ -41,25 +41,25 @@ const Booked = () => {
       </div>
     );
   }
-  
+
   // Sort dates for the table
   const sortedDates = Object.keys(data.stats.dailyStats).sort();
-  
+
   // Function to handle viewing detailed bookings for a specific date
   const handleViewBookings = (date: string) => {
     navigate("/admin/booking-details", {
       state: {
         date: date,
         tripId: trip._id,
-        tripName: trip.name || "Trip Details"
-      }
+        tripName: trip.name || "Trip Details",
+      },
     });
   };
-  
+
   return (
     <div className="container mx-auto p-4">
       <h1 className="text-2xl font-bold mb-6">Trip Booking Statistics</h1>
-      
+
       {/* Summary Card */}
       <div className="bg-white shadow rounded-lg p-6 mb-8">
         <h2 className="text-xl font-semibold mb-4">Summary</h2>
@@ -82,7 +82,7 @@ const Booked = () => {
           </div>
         </div>
       </div>
-      
+
       {/* Daily Stats Table */}
       <div className="bg-white shadow rounded-lg p-6 overflow-x-auto">
         <h2 className="text-xl font-semibold mb-4">Daily Statistics</h2>
@@ -100,18 +100,26 @@ const Booked = () => {
             <TableBody>
               {sortedDates.map((date) => (
                 <TableRow key={date}>
-                  <TableCell className="font-medium w-1/5">{date}</TableCell>
-                  <TableCell className="text-right w-1/5">{data.stats.dailyStats[date].totalBookings}</TableCell>
-                  <TableCell className="text-right w-1/5">{data.stats.dailyStats[date].totalPassengers}</TableCell>
-                  <TableCell className="text-right w-1/5">{data.stats.dailyStats[date].totalSeatsBooked}</TableCell>
+                  <TableCell className="font-medium w-1/5">
+                    {data.stats.dailyStats[date].date}
+                  </TableCell>
+                  <TableCell className="text-right w-1/5">
+                    {data.stats.dailyStats[date].totalBookings}
+                  </TableCell>
+                  <TableCell className="text-right w-1/5">
+                    {data.stats.dailyStats[date].totalPassengers}
+                  </TableCell>
+                  <TableCell className="text-right w-1/5">
+                    {data.stats.dailyStats[date].totalSeatsBooked}
+                  </TableCell>
                   <TableCell className="text-center w-1/5">
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={() => handleViewBookings(date)}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleViewBookings(data.stats.dailyStats[date].date)}
                       className="flex items-center gap-1 mx-auto"
                     >
-                      <FaEye className="text-gray-600" /> 
+                      <FaEye className="text-gray-600" />
                       <span>View</span>
                     </Button>
                   </TableCell>
@@ -119,16 +127,22 @@ const Booked = () => {
               ))}
               <TableRow className="bg-gray-50 font-bold">
                 <TableCell className="w-1/5">Total</TableCell>
-                <TableCell className="text-right w-1/5">{data.stats.totalBookings}</TableCell>
-                <TableCell className="text-right w-1/5">{data.stats.totalPassengers}</TableCell>
-                <TableCell className="text-right w-1/5">{data.stats.totalSeatsBooked}</TableCell>
+                <TableCell className="text-right w-1/5">
+                  {data.stats.totalBookings}
+                </TableCell>
+                <TableCell className="text-right w-1/5">
+                  {data.stats.totalPassengers}
+                </TableCell>
+                <TableCell className="text-right w-1/5">
+                  {data.stats.totalSeatsBooked}
+                </TableCell>
                 <TableCell className="w-1/5"></TableCell>
               </TableRow>
             </TableBody>
           </Table>
         </div>
       </div>
-      
+
       {/* Message */}
       <div className="mt-4 text-gray-600">
         <p>{data.message}</p>

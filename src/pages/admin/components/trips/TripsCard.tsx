@@ -11,41 +11,58 @@ interface TripCardProps {
     image: string;
     location: string;
     duration: string;
-    busSize: string; // Fixed typo from Busize to busSize
-    startDates: string[]; // Modified to startDates array
+    busSize: string;
+    startDates: string[]; // e.g., ["04-03-2025", "06-03-2025", ...]
     price: number;
   };
-  onDelete: (id: number) => void; // Add delete handler
-  onEdit: (id: number) => void; // Add delete handler
+  onDelete: (id: number) => void;
+  onEdit: (id: number) => void;
 }
 
-const isValidStartDate = (startDate: string) => {
-  const tripDate = new Date(startDate);
-  return tripDate; // Only show trips with a start date >= today
+// Validate and parse a date string in "dd-mm-yyyy" format
+const isValidStartDate = (startDate: string): Date | null => {
+  const [day, month, year] = startDate.split("-").map(Number);
+  const tripDate = new Date(year, month - 1, day); // month - 1 because months are 0-based
+  return isNaN(tripDate.getTime()) ? null : tripDate;
 };
 
-const formatDate = (date: string) => {
-  const options: Intl.DateTimeFormatOptions = {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  };
-  return new Date(date).toLocaleDateString("en-US", options); // Format date as "March 15, 2024"
+// Format date as "dd-mm-yyyy"
+const formatDate = (date: Date): string => {
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0"); // Months are 0-based
+  const year = date.getFullYear();
+  return `${day}-${month}-${year}`;
 };
 
-export const TripCard = ({ trip, onDelete,onEdit }: TripCardProps) => {
+export const TripCard = ({ trip, onDelete, onEdit }: TripCardProps) => {
   const navigate = useNavigate();
+  const today = new Date(); // Dynamically get today's date
+
+  // Convert all start dates to Date objects and filter valid ones
+  const validStartDates = trip.startDates
+    .map(isValidStartDate)
+    .filter((date): date is Date => date !== null)
+    .sort((a, b) => a.getTime() - b.getTime()); // Sort dates chronologically
+
+  // Find if today matches any start date
+  const todayMatch = validStartDates.find((date) => date.toDateString() === today.toDateString());
+
+  // If today matches, use it; otherwise, find the next date after today
+  const displayDate = todayMatch || 
+    validStartDates.find((date) => date > today) || 
+    validStartDates[0];
+
+  // If no valid dates exist, return null
+  if (!displayDate) return null;
 
   const handleEdit = (e: React.MouseEvent) => {
     e.stopPropagation();
-    // navigate(`/admin/edit-trip/${trip_.id}`, { state: { trip } });
-    onEdit(trip._id)
+    onEdit(trip._id);
   };
 
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
-
-    onDelete(trip._id); // Trigger delete function
+    onDelete(trip._id);
   };
 
   const handleCardClick = () => {
@@ -81,17 +98,13 @@ export const TripCard = ({ trip, onDelete,onEdit }: TripCardProps) => {
             <MapPin className="h-4 w-4 mr-2" />
             <span>{trip.location}</span>
           </div>
-          {/* <div className="flex items-center text-gray-600">
-            <Clock className="h-4 w-4 mr-2" />
-            <span>{trip.duration}</span>
-          </div> */}
           <div className="flex items-center text-gray-600">
             <Users className="h-4 w-4 mr-2" />
             <span>{trip.busSize}</span>
           </div>
           <div className="flex items-center text-gray-600">
             <Calendar className="h-4 w-4 mr-2" />
-            <span>{formatDate(trip.startDates.find(isValidStartDate)!)}</span>
+            <span>{formatDate(displayDate)}</span>
           </div>
         </div>
         <div className="flex items-center justify-between mt-4">
