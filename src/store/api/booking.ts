@@ -8,7 +8,27 @@ export const BookingApiSlice = apiWithTag.injectEndpoints({
     createbooking: builder.mutation<any, any>({
       query: (credentials) => ({
         url: "/api/v1/booking",
-        method: "post",
+        method: "POST",
+
+        body: credentials,
+      }),
+
+      invalidatesTags: ["booking"],
+    }),
+    requestCancelBooking: builder.mutation<any, any>({
+      query: (credentials) => ({
+        url: "/api/v1/booking/request",
+        method: "POST",
+
+        body: credentials,
+      }),
+
+      invalidatesTags: ["booking"],
+    }),
+    processRefundAmount: builder.mutation<any, any>({
+      query: (credentials) => ({
+        url: "/api/v1/booking/process",
+        method: "POST",
 
         body: credentials,
       }),
@@ -84,6 +104,15 @@ export const BookingApiSlice = apiWithTag.injectEndpoints({
       keepUnusedDataFor: 0,
       providesTags: ["booking"],
     }),
+
+    getuserAllprocessbooking: builder.query<any, any>({
+      query: () => ({
+        url: `/api/v1/booking/process`,
+        method: "GET",
+      }),
+      keepUnusedDataFor: 0,
+      providesTags: ["booking"],
+    }),
   }),
   overrideExisting: true,
 });
@@ -96,5 +125,8 @@ export const {
   useGetuserAllbookingQuery,
   useGetIDbookingQuery,
   useGetTripBookingStatsQuery,
-  useGetTripBookingHistoryQuery
+  useGetTripBookingHistoryQuery,
+  useRequestCancelBookingMutation,
+  useGetuserAllprocessbookingQuery,
+  useProcessRefundAmountMutation
 } = BookingApiSlice;

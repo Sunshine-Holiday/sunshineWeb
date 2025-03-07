@@ -19,6 +19,7 @@ import BookingDetail from "@/pages/admin/BookingDetail";
 import BookedPage from "@/pages/admin/Booked/Booked";
 import BookingDetails from "@/pages/admin/Booked/booking-details";
 import BlockTrip from "@/pages/admin/Booked/BlockTrip";
+import CancelTrips from "@/pages/admin/cancelTrips";
 const Layout = () => {
   return (
     <div className="flex h-screen bg-background pt-14">
@@ -26,6 +27,7 @@ const Layout = () => {
       <main className="flex-1 overflow-y-auto p-8">
         <Routes>
           <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/refund" element={<CancelTrips />} />
           <Route path="/users" element={<UserManagement />} />
           <Route path="/about" element={<AboutPage />} />
           <Route path="/privacy-policy" element={<EditPrivacy />} />

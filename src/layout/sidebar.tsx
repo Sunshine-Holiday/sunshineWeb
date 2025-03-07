@@ -14,6 +14,7 @@ import {
   Menu,
   ShieldCheck,
   ReceiptText,
+  CopyX,
 } from "lucide-react"; // Updated icons
 
 // SidebarHeader Component
@@ -42,6 +43,11 @@ const navigationItems = [
     name: "Booked",
     href: "/admin/booked",
     icon: CheckSquare, // Represents booked items
+  },
+  {
+    name: "Refund",
+    href: "/admin/refund",
+    icon: CopyX, // Represents booked items
   },
   {
     name: "Gallery",

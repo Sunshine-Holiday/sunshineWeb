@@ -56,6 +56,7 @@ const SignUpPage = () => {
         email: formData.email,
         password: formData.password,
         username: formData.name,
+        phone: formData.phone,
       }).unwrap();
       console.log("Account created successfully", resp);
       toast.success(resp.message || "Account created successfully");
