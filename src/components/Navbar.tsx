@@ -41,7 +41,7 @@ export const Navbar: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <Link to="/" className="flex items-center space-x-2">
-              <img className="h-12 w-12 sm:h-16 sm:w-16 md:h-20 md:w-20 text-blue-600" src={logo} alt="Logo" />
+              <img className="h-10 w-10 sm:h-16 sm:w-16 md:h-15 md:w-15 text-blue-600" src={logo} alt="Logo" />
               <span className="text-sm sm:text-lg md:text-xl font-bold text-gray-900 truncate max-w-xs">
                 Sunshine Holiday Packages
               </span>

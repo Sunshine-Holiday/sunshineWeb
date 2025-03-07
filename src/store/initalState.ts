@@ -41,6 +41,7 @@ export const apiSlice = createApi({
     CustomError,
     {}
   >,
+  
   endpoints: (builder) => ({
     userDetail: builder.query({
       query: () => ({

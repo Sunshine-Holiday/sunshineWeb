@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { useGetTripBookingHistoryQuery } from '@/store/api/booking';
+import { 
+  useGetTripBookingHistoryQuery, 
+  useUpdateTripMutation,
+  useDeleteBookingMutation 
+} from '@/store/api/booking';
 
 import {
   Table,
@@ -15,27 +19,84 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SeatLayout } from '@/pages/booking/components/SeatLayout';
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { toast } from 'react-toastify';
 
 const BookingDetails = () => {
   const { state } = useLocation();
   const { date, tripId, tripName } = state || {};
   const [activeTab, setActiveTab] = useState("table");
   const [selectedSeats, setSelectedSeats] = useState<string[]>([]);
+  const [editingBooking, setEditingBooking] = useState<string | null>(null);
+  const [newSeatNumber, setNewSeatNumber] = useState<string>("");
+  const [deleteBookingId, setDeleteBookingId] = useState<string | null>(null);
   
   const { data, isLoading, isError } = useGetTripBookingHistoryQuery({
     trip: tripId,
     date: date
   });
   
-  // Extract all booked seats from purchase history
+  const [updateTrip] = useUpdateTripMutation();
+  const [deleteBooking] = useDeleteBookingMutation();
+  
   const bookedSeats = data?.purchaseHistory.flatMap(
     (booking: any) => booking.selectedSeats
   ) || [];
 
-  // Handle seat selection (view only)
   const handleSeatSelect = (id: string) => {
-    // In view-only mode, we don't actually select seats
     console.log(`Seat ${id} clicked in view-only mode`);
+  };
+
+  const handleEditClick = (bookingId: string, seat: string) => {
+    setEditingBooking(`${bookingId}-${seat}`);
+    setNewSeatNumber(seat);
+  };
+
+  const handleSubmitEdit = async (bookingSeatId: string) => {
+    const [bookingId, originalSeat] = bookingSeatId.split('-');
+    try {
+      await updateTrip({
+        bookingId,
+        oldSeat: originalSeat,
+        newSeat: newSeatNumber
+      }).unwrap();
+
+      toast.success(`Seat updated from ${originalSeat} to ${newSeatNumber}`);
+      setEditingBooking(null);
+      setNewSeatNumber("");
+    } catch (error) {
+      toast.error('Failed to update seat. Please try again.');
+      console.error('Error updating seat:', error);
+    }
+  };
+
+  const handleDeleteBooking = async () => {
+    if (!deleteBookingId) return;
+
+    try {
+      await deleteBooking({deleteBookingId}).unwrap();
+      toast.success('Booking deleted successfully');
+      setDeleteBookingId(null);
+    } catch (error) {
+      toast.error('Failed to delete booking. Please try again.');
+      console.error('Error deleting booking:', error);
+    }
+  };
+
+  const openDeleteDialog = (bookingId: string) => {
+    setDeleteBookingId(bookingId);
   };
 
   if (isLoading) {
@@ -56,7 +117,7 @@ const BookingDetails = () => {
   
   const { purchaseHistory, selectedDate, tripDetails, message } = data;
   const seatPrice = tripDetails?.price || 0;
-  const totalSeats = tripDetails?.totalSeats || 31; // Default to 31 if not specified
+  const totalSeats = tripDetails?.totalSeats || 31;
   
   return (
     <div className="container mx-auto p-4">
@@ -86,26 +147,27 @@ const BookingDetails = () => {
               <Table className="w-full min-w-full table-fixed">
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-1/5">Booking ID</TableHead>
-                    <TableHead className="w-1/5">User Email</TableHead>
-                    <TableHead className="w-1/5 text-center">Passengers</TableHead>
-                    <TableHead className="w-1/5 text-center">Selected Seats</TableHead>
-                    <TableHead className="w-1/5 text-right">Price</TableHead>
+                    <TableHead className="w-1/6">Booking ID</TableHead>
+                    <TableHead className="w-1/6">User Email</TableHead>
+                    <TableHead className="w-1/6 text-center">Passengers</TableHead>
+                    <TableHead className="w-1/6 text-center">Selected Seats</TableHead>
+                    <TableHead className="w-1/6 text-right">Price</TableHead>
+                    <TableHead className="w-1/6 text-center">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {purchaseHistory.map((booking: any) => (
                     <TableRow key={booking.bookingId}>
-                      <TableCell className="font-medium w-1/5 truncate" title={booking.bookingId}>
+                      <TableCell className="font-medium w-1/6 truncate" title={booking.bookingId}>
                         {booking.bookingId.substring(0, 8)}...
                       </TableCell>
-                      <TableCell className="w-1/5 truncate" title={booking.user.email}>
+                      <TableCell className="w-1/6 truncate" title={booking.user.email}>
                         {booking.user.email}
                       </TableCell>
-                      <TableCell className="text-center w-1/5">
+                      <TableCell className="text-center w-1/6">
                         {booking.totalPassengers}
                       </TableCell>
-                      <TableCell className="text-center w-1/5">
+                      <TableCell className="text-center w-1/6">
                         <div className="flex flex-wrap gap-1 justify-center">
                           {booking.selectedSeats.map((seat: any) => (
                             <Badge key={seat} variant="secondary" className="text-xs">
@@ -114,8 +176,41 @@ const BookingDetails = () => {
                           ))}
                         </div>
                       </TableCell>
-                      <TableCell className="text-right w-1/5">
+                      <TableCell className="text-right w-1/6">
                         ₹{booking.price}
+                      </TableCell>
+                      <TableCell className="text-center w-1/6">
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button 
+                              variant="destructive" 
+                              size="sm"
+                              onClick={() => openDeleteDialog(booking.bookingId)}
+                            >
+                              Delete
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This action cannot be undone. This will permanently delete the booking
+                                for {booking.user.email} with ID {booking.bookingId.substring(0, 8)}...
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel onClick={() => setDeleteBookingId(null)}>
+                                Cancel
+                              </AlertDialogCancel>
+                              <AlertDialogAction 
+                                className="bg-red-600 hover:bg-red-700"
+                                onClick={handleDeleteBooking}
+                              >
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -136,7 +231,7 @@ const BookingDetails = () => {
             </div>
             
             <SeatLayout
-              selectedSeats={[]} // No seats selected in view mode
+              selectedSeats={[]}
               onSeatSelect={handleSeatSelect}
               bookedSeats={bookedSeats}
               seatPrice={seatPrice}
@@ -149,14 +244,75 @@ const BookingDetails = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {purchaseHistory.map((booking: any) => (
                     <div key={booking.bookingId} className="bg-gray-50 p-3 rounded-lg">
-                      <p className="text-sm font-medium truncate" title={booking.user.email}>
-                        {booking.user.email.split('@')[0]}
-                      </p>
-                      <div className="flex flex-wrap gap-1 mt-1">
-                        {booking.selectedSeats.map((seat: any) => (
-                          <Badge key={seat} variant="secondary" className="text-xs">
-                            {seat}
-                          </Badge>
+                      <div className="flex justify-between items-center">
+                        <p className="text-sm font-medium truncate" title={booking.user.email}>
+                          {booking.user.email.split('@')[0]}
+                        </p>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button 
+                              variant="destructive" 
+                              size="sm"
+                              onClick={() => openDeleteDialog(booking.bookingId)}
+                            >
+                              Delete
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This action cannot be undone. This will permanently delete the booking
+                                for {booking.user.email} with ID {booking.bookingId.substring(0, 8)}...
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel onClick={() => setDeleteBookingId(null)}>
+                                Cancel
+                              </AlertDialogCancel>
+                              <AlertDialogAction 
+                                className="bg-red-600 hover:bg-red-700"
+                                onClick={handleDeleteBooking}
+                              >
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
+                      <div className="flex flex-wrap gap-1 mt-1 items-center">
+                        {booking.selectedSeats.map((seat: any, index: number) => (
+                          <div key={`${booking.bookingId}-${seat}-${index}`} className="flex items-center gap-2">
+                            {editingBooking === `${booking.bookingId}-${seat}` ? (
+                              <div className="flex gap-2">
+                                <Input
+                                  value={newSeatNumber}
+                                  onChange={(e) => setNewSeatNumber(e.target.value)}
+                                  className="w-20"
+                                  placeholder="New seat"
+                                />
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleSubmitEdit(`${booking.bookingId}-${seat}`)}
+                                >
+                                  Submit
+                                </Button>
+                              </div>
+                            ) : (
+                              <>
+                                <Badge variant="secondary" className="text-xs">
+                                  {seat}
+                                </Badge>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleEditClick(booking.bookingId, seat)}
+                                >
+                                  Edit
+                                </Button>
+                              </>
+                            )}
+                          </div>
                         ))}
                       </div>
                     </div>

@@ -52,6 +52,14 @@ export const BookingApiSlice = apiWithTag.injectEndpoints({
 
       invalidatesTags: ["booking"],
     }),
+    deleteBooking: builder.mutation<any, any>({
+      query: (id) => ({
+        url: `/api/v1/booking/delete/${id.deleteBookingId}`,
+        method: "DELETE",
+      }),
+
+      invalidatesTags: ["booking"],
+    }),
     getbookingID: builder.query<any, any>({
       query: (credentials: any) => ({
         url: `/api/v1/booking/${credentials.id}`,
@@ -87,7 +95,15 @@ export const BookingApiSlice = apiWithTag.injectEndpoints({
       keepUnusedDataFor: 0,
       providesTags: ["booking"],
     }),
+    updateTrip: builder.mutation<any, any>({
+      query: (credentials) => ({
+        url: `/api/v1/booking/update/${credentials.bookingId}`,
+        method: "PUT",
+        body: credentials,
+      }),
 
+      invalidatesTags: ["booking"],
+    }),
     getIDbooking: builder.query<any, any>({
       query: ({ id }: any) => ({
         url: `/api/v1/booking/${id}`,
@@ -128,5 +144,7 @@ export const {
   useGetTripBookingHistoryQuery,
   useRequestCancelBookingMutation,
   useGetuserAllprocessbookingQuery,
-  useProcessRefundAmountMutation
+  useProcessRefundAmountMutation,
+  useUpdateTripMutation,
+  useDeleteBookingMutation
 } = BookingApiSlice;
