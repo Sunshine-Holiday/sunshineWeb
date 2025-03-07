@@ -19,7 +19,7 @@ import BookingDetail from "@/pages/admin/BookingDetail";
 import BookedPage from "@/pages/admin/Booked/Booked";
 import BookingDetails from "@/pages/admin/Booked/booking-details";
 import BlockTrip from "@/pages/admin/Booked/BlockTrip";
-import CancelTrips from "@/pages/admin/cancelTrips";
+import CancelTrips from "@/pages/admin/CancelTrips";
 const Layout = () => {
   return (
     <div className="flex h-screen bg-background pt-14">
