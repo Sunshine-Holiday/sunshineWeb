@@ -76,11 +76,6 @@ const EditPrivacy: React.FC = () => {
     );
   }
 
-  if (error) {
-    return (
-      <div>Error loading terms and conditions. Please try again later.</div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gray-50 pb-16 px-4 sm:px-6 lg:px-8">
