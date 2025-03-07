@@ -148,8 +148,8 @@ const BookingPage = () => {
         key: RAZORPAY_API_KEY,
         amount: paymentDetail.amount,
         currency: paymentDetail.currency,
-        name: "Your Store Name",
-        description: "Purchase Description",
+        name: "Sunshine Holiday Packages",
+        description: "Seat Booking",
         order_id: paymentDetail.id,
         handler: async (response: any) => {
           try {
@@ -173,6 +173,7 @@ const BookingPage = () => {
             console.error("Booking error:", error);
             toast.error("Booking failed!");
             reject(error);
+            setIsSubmitting(false); // Reset submitting state on booking failure
           }
         },
         prefill: {
@@ -189,26 +190,35 @@ const BookingPage = () => {
           wallet: true,
           upi: true,
         },
+        // Add modal configuration to handle closure
+        modal: {
+          ondismiss: () => {
+            setIsSubmitting(false); // Reset submitting state when user closes payment modal
+            toast.info("Payment cancelled by user");
+            reject(new Error("Payment cancelled"));
+          }
+        }
       };
-
+  
       const razorpay = new window.Razorpay(options);
       razorpay.on('payment.failed', (response: any) => {
         toast.error("Payment failed. Please try again.");
+        setIsSubmitting(false); // Reset submitting state on payment failure
         reject(response);
       });
       razorpay.open();
     });
   };
-
+  
   const handleProceed = async () => {
-    if (isSubmitting) return; // Prevent multiple submissions
-
+    if (isSubmitting) return;
+  
     if (step === "select-seats") {
       if (selectedSeats.length === 0) {
         toast.error("Please select at least one seat.");
         return;
       }
-
+  
       setPassengers(
         Array(selectedSeats.length).fill({
           name: "",
@@ -225,17 +235,17 @@ const BookingPage = () => {
         toast.error("Please fill in all the passenger details.");
         return;
       }
-
+  
       setIsSubmitting(true);
       try {
         const totalAmount = selectedSeats.length * trip.price;
         const gst = totalAmount * 0.05;
         const finalAmount = totalAmount + gst;
-
+  
         const respPayment = await createPayment({
           amount: finalAmount,
         }).unwrap();
-
+  
         if (respPayment.success) {
           await handlePayment(respPayment.paymentDetail, finalAmount);
         }
@@ -243,6 +253,8 @@ const BookingPage = () => {
         console.error("Payment error:", error);
         toast.error(error.data?.message || "Payment processing failed.");
       } finally {
+        // This will already handle setting isSubmitting to false
+        // after any outcome (success, failure, or cancellation)
         setIsSubmitting(false);
       }
     }
