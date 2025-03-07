@@ -41,12 +41,18 @@ const BookingPage = () => {
 
   // Date formatting functions
   const formatDateToString = (dateInput: string | Date): string => {
-    const date = typeof dateInput === "string" ? parse(dateInput, "dd-MM-yyyy", new Date()) : dateInput;
+    const date =
+      typeof dateInput === "string"
+        ? parse(dateInput, "dd-MM-yyyy", new Date())
+        : dateInput;
     return isValid(date) ? format(date, "dd-MM-yyyy") : "Invalid Date";
   };
 
   const formatDateForAPI = (dateInput: string | Date): string => {
-    const date = typeof dateInput === "string" ? parse(dateInput, "dd-MM-yyyy", new Date()) : dateInput;
+    const date =
+      typeof dateInput === "string"
+        ? parse(dateInput, "dd-MM-yyyy", new Date())
+        : dateInput;
     if (!isValid(date)) {
       console.error("Invalid date for API:", dateInput);
       return "";
@@ -85,7 +91,7 @@ const BookingPage = () => {
   useEffect(() => {
     if (bookingData?.selectedSeats) {
       setBookedSeats(bookingData.selectedSeats);
-      console.log(bookingData?.selectedSeats)
+      console.log(bookingData?.selectedSeats);
     } else {
       setBookedSeats([]);
     }
@@ -115,12 +121,12 @@ const BookingPage = () => {
         : [...prev, seatId].sort()
     );
   };
-//     setSelectedSeats((prev) =>
-//       prev.includes(seatId)
-//         ? prev.filter((id) => id !== seatId)
-//         : [...prev, seatId].sort()
-//     );
-//   };
+  //     setSelectedSeats((prev) =>
+  //       prev.includes(seatId)
+  //         ? prev.filter((id) => id !== seatId)
+  //         : [...prev, seatId].sort()
+  //     );
+  //   };
   const handlePassengerChange = (index: number, data: PassengerData) => {
     if (isSubmitting) return; // Prevent passenger data changes during submission
     setPassengers((prev) => {
@@ -160,13 +166,13 @@ const BookingPage = () => {
               passengers,
               price: finalAmount,
             }).unwrap();
-            
+
             toast.success("Trip booked successfully");
-            navigate("/booked", { 
-              state: { 
+            navigate("/booked", {
+              state: {
                 bookingDetails: resp,
-                paymentResponse: response 
-              } 
+                paymentResponse: response,
+              },
             });
             resolve();
           } catch (error) {
@@ -196,12 +202,12 @@ const BookingPage = () => {
             setIsSubmitting(false); // Reset submitting state when user closes payment modal
             toast.info("Payment cancelled by user");
             reject(new Error("Payment cancelled"));
-          }
-        }
+          },
+        },
       };
-  
+
       const razorpay = new window.Razorpay(options);
-      razorpay.on('payment.failed', (response: any) => {
+      razorpay.on("payment.failed", (response: any) => {
         toast.error("Payment failed. Please try again.");
         setIsSubmitting(false); // Reset submitting state on payment failure
         reject(response);
@@ -209,16 +215,16 @@ const BookingPage = () => {
       razorpay.open();
     });
   };
-  
+
   const handleProceed = async () => {
     if (isSubmitting) return;
-  
+
     if (step === "select-seats") {
       if (selectedSeats.length === 0) {
         toast.error("Please select at least one seat.");
         return;
       }
-  
+
       setPassengers(
         Array(selectedSeats.length).fill({
           name: "",
@@ -235,17 +241,17 @@ const BookingPage = () => {
         toast.error("Please fill in all the passenger details.");
         return;
       }
-  
+
       setIsSubmitting(true);
       try {
         const totalAmount = selectedSeats.length * trip.price;
         const gst = totalAmount * 0.05;
         const finalAmount = totalAmount + gst;
-  
+
         const respPayment = await createPayment({
           amount: finalAmount,
         }).unwrap();
-  
+
         if (respPayment.success) {
           await handlePayment(respPayment.paymentDetail, finalAmount);
         }
@@ -294,7 +300,11 @@ const BookingPage = () => {
           </div>
         </div>
       )}
-      <div className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 ${isSubmitting ? 'pointer-events-none opacity-50' : ''}`}>
+      <div
+        className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 ${
+          isSubmitting ? "pointer-events-none opacity-50" : ""
+        }`}
+      >
         <motion.div
           variants={fadeInUp}
           initial="initial"
@@ -302,7 +312,9 @@ const BookingPage = () => {
           className="text-center mb-12"
         >
           <h1 className="text-4xl font-bold text-gray-900 mb-4">
-            {step === "select-seats" ? "Select Your Seats" : "Passenger Details"}
+            {step === "select-seats"
+              ? "Select Your Seats"
+              : "Passenger Details"}
           </h1>
           <p className="text-gray-600">
             {step === "select-seats"
@@ -320,7 +332,6 @@ const BookingPage = () => {
                 onSeatSelect={handleSeatSelect}
                 bookedSeats={bookedSeats}
                 seatPrice={tripDetails.price}
-           
               />
             ) : (
               <div className="space-y-4">
@@ -332,7 +343,6 @@ const BookingPage = () => {
                     index={index}
                     onChange={handlePassengerChange}
                     passengers={passengers}
-                
                   />
                 ))}
               </div>
@@ -358,4 +368,3 @@ const BookingPage = () => {
 };
 
 export default BookingPage;
-
