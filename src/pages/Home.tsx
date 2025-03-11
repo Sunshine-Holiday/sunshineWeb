@@ -1,6 +1,6 @@
 
 
-import { FeaturedTrips } from '../components/FeaturedTrips'
+// import { FeaturedTrips } from '../components/FeaturedTrips'
 import Hero from '../components/Hero'
 import GlobalTraveler from '../components/InternationalPresence'
 
