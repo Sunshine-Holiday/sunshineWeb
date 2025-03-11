@@ -8,7 +8,7 @@ const Home = () => {
   return (
     <main>
     <Hero />
-    <FeaturedTrips />
+    {/* <FeaturedTrips /> */}
     <GlobalTraveler />
   </main>
   )

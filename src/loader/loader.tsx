@@ -1,4 +1,4 @@
-import logo from "../asserts/Sunshine.png";
+import logo from "../asserts/1-removebg-preview.png";
 
 export const LoadingSkeleton = ({
   imagelogo = logo,
@@ -6,11 +6,11 @@ export const LoadingSkeleton = ({
   imagelogo?: string;
 }) => (
   <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 space-y-6">
-    <div className="relative h-44 w-44 bg-gray-300 animate-pulse rounded-full">
+    <div className="relative h-44 w-44 bg-gray-300 animate-pulse  flex items-center justify-center overflow-hidden">
       <img
         src={imagelogo}
         alt="logo"
-        className="absolute inset-0 h-24 w-24 m-auto opacity-100 animate-blink object-cover rounded-full"
+        className="h-full w-full object-cover "
       />
     </div>
     <div className="flex flex-col items-center space-y-2">
@@ -22,4 +22,3 @@ export const LoadingSkeleton = ({
     </div>
   </div>
 );
-

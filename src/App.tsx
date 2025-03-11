@@ -116,7 +116,7 @@ export const AppContent = () => {
               </ProtectedRoute>
             }
           />
-            <Route path="/about-us" element={<About />} />
+          <Route path="/about-us" element={<About />} />
           <Route path="/gallery" element={<GalleryPage />} />
           <Route path="/privacy-policy" element={<PrivacyPolicy />} />
           <Route path="/terms-condition" element={<TermsAndCondition />} />
@@ -146,7 +146,7 @@ export const AppContent = () => {
               </ProtectedRoute>
             }
           />
-                <Route
+          <Route
             path="/booked/:id"
             element={
               <ProtectedRoute role={user?.role}>
