@@ -16,7 +16,7 @@ export const Footer = () => {
             <img className="h-12 w-12 sm:h-16 sm:w-16 md:h-20 md:w-20 text-blue-600" src={logo} alt="Logo" />
               {/* <Plane className="h-8 w-8 text-blue-600" /> */}
               <span className="text-xl font-bold text-gray-900">
-                Sunshine Holidays Packages
+                Sunshine Holiday Packages
               </span>
             </Link>
             {/* <NewsletterForm /> */}
