@@ -304,7 +304,7 @@ const TripDetails = () => {
 
               <div className="mt-6 text-sm text-gray-500">
                 <p className="flex items-center mb-2">
-                  <Calendar className="h-4 w-4 mr-2" />
+                  <Calendar className="h-12 w-15 mr-2" size={35} />
                   75% refund within 5-7 working days, if notified 8 or more days
                   prior to the event date.
                 </p>
