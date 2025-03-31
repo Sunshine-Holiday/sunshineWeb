@@ -305,11 +305,15 @@ const TripDetails = () => {
               <div className="mt-6 text-sm text-gray-500">
                 <p className="flex items-center mb-2">
                   <Calendar className="h-4 w-4 mr-2" />
-                  Free cancellation up to 24 hours before departure
-                </p>
-                <p className="flex items-center">
-                  <Users className="h-4 w-4 mr-2" />
-                  Instant confirmation
+                  75% refund within 5-7 working days, if notified 8 or more days
+                  prior to the event date. 50 % refund within 5-7 working days,
+                  if notified 4 to 7 days prior to the event date. No refund
+                  within 5-7 working days, if notified less than 3 days prior to
+                  the event date No show No Refund. Event Tickets cannot be
+                  transferred to another date against cancellation. Event
+                  Tickets cannot be transferred to another person against
+                  cancellation. If we cancel the trek, only the Trek Amount will
+                  be refunded.
                 </p>
               </div>
             </div>
