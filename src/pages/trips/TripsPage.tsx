@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { FaPlus } from "react-icons/fa"; // Import the plus icon
 
+import logo1 from "../../asserts/MRNJ1288.MP4"; // Video logo import
 import { fadeInUp, staggerChildren } from "../../utils/animations";
 import { TripFilters } from "../trips/TripFilters";
 import { useNavigate } from "react-router-dom";
@@ -12,9 +12,7 @@ import { Plane } from "lucide-react";
 const TripsPage = () => {
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [trips, setTrips] = useState([]);
-  const { data, isLoading, error } = useGettripsQuery();
-
-  const navigate = useNavigate();
+  const { data, isLoading, error } = useGettripsQuery({});
 
   useEffect(() => {
     if (data) {
@@ -31,12 +29,6 @@ const TripsPage = () => {
     } else {
       setTrips(data.filter((trip) => trip.category === category));
     }
-  };
-
-  // Handle adding a new trip (for logging purposes)
-  const handleAddTrip = () => {
-    console.log("Add new trip clicked");
-    navigate("/admin/trips/add-trips");
   };
 
   return (
@@ -80,12 +72,18 @@ const TripsPage = () => {
           </motion.div>
         ) : (
           <div className="flex flex-col items-center justify-center mt-8 text-gray-600">
-          <Plane className="w-16 h-16 text-blue-500" />
-          <div className="text-2xl font-bold mt-4">Upcoming trips  soon.</div>
-        </div>
+            <video
+              src={logo1}
+              className="w-64 mx-auto mb-6 rounded-lg shadow-lg"
+              autoPlay
+              loop
+              muted
+              playsInline
+            />
+            <div className="text-2xl font-bold mt-4">Upcoming trips soon.</div>
+          </div>
         )}
       </div>
-
     </div>
   );
 };

@@ -5,7 +5,7 @@ const apiWithTag = apiSlice.enhanceEndpoints({
 });
 export const TripsApiSlice = apiWithTag.injectEndpoints({
   endpoints: (builder) => ({
-    createtrips: builder.mutation<void, void>({
+    createtrips: builder.mutation<any, any>({
       query: (credentials) => ({
         url: "/api/v1/trips",
         method: "post",
@@ -15,7 +15,7 @@ export const TripsApiSlice = apiWithTag.injectEndpoints({
 
       invalidatesTags: ["trips"],
     }),
-    editTrips: builder.mutation<void, void>({
+    editTrips: builder.mutation<any, any>({
       query: (credentials) =>{
    const {_id}= Object.fromEntries(credentials)
         
@@ -54,7 +54,7 @@ export const TripsApiSlice = apiWithTag.injectEndpoints({
       keepUnusedDataFor: 0,
       providesTags: ["trips"],
     }),
-    deleteTrips: builder.mutation<void, void>({
+    deleteTrips: builder.mutation<any, any>({
       query: (id) => ({
         url: `/api/v1/trips/trip/${id}`,
         method: "DELETE",

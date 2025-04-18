@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Calendar as BigCalendar, dateFnsLocalizer } from "react-big-calendar";
 import { format as formatDate, parse, startOfWeek, getDay } from "date-fns";
 import "react-big-calendar/lib/css/react-big-calendar.css";
-import { Wifi, Coffee, Snowflake, Power } from "lucide-react";
+import { Wifi, Coffee, Snowflake, Power, AudioLines } from "lucide-react";
 import { enUS } from "date-fns/locale";
 import { useCreatetripsMutation } from "@/store/api/trips";
 import { toast } from "react-toastify";
@@ -13,8 +13,8 @@ import "react-quill/dist/quill.snow.css";
 
 const locales = { "en-US": enUS };
 const localizer = dateFnsLocalizer({
-  format: (date, formatStr) => formatDate(date, formatStr, { locale: enUS }),
-  parse: (dateStr, formatStr) => parse(dateStr, formatStr, new Date(), { locale: enUS }),
+  format: (date:any, formatStr:any) => formatDate(date, formatStr, { locale: enUS }),
+  parse: (dateStr:any, formatStr:any) => parse(dateStr, formatStr, new Date(), { locale: enUS }),
   startOfWeek,
   getDay,
   locales,
@@ -46,6 +46,7 @@ interface FormErrors {
 }
 
 const availableAmenities = [
+  { icon: AudioLines, name: "Music and Fun" },
   { icon: Wifi, name: "Free WiFi" },
   { icon: Coffee, name: "Refreshments" },
   { icon: Snowflake, name: "AC" },
@@ -220,7 +221,7 @@ const AdminTripForm: React.FC = () => {
   };
 
   const validateForm = () => {
-    const requiredFields = ["title", "price", "location", "description", "busSize", "category", "file", "amenities"];
+    const requiredFields = ["title", "price", "location", "description", "busSize", "category", "file"];
     let newErrors: FormErrors = {};
     let isValid = true;
 
@@ -241,10 +242,7 @@ const AdminTripForm: React.FC = () => {
       isValid = false;
     }
 
-    if (tripDetails.amenities.length === 0) {
-      newErrors.amenities = "At least one amenity must be selected";
-      isValid = false;
-    }
+ 
 
     setErrors(newErrors);
     return isValid;

@@ -5,7 +5,6 @@ const links = {
   Company: [
     { name: 'About Us', path: '/about-us' },
     { name: 'Contact', path: '/contact' },
-    // { name: 'Press', path: '/press' },
   ],
   Support: [
     { name: 'Help Center', path: '/contact' },
@@ -15,7 +14,6 @@ const links = {
   Legal: [
     { name: 'Privacy Policy', path: '/privacy-policy' },
     { name: 'Terms and condition', path: '/terms-condition' },
-    // { name: 'Cookie Settings', path: '/cookie-settings' },
   ],
 };
 
@@ -24,13 +22,13 @@ export const FooterLinks = () => {
     <div className="grid grid-cols-2 md:grid-cols-3 gap-8">
       {Object.entries(links).map(([category, items]) => (
         <div key={category}>
-          <h3 className="font-semibold mb-4">{category}</h3>
+          <h3 className="font-semibold text-gray-100 mb-4">{category}</h3>
           <ul className="space-y-2">
             {items.map(({ name, path }) => (
               <li key={name}>
                 <Link
                   to={path}
-                  className="text-gray-600 hover:text-blue-600 transition-colors"
+                  className="text-gray-400 hover:text-white transition-colors"
                 >
                   {name}
                 </Link>

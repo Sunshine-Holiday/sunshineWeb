@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { 
   useGetTripBookingHistoryQuery, 
   useUpdateTripMutation,
@@ -42,7 +42,7 @@ const BookingDetails = () => {
   const [editingBooking, setEditingBooking] = useState<string | null>(null);
   const [newSeatNumber, setNewSeatNumber] = useState<string>("");
   const [deleteBookingId, setDeleteBookingId] = useState<string | null>(null);
-  
+  const navigate = useNavigate();
   const { data, isLoading, isError } = useGetTripBookingHistoryQuery({
     trip: tripId,
     date: date
@@ -153,6 +153,7 @@ const BookingDetails = () => {
                     <TableHead className="w-1/6 text-center">Selected Seats</TableHead>
                     <TableHead className="w-1/6 text-right">Price</TableHead>
                     <TableHead className="w-1/6 text-center">Actions</TableHead>
+                    <TableHead className="w-1/6 text-center">Invoice</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -211,6 +212,20 @@ const BookingDetails = () => {
                             </AlertDialogFooter>
                           </AlertDialogContent>
                         </AlertDialog>
+                      </TableCell>
+                      <TableCell className="text-center w-1/6">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            // Handle invoice generation or viewing here
+                            navigate(`/booked/${booking.bookingId}`, {
+                              state: { id: booking.bookingId }
+                            });
+                          }}
+                        >
+                          Invoice
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))}

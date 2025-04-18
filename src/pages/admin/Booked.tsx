@@ -21,10 +21,21 @@ const Booked = () => {
   const { state } = useLocation();
   const { trip } = state;
   const [bookings, setBookings] = useState<any>([]);
-  const { data, isError, isLoading } = useGetTripBookingStatsQuery({
+  const { data, isError, isLoading, error } = useGetTripBookingStatsQuery({
     trip: trip._id,
   });
   const navigate = useNavigate();
+  
+  // Handle empty or missing data and set default values
+  const stats = data?.stats ?? {
+    uniqueUsers: 0,
+    totalBookings: 0,
+    totalPassengers: 0,
+    totalSeatsBooked: 0,
+    dailyStats: {},
+  };
+
+  console.log("error", error);
 
   if (isLoading) {
     return (
@@ -34,16 +45,10 @@ const Booked = () => {
     );
   }
 
-  if (isError || !data) {
-    return (
-      <div className="flex justify-center items-center min-h-screen">
-        <p className="text-red-500">Error loading booking statistics.</p>
-      </div>
-    );
-  }
+
 
   // Sort dates for the table
-  const sortedDates = Object.keys(data.stats.dailyStats).sort();
+  const sortedDates = Object.keys(stats.dailyStats).sort();
 
   // Function to handle viewing detailed bookings for a specific date
   const handleViewBookings = (date: string) => {
@@ -66,19 +71,19 @@ const Booked = () => {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="bg-blue-50 p-4 rounded-lg">
             <p className="text-sm text-gray-500">Unique Users</p>
-            <p className="text-2xl font-bold">{data.stats.uniqueUsers}</p>
+            <p className="text-2xl font-bold">{stats.uniqueUsers}</p>
           </div>
           <div className="bg-green-50 p-4 rounded-lg">
             <p className="text-sm text-gray-500">Total Bookings</p>
-            <p className="text-2xl font-bold">{data.stats.totalBookings}</p>
+            <p className="text-2xl font-bold">{stats.totalBookings}</p>
           </div>
           <div className="bg-purple-50 p-4 rounded-lg">
             <p className="text-sm text-gray-500">Total Passengers</p>
-            <p className="text-2xl font-bold">{data.stats.totalPassengers}</p>
+            <p className="text-2xl font-bold">{stats.totalPassengers}</p>
           </div>
           <div className="bg-yellow-50 p-4 rounded-lg">
             <p className="text-sm text-gray-500">Total Seats Booked</p>
-            <p className="text-2xl font-bold">{data.stats.totalSeatsBooked}</p>
+            <p className="text-2xl font-bold">{stats.totalSeatsBooked}</p>
           </div>
         </div>
       </div>
@@ -98,43 +103,51 @@ const Booked = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {sortedDates.map((date) => (
-                <TableRow key={date}>
-                  <TableCell className="font-medium w-1/5">
-                    {data.stats.dailyStats[date].date}
-                  </TableCell>
-                  <TableCell className="text-right w-1/5">
-                    {data.stats.dailyStats[date].totalBookings}
-                  </TableCell>
-                  <TableCell className="text-right w-1/5">
-                    {data.stats.dailyStats[date].totalPassengers}
-                  </TableCell>
-                  <TableCell className="text-right w-1/5">
-                    {data.stats.dailyStats[date].totalSeatsBooked}
-                  </TableCell>
-                  <TableCell className="text-center w-1/5">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleViewBookings(data.stats.dailyStats[date].date)}
-                      className="flex items-center gap-1 mx-auto"
-                    >
-                      <FaEye className="text-gray-600" />
-                      <span>View</span>
-                    </Button>
+              {sortedDates.length > 0 ? (
+                sortedDates.map((date) => (
+                  <TableRow key={date}>
+                    <TableCell className="font-medium w-1/5">
+                      {stats.dailyStats[date].date}
+                    </TableCell>
+                    <TableCell className="text-right w-1/5">
+                      {stats.dailyStats[date].totalBookings || 0}
+                    </TableCell>
+                    <TableCell className="text-right w-1/5">
+                      {stats.dailyStats[date].totalPassengers || 0}
+                    </TableCell>
+                    <TableCell className="text-right w-1/5">
+                      {stats.dailyStats[date].totalSeatsBooked || 0}
+                    </TableCell>
+                    <TableCell className="text-center w-1/5">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleViewBookings(stats.dailyStats[date].date)}
+                        className="flex items-center gap-1 mx-auto"
+                      >
+                        <FaEye className="text-gray-600" />
+                        <span>View</span>
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center text-gray-500">
+                    No daily booking data available.
                   </TableCell>
                 </TableRow>
-              ))}
+              )}
               <TableRow className="bg-gray-50 font-bold">
                 <TableCell className="w-1/5">Total</TableCell>
                 <TableCell className="text-right w-1/5">
-                  {data.stats.totalBookings}
+                  {stats.totalBookings}
                 </TableCell>
                 <TableCell className="text-right w-1/5">
-                  {data.stats.totalPassengers}
+                  {stats.totalPassengers}
                 </TableCell>
                 <TableCell className="text-right w-1/5">
-                  {data.stats.totalSeatsBooked}
+                  {stats.totalSeatsBooked}
                 </TableCell>
                 <TableCell className="w-1/5"></TableCell>
               </TableRow>
@@ -145,7 +158,7 @@ const Booked = () => {
 
       {/* Message */}
       <div className="mt-4 text-gray-600">
-        <p>{data.message}</p>
+        <p>{data?.message || "No additional information available."}</p>
       </div>
     </div>
   );

@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { Calendar as BigCalendar, dateFnsLocalizer } from "react-big-calendar";
-import { format as formatDate, parse, startOfWeek, getDay } from "date-fns";
-import "react-big-calendar/lib/css/react-big-calendar.css";
-import { Wifi, Coffee, Snowflake, Power } from "lucide-react";
+import { format as formatDate, parse, startOfWeek, getDay, startOfDay } from "date-fns";
 import { enUS } from "date-fns/locale";
+import "react-big-calendar/lib/css/react-big-calendar.css";
+import { Wifi, Coffee, Snowflake, Power, AudioLines } from "lucide-react";
 import { useEditTripsMutation, useGettripsIDQuery } from "@/store/api/trips";
 import { toast } from "react-toastify";
 import { FaSpinner, FaTrash } from "react-icons/fa";
@@ -48,6 +48,7 @@ interface FormErrors {
 }
 
 const availableAmenities = [
+  { icon: AudioLines, name: "Music and Fun" },
   { icon: Wifi, name: "Free WiFi" },
   { icon: Coffee, name: "Refreshments" },
   { icon: Snowflake, name: "AC" },
@@ -64,15 +65,14 @@ const formatDateToString = (date: Date): string => {
 
 const EditTrips: React.FC = () => {
   const location = useLocation();
-  const { id } = location.state;
-
-  const { data, isError, isLoading } = useGettripsIDQuery({ id });
+  const { id } = location.state || {};
   const navigate = useNavigate();
+  const { data, isError, isLoading, error } = useGettripsIDQuery({ id }, { skip: !id });
   const [editTrips] = useEditTripsMutation();
   const [loading, setLoading] = useState(false);
 
   const [tripDetails, setTripDetails] = useState<TripDetails>({
-    _id: id,
+    _id: id || "",
     title: "",
     price: "",
     location: "",
@@ -85,178 +85,220 @@ const EditTrips: React.FC = () => {
     boardingPoints: [{ location: "", time: "", details: "", maplink: "" }],
     file: null,
   });
-
+  console.log({tripDetails})
   const [errors, setErrors] = useState<FormErrors>({});
   const [touched, setTouched] = useState<{ [key: string]: boolean }>({});
   const [imagePreview, setImagePreview] = useState<string | null>(null);
 
-  const quillModules = {
-    toolbar: [
-      [{ 'header': [1, 2, 3, false] }],
-      ['bold', 'italic', 'underline', 'strike'],
-      [{'list': 'ordered'}, {'list': 'bullet'}],
-      ['link'],
-      ['clean']
-    ],
-  };
-
-  const quillFormats = [
-    'header',
-    'bold',
-    'italic',
-    'underline',
-    'strike',
-    'list',
-    'bullet',
-    'link',
-  ];
-
   useEffect(() => {
+    console.log("Fetched Data:", data);
     if (data) {
-      console.log("API Data:", data);
-  
-      setTripDetails({
-        _id: data._id,
-        title: data.title,
-        price: data.price,
-        location: data.location,
+      const parsedDates = data.startDates
+        .map((date: string | Date, index: number) => {
+          try {
+            // Check if date is already a Date object
+            if (date instanceof Date) {
+              return startOfDay(date);
+            }
+            
+            // Check if the date is in dd-MM-yyyy format
+            if (typeof date === 'string' && /^\d{2}-\d{2}-\d{4}$/.test(date)) {
+              // Use the parse function from date-fns
+              const parsedDate = parse(date, 'dd-MM-yyyy', new Date());
+              if (isNaN(parsedDate.getTime())) {
+                console.error(`Invalid date at index ${index}: ${date}`);
+                return null;
+              }
+              return startOfDay(parsedDate);
+            }
+            
+            // Try normal date parsing
+            const dateObj = new Date(date);
+            if (isNaN(dateObj.getTime())) {
+              console.error(`Invalid date at index ${index}: ${date}`);
+              return null;
+            }
+            return startOfDay(dateObj);
+          } catch (error) {
+            console.error(`Error parsing date at index ${index}: ${date}`, error);
+            return null;
+          }
+        })
+        .filter((date: Date | null): date is Date => date !== null);
+    
+      console.log("Parsed Dates:", parsedDates.map((d:any) => formatDateToString(d)));
+    
+
+      const updatedDetails = {
+        _id: data._id || id,
+        title: data.title || "",
+        price: data.price || "",
+        location: data.location || "",
         duration: data.duration || "",
         file: null,
         description: data.description || "",
-        startDates: data.startDates.map((dateStr: string) => {
-          const parsedDate = parse(dateStr, "dd-MM-yyyy", new Date());
-          if (isNaN(parsedDate.getTime())) {
-            console.error(`Failed to parse date: ${dateStr}`);
-          }
-          return parsedDate;
-        }).filter((date: Date) => !isNaN(date.getTime())),
-        busSize: data.busSize,
-        category: data.category,
-        amenities: data.amenities,
-        boardingPoints: data.boardingPoints,
-      });
+        startDates: parsedDates,
+        busSize: data.busSize || "",
+        category: data.category || "",
+        amenities: Array.isArray(data.amenities) && data.amenities.length > 0 ? data.amenities : [],
+        boardingPoints:
+          Array.isArray(data.boardingPoints) && data.boardingPoints.length > 0
+            ? data.boardingPoints
+            : [{ location: "", time: "", details: "", maplink: "" }],
+      };
+      setTripDetails(updatedDetails);
+      console.log("Updated Trip Details:", updatedDetails);
       if (data.banner) {
         setImagePreview(`${IMAGE_URL}${data.banner}`);
       }
     }
-  }, [data]);
+  }, [data, id]);
 
-  const handleChange = (field: keyof TripDetails, value: string | any) => {
-    setTripDetails({ ...tripDetails, [field]: value });
-    if (value) {
-      setErrors({ ...errors, [field]: "" });
-    }
+  useEffect(() => {
+    console.log(
+      "Trip Details Changed - Start Dates:",
+      tripDetails.startDates.map((d) => formatDateToString(d))
+    );
+  }, [tripDetails]);
+
+  const quillModules = {
+    toolbar: [
+      [{ header: [1, 2, 3, false] }],
+      ["bold", "italic", "underline", "strike"],
+      [{ list: "ordered" }, { list: "bullet" }],
+      ["link"],
+      ["clean"],
+    ],
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const quillFormats = ["header", "bold", "italic", "underline", "strike", "list", "bullet", "link"];
+
+  const handleChange = useCallback((field: keyof TripDetails, value: any) => {
+    setTripDetails((prev) => ({ ...prev, [field]: value }));
+    if (value) {
+      setErrors((prev) => ({ ...prev, [field]: "" }));
+    }
+  }, []);
+
+  const handleImageUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       const validTypes = ["image/png", "image/jpeg", "image/jpg"];
       if (!validTypes.includes(file.type)) {
-        setErrors({ ...errors, file: "Please upload a PNG, JPG, or JPEG file" });
+        setErrors((prev) => ({ ...prev, file: "Please upload a PNG, JPG, or JPEG file" }));
         return;
       }
       if (file.size > 5 * 1024 * 1024) {
-        setErrors({ ...errors, file: "File size must be less than 5MB" });
+        setErrors((prev) => ({ ...prev, file: "File size must be less than 5MB" }));
         return;
       }
-      
-      setTripDetails({ ...tripDetails, file: file });
-      setErrors({ ...errors, file: "" });
+      setTripDetails((prev) => ({ ...prev, file }));
+      setErrors((prev) => ({ ...prev, file: "" }));
       const reader = new FileReader();
       reader.onloadend = () => {
         setImagePreview(reader.result as string);
       };
       reader.readAsDataURL(file);
     }
-  };
+  }, []);
 
-  const handleBlur = (field: string) => {
-    setTouched({ ...touched, [field]: true });
+  const handleBlur = useCallback((field: string) => {
+    setTouched((prev) => ({ ...prev, [field]: true }));
     validateField(field);
-  };
+  }, []);
 
-  const validateField = (field: string) => {
-    let newErrors = { ...errors };
-    switch (field) {
-      case "title":
-        if (!tripDetails.title) newErrors.title = "Title is required";
-        break;
-      case "price":
-        if (!tripDetails.price) newErrors.price = "Price is required";
-        else if (isNaN(Number(tripDetails.price))) newErrors.price = "Price must be a number";
-        break;
-      case "location":
-        if (!tripDetails.location) newErrors.location = "Location is required";
-        break;
-      case "description":
-        if (!tripDetails.description) newErrors.description = "Description is required";
-        break;
-      case "busSize":
-        if (!tripDetails.busSize) newErrors.busSize = "Bus size is required";
-        break;
-      case "category":
-        if (!tripDetails.category) newErrors.category = "Category is required";
-        break;
-      case "amenities":
-        if (tripDetails.amenities.length === 0) newErrors.amenities = "At least one amenity is required";
-        break;
-    }
-    setErrors(newErrors);
-  };
+  const validateField = useCallback(
+    (field: string) => {
+      let newErrors = { ...errors };
+      switch (field) {
+        case "title":
+          if (!tripDetails.title) newErrors.title = "Title is required";
+          break;
+        case "price":
+          if (!tripDetails.price) newErrors.price = "Price is required";
+          else if (isNaN(Number(tripDetails.price))) newErrors.price = "Price must be a number";
+          break;
+        case "location":
+          if (!tripDetails.location) newErrors.location = "Location is required";
+          break;
+        case "description":
+          if (!tripDetails.description) newErrors.description = "Description is required";
+          break;
+        case "busSize":
+          if (!tripDetails.busSize) newErrors.busSize = "Bus size is required";
+          break;
+        case "category":
+          if (!tripDetails.category) newErrors.category = "Category is required";
+          break;
+        case "amenities":
+          if (tripDetails.amenities.length === 0)
+            newErrors.amenities = "At least one amenity is required";
+          break;
+      }
+      setErrors(newErrors);
+    },
+    [errors, tripDetails]
+  );
 
-  const handleAddBoardingPoint = () => {
-    setTripDetails({
-      ...tripDetails,
+  const handleAddBoardingPoint = useCallback(() => {
+    setTripDetails((prev) => ({
+      ...prev,
       boardingPoints: [
-        ...tripDetails.boardingPoints,
+        ...prev.boardingPoints,
         { location: "", time: "", details: "", maplink: "" },
       ],
-    });
-    setErrors({ ...errors, boardingPoints: "" });
-  };
+    }));
+    setErrors((prev) => ({ ...prev, boardingPoints: "" }));
+  }, []);
 
-  const handleRemoveBoardingPoint = (index: number) => {
-    const updatedPoints = tripDetails.boardingPoints.filter((_, i) => i !== index);
-    setTripDetails({ ...tripDetails, boardingPoints: updatedPoints });
-    if (updatedPoints.length === 0) {
-      setErrors({ ...errors, boardingPoints: "Boarding points must have at least one entry" });
-    }
-  };
+  const handleRemoveBoardingPoint = useCallback(
+    (index: number) => {
+      const updatedPoints = tripDetails.boardingPoints.filter((_, i) => i !== index);
+      setTripDetails((prev) => ({ ...prev, boardingPoints: updatedPoints }));
+      if (updatedPoints.length === 0) {
+        setErrors((prev) => ({
+          ...prev,
+          boardingPoints: "Boarding points must have at least one entry",
+        }));
+      }
+    },
+    [tripDetails.boardingPoints]
+  );
 
-  const handleBoardingPointChange = (
-    index: number,
-    field: keyof BoardingPoint,
-    value: string
-  ) => {
-    const updatedPoints = tripDetails.boardingPoints.map((point, i) =>
-      i === index ? { ...point, [field]: value } : point
-    );
-    setTripDetails({ ...tripDetails, boardingPoints: updatedPoints });
-  };
-
-  const handleDateSelection = (date: Date) => {
-    const selectedDates = [...tripDetails.startDates];
-    const dateTime = date.getTime();
-
-    if (selectedDates.some((d) => d.getTime() === dateTime)) {
-      setTripDetails({
-        ...tripDetails,
-        startDates: selectedDates.filter((d) => d.getTime() !== dateTime),
-      });
-    } else {
-      const updatedDates = [...selectedDates, date].sort(
-        (a, b) => a.getTime() - b.getTime()
+  const handleBoardingPointChange = useCallback(
+    (index: number, field: keyof BoardingPoint, value: string) => {
+      const updatedPoints = tripDetails.boardingPoints.map((point, i) =>
+        i === index ? { ...point, [field]: value } : point
       );
-      setTripDetails({
-        ...tripDetails,
-        startDates: updatedDates,
-      });
-    }
-  };
+      setTripDetails((prev) => ({ ...prev, boardingPoints: updatedPoints }));
+    },
+    [tripDetails.boardingPoints]
+  );
 
-  const validateForm = () => {
-    const requiredFields = ["title", "price", "location", "description", "busSize", "category", "amenities"];
+  const handleDateSelection = useCallback(
+    (date: Date) => {
+      // Normalize selected date to midnight
+      const normalizedDate = startOfDay(date);
+      const selectedDates = [...tripDetails.startDates];
+      const dateTime = normalizedDate.getTime();
+
+      if (selectedDates.some((d) => d.getTime() === dateTime)) {
+        setTripDetails((prev) => ({
+          ...prev,
+          startDates: selectedDates.filter((d) => d.getTime() !== dateTime),
+        }));
+      } else {
+        const updatedDates = [...selectedDates, normalizedDate].sort(
+          (a, b) => a.getTime() - b.getTime()
+        );
+        setTripDetails((prev) => ({ ...prev, startDates: updatedDates }));
+      }
+    },
+    [tripDetails.startDates]
+  );
+
+  const validateForm = useCallback(() => {
+    const requiredFields = ["title", "price", "location", "description", "busSize", "category"];
     let newErrors: FormErrors = {};
     let isValid = true;
 
@@ -275,53 +317,61 @@ const EditTrips: React.FC = () => {
     if (tripDetails.boardingPoints.length === 0) {
       newErrors.boardingPoints = "Boarding points must have at least one entry";
       isValid = false;
+    } else {
+      tripDetails.boardingPoints.forEach((point, index) => {
+        if (!point.location || !point.time) {
+          newErrors[`boardingPoint_${index}`] = `Boarding point ${index + 1}: Location and time are required`;
+          isValid = false;
+        }
+      });
     }
 
-    if (tripDetails.amenities.length === 0) {
-      newErrors.amenities = "At least one amenity must be selected";
-      isValid = false;
-    }
+
 
     setErrors(newErrors);
     return isValid;
-  };
+  }, [tripDetails]);
 
-  const handleSave = async () => {
-    if (!validateForm()) {
-      toast.error("Please fill in all required fields.");
-      return;
-    }
-    setLoading(true);
-    try {
-      const formData = new FormData();
-      
-      formData.append("_id", tripDetails._id || "");
-      formData.append("title", tripDetails.title);
-      formData.append("price", tripDetails.price);
-      formData.append("location", tripDetails.location);
-      formData.append("duration", tripDetails.duration);
-      formData.append("description", tripDetails.description);
-      formData.append("startDates", JSON.stringify(tripDetails.startDates.map(date => formatDate(date, "dd-MM-yyyy"))));
-      formData.append("busSize", tripDetails.busSize);
-      formData.append("category", tripDetails.category);
-      formData.append("amenities", JSON.stringify(tripDetails.amenities));
-      formData.append("boardingPoints", JSON.stringify(tripDetails.boardingPoints));
-      
-      if (tripDetails.file) {
-        formData.append("file", tripDetails.file);
+  const handleSave = useCallback(
+    async () => {
+      if (!validateForm()) {
+        toast.error("Please fill in all required fields.");
+        return;
       }
+      setLoading(true);
+      try {
+        const formData = new FormData();
+        formData.append("_id", tripDetails._id || "");
+        formData.append("title", tripDetails.title);
+        formData.append("price", tripDetails.price);
+        formData.append("location", tripDetails.location);
+        formData.append("duration", tripDetails.duration);
+        formData.append("description", tripDetails.description);
+        formData.append(
+          "startDates",
+          JSON.stringify(tripDetails.startDates.map((date) => formatDate(date, "dd-MM-yyyy")))
+        );
+        formData.append("busSize", tripDetails.busSize);
+        formData.append("category", tripDetails.category);
+        formData.append("amenities", JSON.stringify(tripDetails.amenities));
+        formData.append("boardingPoints", JSON.stringify(tripDetails.boardingPoints));
+        if (tripDetails.file) {
+          formData.append("file", tripDetails.file);
+        }
 
-      console.log("Sending to API:", Object.fromEntries(formData));
-      await editTrips(formData).unwrap();
-      toast.success("Trip updated successfully!");
-      navigate("/admin/trips");
-    } catch (error) {
-      toast.error("Unable to update trip.");
-      console.error(error);
-    } finally {
-      setLoading(false);
-    }
-  };
+        console.log("Sending to API:", Object.fromEntries(formData));
+        await editTrips(formData).unwrap();
+        toast.success("Trip updated successfully!");
+        navigate("/admin/trips");
+      } catch (error) {
+        toast.error("Unable to update trip.");
+        console.error("Save error:", error);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [tripDetails, editTrips, navigate, validateForm]
+  );
 
   const today = new Date();
 
@@ -332,8 +382,16 @@ const EditTrips: React.FC = () => {
         : "border-gray-300 focus:ring-blue-500"
     } focus:outline-none focus:ring-2`;
 
-  if (isLoading) return <div className="text-center py-10">Loading...</div>;
-  if (isError) return <div className="text-center py-10 text-red-500">Error loading trip details</div>;
+  if (!id) {
+    return <div className="text-center py-10 text-red-500">Invalid trip ID</div>;
+  }
+  if (isLoading) {
+    return <div className="text-center py-10">Loading...</div>;
+  }
+  if (isError) {
+    console.error("Error fetching trip details:", error);
+    return <div className="text-center py-10 text-red-500">Error loading trip details</div>;
+  }
 
   return (
     <div className="min-h-screen bg-gray-100 py-8">
@@ -475,11 +533,11 @@ const EditTrips: React.FC = () => {
                 modules={quillModules}
                 formats={quillFormats}
                 className={`border ${
-                  touched.description && errors.description 
-                    ? "border-red-500" 
+                  touched.description && errors.description
+                    ? "border-red-500"
                     : "border-gray-300"
                 } rounded-lg`}
-                style={{ height: '200px', marginBottom: '40px' }}
+                style={{ height: "200px", marginBottom: "40px" }}
               />
               {touched.description && errors.description && (
                 <p className="mt-1 text-sm text-red-500">{errors.description}</p>
@@ -490,11 +548,16 @@ const EditTrips: React.FC = () => {
               <h2 className="text-xl font-semibold mb-4">Select Trip Dates *</h2>
               <BigCalendar
                 localizer={localizer}
-                events={tripDetails.startDates.map((date) => ({
-                  start: date,
-                  end: date,
-                  title: formatDateToString(date),
-                }))}
+                events={tripDetails.startDates.map((date, index) => {
+                  const event = {
+                    id: index,
+                    start: date,
+                    end: date,
+                    title: formatDateToString(date),
+                  };
+                  console.log("Calendar Event:", event);
+                  return event;
+                })}
                 selectable
                 onSelectSlot={(slotInfo) => handleDateSelection(slotInfo.start)}
                 views={["month"]}
@@ -512,9 +575,11 @@ const EditTrips: React.FC = () => {
                 <div className="mt-4">
                   <h3 className="text-lg font-medium text-gray-700">Selected Dates:</h3>
                   <ul className="mt-2 list-disc pl-5 text-gray-600">
-                    {tripDetails.startDates.map((date, index) => (
-                      <li key={index}>{formatDateToString(date)}</li>
-                    ))}
+                    {tripDetails.startDates
+                      .sort((a, b) => a.getTime() - b.getTime())
+                      .map((date, index) => (
+                        <li key={index}>{formatDateToString(date)}</li>
+                      ))}
                   </ul>
                 </div>
               )}
@@ -596,6 +661,9 @@ const EditTrips: React.FC = () => {
                       <FaTrash className="h-4 w-4" />
                     </button>
                   )}
+                  {errors[`boardingPoint_${index}`] && (
+                    <p className="mt-2 text-sm text-red-500">{errors[`boardingPoint_${index}`]}</p>
+                  )}
                 </div>
               ))}
               {errors.boardingPoints && (
@@ -614,11 +682,7 @@ const EditTrips: React.FC = () => {
               disabled={loading}
               className="w-full py-3 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition-colors disabled:bg-green-400 disabled:cursor-not-allowed flex items-center justify-center"
             >
-              {loading ? (
-                <FaSpinner className="animate-spin h-5 w-5" />
-              ) : (
-                "Update Trip"
-              )}
+              {loading ? <FaSpinner className="animate-spin h-5 w-5" /> : "Update Trip"}
             </button>
           </div>
         </div>

@@ -1,6 +1,6 @@
 import React from 'react'
 
-const CustomButton = ({onclickHandler}) => {
+const CustomButton = ({onclickHandler}:any) => {
   return (
     <button
     onClick={onclickHandler}

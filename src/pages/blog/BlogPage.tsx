@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { fadeInUp, staggerChildren } from "../../utils/animations";
 import { useGetAllBlogsQuery } from "@/store/api/blogs";
 import { BlogCard } from "./BlogCard";
-import logo from "../../asserts/Sunshine.png";
+import logo1 from "../../asserts/MRNJ1288.MP4"; // Video logo import
 
 // Skeleton loader component for the blog cards
 const SkeletonLoader = () => (
@@ -62,10 +62,13 @@ const BlogPage = () => {
               variants={fadeInUp}
               className="col-span-full text-center text-gray-600 text-4xl flex flex-col items-center space-y-4"
             >
-              <img
-                src={logo}
-                alt="404 Electronics"
+              <video
+                src={logo1}
                 className="w-64 mx-auto mb-6 rounded-lg shadow-lg"
+                autoPlay
+                loop
+                muted
+                playsInline
               />
               <p className="text-2xl">Adding Blogs soon. Stay tuned!</p>{" "}
               {/* Larger text */}

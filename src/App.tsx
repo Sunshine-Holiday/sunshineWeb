@@ -79,12 +79,13 @@ export const AppContent = () => {
     }
   }, [data, error]);
   if (isAuthLoading || isLoading) {
-    return <LoadingSkeleton imagelogo={imagelogo} />;
+    return <LoadingSkeleton  />;
   }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
-      <React.Suspense fallback={<LoadingSkeleton imagelogo={imagelogo} />}>
+      <React.Suspense fallback={<LoadingSkeleton  />}>
         <Routes>
           <Route element={<RedirectRoute redirectPath={from} />}>
             <Route path="/signin" element={<SignInPage />} />

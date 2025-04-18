@@ -74,6 +74,15 @@ export const TripCard = ({ trip }: TripCardProps) => {
     });
   };
 
+  const handleBlockSeat = () => {
+    navigate(`/admin/block-trip/${trip._id}`, { 
+      state: { 
+        trip,
+        startDate: displayDate ? formatDate(displayDate) : null 
+      } 
+    });
+  };
+
   return (
     <motion.div
       variants={scaleOnHover}
@@ -83,7 +92,6 @@ export const TripCard = ({ trip }: TripCardProps) => {
         className="relative h-40 sm:h-44 md:h-48 overflow-hidden"
         whileHover={{ scale: 1.05 }}
         transition={{ duration: 0.3 }}
-        onClick={handleCardClick}
       >
         <img
           src={
@@ -121,12 +129,22 @@ export const TripCard = ({ trip }: TripCardProps) => {
           <span className="text-xl sm:text-2xl font-bold text-blue-600">
             ₹{trip.price.toLocaleString("en-IN")}
           </span>
-          <motion.button
+   
+        </div>
+        <div className="mt-3 flex flex-col sm:flex-row gap-2">
+        <motion.button
             {...scaleOnHover}
             onClick={handleViewBooked}
             className="bg-blue-500 text-white px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg hover:bg-blue-600 text-sm sm:text-base w-full sm:w-auto text-center"
           >
             View Booked
+          </motion.button>
+          <motion.button
+            {...scaleOnHover}
+            onClick={handleBlockSeat}
+            className="bg-red-500 text-white px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg hover:bg-red-600 text-sm sm:text-base w-full sm:w-auto text-center"
+          >
+            Block Seat
           </motion.button>
         </div>
       </div>

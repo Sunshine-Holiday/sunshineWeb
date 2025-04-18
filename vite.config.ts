@@ -7,7 +7,7 @@ export default defineConfig({
   // define: {
   //   global: 'window', // Define `global` to point to `window` in the browser
   // },
-
+  assetsInclude: ['**/*.MP4'],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

@@ -9,8 +9,8 @@ import { FaSpinner } from "react-icons/fa";
 const BookingDetail = () => {
   const { id } = useParams();
   const { data, isLoading, isError, error } = useGetIDbookingQuery({ id });
-  const [booking, setBooking] = useState <any> (null);
-
+  const [booking, setBooking] = useState<any>(null);
+  
   useEffect(() => {
     if (data && data.booking) {
       const selectedBooking = data.booking;
@@ -18,36 +18,51 @@ const BookingDetail = () => {
     }
   }, [data, id]);
 
-  const totalAmount = booking?.selectedSeats?.length * booking?.trip?.price;
+  const totalAmount = booking?.selectedSeats?.length * (booking?.trip?.price || 0);
   const gst = totalAmount * 0.05; // 5% GST
   const finalAmount = totalAmount + gst;
 
+
+
   const handleDownloadInvoice = () => {
     if (booking) {
-      const doc = new jsPDF()  as any;
+      const doc = new jsPDF() as any;
       const pageWidth = doc.internal.pageSize.getWidth();
-  
+
       // Add logo
       const img = new Image();
       img.src = logo;
       img.onload = () => {
         const aspectRatio = img.width / img.height;
-        let width = 40, height = 20;
+        let width = 40,
+          height = 20;
         if (aspectRatio > 1) height = width / aspectRatio;
         else width = height * aspectRatio;
         doc.addImage(img, "PNG", 10, 10, width, height);
-  
+
         // Add company details
         doc.setFontSize(16);
-        doc.text("Sunshine Holiday Packages", pageWidth / 2, 20, { align: "center" });
+        doc.text("Sunshine Holiday Packages", pageWidth / 2, 20, {
+          align: "center",
+        });
         doc.setFontSize(10);
-        doc.text("For inquiries: sunshineholidaypackages@gmail.com", pageWidth / 2, 25, { align: "center" });
-        doc.text("Phone: +91 9975375975 / +91 9175757178 | Website: www.sunshineholidaypackages.com", pageWidth / 2, 30, { align: "center" });
-  
+        doc.text(
+          "For inquiries: sunshineholidaypackages@gmail.com",
+          pageWidth / 2,
+          25,
+          { align: "center" }
+        );
+        doc.text(
+          "Phone: +91 9975375975 / +91 9175757178 | Website: www.sunshineholidaypackages.com",
+          pageWidth / 2,
+          30,
+          { align: "center" }
+        );
+
         // Add Invoice title
         doc.setFontSize(14);
         doc.text("Invoice", pageWidth / 2, 40, { align: "center" });
-  
+
         // Booking Details Table
         doc.setFontSize(12);
         doc.text("Booking Details:", 10, 50);
@@ -58,41 +73,90 @@ const BookingDetail = () => {
             ["Booking ID", booking._id],
             ["Trip Title", booking.trip?.title || "N/A"],
             ["Location", booking.trip?.location || "N/A"],
-            ["Price per seat", `INR ${booking?.trip?.price || 0}*${booking?.selectedSeats?.length}`],
+            [
+              "Price per seat",
+              `INR ${booking?.trip?.price || 0}*${
+                booking?.selectedSeats?.length || 0
+              }`,
+            ],
             ["Subtotal", `INR ${totalAmount.toFixed(2)}`],
             ["GST (5%)", `INR ${gst.toFixed(2)}`],
             ["Total Amount", `INR ${finalAmount.toFixed(2)}`],
             ["User Email", booking.user?.email || "N/A"],
-            ["Selected Date and time", new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(booking.selectedDate))],
-         
+            ["Selected Date", booking?.selectedDate || "N/A"],
+            ["Selected Seats", booking?.selectedSeats?.join(", ") || "N/A"],
           ],
           theme: "striped",
           styles: { fontSize: 10 },
           columnStyles: { 0: { cellWidth: 50 }, 1: { cellWidth: "auto" } },
         });
-  
+
+        // Boarding Points Table
+        const boardingStartY = doc.autoTable.previous.finalY + 10;
+        doc.text("Boarding Points:", 10, boardingStartY);
+        
+        if (booking.trip?.boardingPoints && booking.trip.boardingPoints.length > 0) {
+          doc.autoTable({
+            startY: boardingStartY + 5,
+            head: [["Location", "Time", "Details"]],
+            body: booking.trip.boardingPoints.map((point: any) => [
+              point.location || "N/A",
+              point.time || "N/A",
+              point.details || "N/A"
+            ]),
+            theme: "grid",
+            styles: { fontSize: 10 },
+          });
+        } else {
+          doc.autoTable({
+            startY: boardingStartY + 5,
+            head: [["Location", "Time", "Details"]],
+            body: [["No boarding points available", "", ""]],
+            theme: "grid",
+            styles: { fontSize: 10 },
+          });
+        }
+
         // Passengers Table
         const passengersStartY = doc.autoTable.previous.finalY + 10;
         doc.text("Passengers:", 10, passengersStartY);
-        doc.autoTable({
-          startY: passengersStartY + 5,
-          head: [["Name", "Age", "Gender", "Address", "ID Proof"]],
-          body: booking.passengers.map((passenger:any) => [
-            passenger.name || "Unnamed",
-            passenger.age || "N/A",
-            passenger.gender || "N/A",
-            passenger.address || "N/A",
-            `${passenger.idProof || "N/A"} (${passenger.idProofNumber || "N/A"})`,
-          ]),
-          theme: "grid",
-          styles: { fontSize: 10 },
-        });
-  
+        
+        if (booking.passengers && booking.passengers.length > 0) {
+          doc.autoTable({
+            startY: passengersStartY + 5,
+            head: [["Name", "Age", "Gender", "Boarding Point", "ID Proof"]],
+            body: booking.passengers.map((passenger: any) => [
+              passenger.name || "Unnamed",
+              passenger.age || "N/A",
+              passenger.gender || "N/A",
+              passenger.address || "N/A",
+              `${passenger.idProof || "N/A"} (${
+                passenger.idProofNumber || "N/A"
+              })`,
+            ]),
+            theme: "grid",
+            styles: { fontSize: 10 },
+          });
+        } else {
+          doc.autoTable({
+            startY: passengersStartY + 5,
+            head: [["Name", "Age", "Gender", "Boarding Point", "ID Proof"]],
+            body: [["No passenger details available", "", "", "", ""]],
+            theme: "grid",
+            styles: { fontSize: 10 },
+          });
+        }
+
         // Add footer
         const footerY = doc.internal.pageSize.getHeight() - 10;
         doc.setFontSize(8);
-        doc.text("Thank you for choosing Sunshine Holiday Packages!", pageWidth / 2, footerY, { align: "center" });
-  
+        doc.text(
+          "Thank you for choosing Sunshine Holiday Packages!",
+          pageWidth / 2,
+          footerY,
+          { align: "center" }
+        );
+
         // Save PDF
         doc.save(`Invoice_${booking._id}.pdf`);
       };
@@ -101,7 +165,7 @@ const BookingDetail = () => {
 
   const renderWebInvoice = () => {
     return (
-      <div className=" mx-auto max-w-4xl bg-white p-8 shadow-lg rounded-lg text-center my-8">
+      <div className="mx-auto max-w-4xl bg-white p-8 shadow-lg rounded-lg text-center my-8">
         <div className="mb-8">
           <img
             src={logo}
@@ -138,7 +202,7 @@ const BookingDetail = () => {
                   Trip Title
                 </th>
                 <td className="border border-gray-300 px-4 py-2">
-                  {booking.trip.title}
+                  {booking.trip.title || "N/A"}
                 </td>
               </tr>
               <tr>
@@ -146,7 +210,7 @@ const BookingDetail = () => {
                   Location
                 </th>
                 <td className="border border-gray-300 px-4 py-2">
-                  {booking.trip.location}
+                  {booking.trip.location || "N/A"}
                 </td>
               </tr>
               <tr>
@@ -154,42 +218,99 @@ const BookingDetail = () => {
                   Price per seat
                 </th>
                 <td className="border border-gray-300 px-4 py-2">
-                  ₹{booking?.trip?.price} * {booking?.selectedSeats?.length}
+                  ₹{booking?.trip?.price || 0} * {booking?.selectedSeats?.length || 0}
                 </td>
               </tr>
               <tr>
-                <th className="border border-gray-300 px-4 py-2 text-left">Subtotal</th>
-                <td className="border border-gray-300 px-4 py-2">₹{totalAmount.toFixed(2)}</td>
+                <th className="border border-gray-300 px-4 py-2 text-left">
+                  Subtotal
+                </th>
+                <td className="border border-gray-300 px-4 py-2">
+                  ₹{totalAmount.toFixed(2)}
+                </td>
               </tr>
               <tr>
-                <th className="border border-gray-300 px-4 py-2 text-left">GST (5%)</th>
-                <td className="border border-gray-300 px-4 py-2">₹{gst.toFixed(2)}</td>
+                <th className="border border-gray-300 px-4 py-2 text-left">
+                  GST (5%)
+                </th>
+                <td className="border border-gray-300 px-4 py-2">
+                  ₹{gst.toFixed(2)}
+                </td>
               </tr>
               <tr className="bg-gray-100 font-semibold">
-                <th className="border border-gray-300 px-4 py-2 text-left">Total Amount</th>
-                <td className="border border-gray-300 px-4 py-2">₹{finalAmount.toFixed(2)}</td>
+                <th className="border border-gray-300 px-4 py-2 text-left">
+                  Total Amount
+                </th>
+                <td className="border border-gray-300 px-4 py-2">
+                  ₹{finalAmount.toFixed(2)}
+                </td>
               </tr>
               <tr>
                 <th className="border border-gray-300 px-4 py-2 text-left">
                   User Email
                 </th>
                 <td className="border border-gray-300 px-4 py-2">
-                  {booking.user.email}
+                  {booking.user.email || "N/A"}
                 </td>
               </tr>
               <tr>
                 <th className="border border-gray-300 px-4 py-2 text-left">
-                  Selected Date and time
+                  Selected Date
                 </th>
                 <td className="border border-gray-300 px-4 py-2">
-                  {new Date(booking.selectedDate).toLocaleString()}
+                  {booking.selectedDate || "N/A"}
                 </td>
               </tr>
-             
+              <tr>
+                <th className="border border-gray-300 px-4 py-2 text-left">
+                  Selected Seats
+                </th>
+                <td className="border border-gray-300 px-4 py-2">
+                  {booking.selectedSeats?.join(", ") || "N/A"}
+                </td>
+              </tr>
             </tbody>
           </table>
         </div>
 
+        {/* Boarding Points Section */}
+        <h3 className="text-xl font-semibold mb-4">Boarding Points</h3>
+        <div className="overflow-x-auto mb-6">
+          <table className="w-full border-collapse border border-gray-300 text-sm">
+            <thead>
+              <tr className="bg-gray-200">
+                <th className="border border-gray-300 px-4 py-2">Location</th>
+                <th className="border border-gray-300 px-4 py-2">Time</th>
+                <th className="border border-gray-300 px-4 py-2">Details</th>
+              </tr>
+            </thead>
+            <tbody>
+              {booking.trip.boardingPoints && booking.trip.boardingPoints.length > 0 ? (
+                booking.trip.boardingPoints.map((point: any, index: number) => (
+                  <tr key={index}>
+                    <td className="border border-gray-300 px-4 py-2">
+                      {point.location || "N/A"}
+                    </td>
+                    <td className="border border-gray-300 px-4 py-2">
+                      {point.time || "N/A"}
+                    </td>
+                    <td className="border border-gray-300 px-4 py-2">
+                      {point.details || "N/A"}
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={3} className="border border-gray-300 px-4 py-2 text-center">
+                    No boarding points available
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Passengers Section */}
         <h3 className="text-xl font-semibold mb-4">Passengers</h3>
         <div className="overflow-x-auto">
           <table className="w-full border-collapse border border-gray-300 text-sm mb-6">
@@ -198,30 +319,40 @@ const BookingDetail = () => {
                 <th className="border border-gray-300 px-4 py-2">Name</th>
                 <th className="border border-gray-300 px-4 py-2">Age</th>
                 <th className="border border-gray-300 px-4 py-2">Gender</th>
-                <th className="border border-gray-300 px-4 py-2">Boarding Points</th>
+                <th className="border border-gray-300 px-4 py-2">
+                  Boarding Point
+                </th>
                 <th className="border border-gray-300 px-4 py-2">ID Proof</th>
               </tr>
             </thead>
             <tbody>
-              {booking.passengers.map((passenger:any, index:number) => (
-                <tr key={index}>
-                  <td className="border border-gray-300 px-4 py-2">
-                    {passenger.name || "Unnamed"}
-                  </td>
-                  <td className="border border-gray-300 px-4 py-2">
-                    {passenger.age}
-                  </td>
-                  <td className="border border-gray-300 px-4 py-2">
-                    {passenger.gender}
-                  </td>
-                  <td className="border border-gray-300 px-4 py-2">
-                    {passenger.address}
-                  </td>
-                  <td className="border border-gray-300 px-4 py-2">
-                    {passenger.idProof} - {passenger.idProofNumber}
+              {booking.passengers && booking.passengers.length > 0 ? (
+                booking.passengers.map((passenger: any, index: number) => (
+                  <tr key={index}>
+                    <td className="border border-gray-300 px-4 py-2">
+                      {passenger.name || "Unnamed"}
+                    </td>
+                    <td className="border border-gray-300 px-4 py-2">
+                      {passenger.age || "N/A"}
+                    </td>
+                    <td className="border border-gray-300 px-4 py-2">
+                      {passenger.gender || "N/A"}
+                    </td>
+                    <td className="border border-gray-300 px-4 py-2">
+                      {passenger.address || "N/A"}
+                    </td>
+                    <td className="border border-gray-300 px-4 py-2">
+                      {passenger.idProof || "N/A"} - {passenger.idProofNumber || "N/A"}
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={5} className="border border-gray-300 px-4 py-2 text-center">
+                    No passenger details available
                   </td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
         </div>
@@ -245,7 +376,7 @@ const BookingDetail = () => {
   }
 
   if (isError) {
-    console.log(error);
+    console.error(error);
     return (
       <div className="min-h-screen flex items-center justify-center">
         Error fetching booking details.
@@ -254,8 +385,8 @@ const BookingDetail = () => {
   }
 
   return (
-    <div className="min-h-screen  flex items-center justify-center bg-gray-100 py-8">
-      <div className="w-full px-4 flex ">
+    <div className="min-h-screen flex items-center justify-center bg-gray-100 py-8">
+      <div className="w-full px-4 flex justify-center">
         {booking ? (
           renderWebInvoice()
         ) : (

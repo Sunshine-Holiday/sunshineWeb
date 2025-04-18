@@ -1,16 +1,15 @@
-import logo from "../asserts/1-removebg-preview.png";
 
-export const LoadingSkeleton = ({
-  imagelogo = logo,
-}: {
-  imagelogo?: string;
-}) => (
+import logo1 from "../asserts/MRNJ1288.MP4";
+
+export const LoadingSkeleton = () => (
   <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 space-y-6">
-    <div className="relative h-44 w-44 bg-gray-300 animate-pulse  flex items-center justify-center overflow-hidden">
-      <img
-        src={imagelogo}
-        alt="logo"
-        className="h-full w-full object-cover "
+    <div className="relative h-72 w-72 bg-gray-300 animate-pulse flex items-center justify-center overflow-hidden rounded-full">
+      <video
+        src={logo1}
+        autoPlay
+        loop
+        muted
+        className="h-full w-full object-cover"
       />
     </div>
     <div className="flex flex-col items-center space-y-2">
