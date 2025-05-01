@@ -62,7 +62,7 @@ const formatDateWithSeats = (date: Date, seats: number | "block"): string => {
 export const TripCard = ({ trip, onDelete, onEdit }: TripCardProps) => {
   const navigate = useNavigate();
   const today = new Date();
-  const bannerURL = IMAGE_URL + trip.image;
+  const bannerURL = IMAGE_URL + trip.banner;
 
   // Convert all start dates to objects with Date and seats, filter valid ones
   const validStartDates = trip.startDates
