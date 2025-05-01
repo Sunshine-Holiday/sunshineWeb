@@ -81,13 +81,13 @@ export const TripCard = ({ trip, onDelete, onEdit }: TripCardProps) => {
     validStartDates[0];
 
   // Handle case with no valid dates
-  if (!displayDate) {
-    return (
-      <div className="bg-white rounded-xl shadow-sm p-6 text-red-600">
-        No valid start dates available for {trip.title}.
-      </div>
-    );
-  }
+  // if (!displayDate) {
+  //   return (
+  //     <div className="bg-white rounded-xl shadow-sm p-6 text-red-600">
+  //       No valid start dates available for {trip.title}.
+  //     </div>
+  //   );
+  // }
 
   const handleEdit = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -138,7 +138,7 @@ export const TripCard = ({ trip, onDelete, onEdit }: TripCardProps) => {
           </div>
           <div className="flex items-center text-gray-600">
             <Calendar className="h-4 w-4 mr-2" />
-            <span>{formatDateWithSeats(displayDate.date, displayDate.seats)}</span>
+            <span>{displayDate&&formatDateWithSeats(displayDate.date, displayDate.seats)}</span>
           </div>
         </div>
         <div className="flex items-center justify-between mt-4">
