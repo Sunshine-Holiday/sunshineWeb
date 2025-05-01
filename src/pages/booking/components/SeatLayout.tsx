@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Plus, Armchair } from "lucide-react";
+import { Armchair } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface SeatProps {
   id: string;
@@ -14,31 +15,34 @@ interface SeatProps {
 const Seat = ({ id, isBooked, isSelected, onSelect }: SeatProps) => {
   return (
     <div className="items-center flex flex-col">
-      <motion.button
-        whileHover={{ scale: 1.1 }}
-        whileTap={{ scale: 0.95 }}
-        onClick={() => !isBooked && onSelect(id)}
-        disabled={isBooked}
-        className={`w-10 h-16 rounded-lg m-1 flex flex-col items-center justify-center transition-colors
-        ${
-          isBooked
-            ? "bg-gray-300 cursor-not-allowed"
-            : isSelected
-            ? "bg-blue-600 text-white"
-            : "bg-white hover:bg-blue-50"
-        }`}
+      <motion.div
+        whileHover={{ scale: isBooked ? 1 : 1.1 }}
+        whileTap={{ scale: isBooked ? 1 : 0.95 }}
       >
-        <Armchair
-          size={20}
-          className={`mt-1 ${
-            isBooked
-              ? "text-gray-400"
-              : isSelected
-              ? "text-white"
-              : "text-gray-600"
-          }`}
-        />
-      </motion.button>
+        <Button
+          onClick={() => !isBooked && onSelect(id)}
+          disabled={isBooked}
+          className={`w-10 h-16 rounded-lg m-1 flex flex-col items-center justify-center transition-colors
+            ${
+              isBooked
+                ? "bg-gray-300 cursor-not-allowed"
+                : isSelected
+                ? "bg-blue-600 text-white hover:bg-blue-600"
+                : "bg-white hover:bg-blue-50 text-gray-600"
+            }`}
+        >
+          <Armchair
+            size={20}
+            className={`mt-1 ${
+              isBooked
+                ? "text-gray-400"
+                : isSelected
+                ? "text-white"
+                : "text-gray-600"
+            }`}
+          />
+        </Button>
+      </motion.div>
       <span className="text-sm font-medium">{id}</span>
     </div>
   );
@@ -50,6 +54,7 @@ interface SeatLayoutProps {
   bookedSeats: string[];
   seatPrice: number;
   totalSeats: number;
+  disabled?: boolean;
 }
 
 export const SeatLayout = ({
@@ -58,14 +63,21 @@ export const SeatLayout = ({
   bookedSeats,
   seatPrice,
   totalSeats,
-  disabled
+  disabled = false,
 }: SeatLayoutProps) => {
   const [isTwoSeaterLayout, setIsTwoSeaterLayout] = useState(
     totalSeats !== 20 ? true : false
   );
   const [showLayoutModal, setShowLayoutModal] = useState(false);
 
-  // Define seat layout
+  const isBlockBooking = selectedSeats.includes("block");
+
+  // Validate totalSeats
+  if (totalSeats !== 20 && totalSeats !== 32) {
+    console.warn(`Invalid totalSeats value: ${totalSeats}. Expected 20 or 32.`);
+  }
+
+  // Define seat layout for non-block booking
   const seats = isTwoSeaterLayout
     ? [
         ["", "", "", "1", "2"],
@@ -76,7 +88,6 @@ export const SeatLayout = ({
         ["19", "20", "", "21", "22"],
         ["23", "24", "", "25", "26"],
         ["27", "28", "29", "30", "31"],
-        
       ]
     : [
         ["1", "", "2", "3"],
@@ -87,14 +98,15 @@ export const SeatLayout = ({
         ["16", "17", "18", "19"],
       ];
 
-  // Condition to show modal when more than 15 seats are selected
-  const shouldShowLayoutChange = selectedSeats.length > 11;
-
+  // Handle layout modal for non-block booking
   useEffect(() => {
-    if (bookedSeats.length === seats.flat().filter(Boolean).length) {
+    if (
+      !isBlockBooking &&
+      bookedSeats.length === seats.flat().filter(Boolean).length
+    ) {
       setShowLayoutModal(true); // All seats booked, show modal
     }
-  }, [bookedSeats, seats]);
+  }, [bookedSeats, seats, isBlockBooking]);
 
   const handleLayoutChange = () => {
     setIsTwoSeaterLayout(true);
@@ -102,13 +114,35 @@ export const SeatLayout = ({
   };
 
   const handleIconClick = () => {
-    if (shouldShowLayoutChange) {
-      setShowLayoutModal(true); // Show modal when more than 15 seats are selected
+    if (!isBlockBooking && selectedSeats.length > 11) {
+      setShowLayoutModal(true); // Show modal when more than 11 seats are selected
     }
   };
 
+  if (isBlockBooking) {
+    return (
+      <div className="bg-gray-100 p-6 rounded-xl text-center">
+        <h3 className="text-xl font-semibold mb-4">Block Booking (1 Seat)</h3>
+        <p className="text-gray-600 mb-4">
+          This is a full bus booking, treated as a single seat for pricing.
+        </p>
+        <div className="text-sm font-medium">
+          Total Price: ₹
+          {seatPrice.toLocaleString("en-IN", {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          })}
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="bg-gray-100 p-6 rounded-xl">
+    <div
+      className={`bg-gray-100 p-6 rounded-xl ${
+        disabled ? "opacity-50 pointer-events-none" : ""
+      }`}
+    >
       {/* Legend */}
       <div className="mb-6 flex justify-between items-center">
         <div className="flex gap-4">
@@ -126,7 +160,11 @@ export const SeatLayout = ({
           </div>
         </div>
         <div className="text-sm font-medium">
-          Price per seat: ₹{seatPrice.toLocaleString("en-IN")}
+          Price per seat: ₹
+          {seatPrice.toLocaleString("en-IN", {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          })}
         </div>
       </div>
 
@@ -138,7 +176,7 @@ export const SeatLayout = ({
         {/* Driver's cabin */}
         <div className="flex flex-row gap-10 items-center">
           <div className="w-20 h-20 bg-gray-300 rounded-lg flex items-center justify-center text-sm text-gray-600 mb-4">
-            {isTwoSeaterLayout ? 32 : 20}
+            {totalSeats}
           </div>
           <div className="w-20 h-20 bg-gray-300 rounded-lg flex items-center justify-center text-sm text-gray-600 mb-4">
             Driver

@@ -2,8 +2,15 @@ import React from "react";
 import { motion } from "framer-motion";
 import { MapPin, Clock, Users, Calendar } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { parse, isValid } from "date-fns";
 import { scaleOnHover } from "@/utils/animations";
 import { IMAGE_URL } from "@/store/store";
+import { Button } from "@/components/ui/button";
+
+interface StartDate {
+  date: string;
+  seats: number | "block";
+}
 
 interface TripCardProps {
   trip: {
@@ -13,48 +20,74 @@ interface TripCardProps {
     location: string;
     duration: string;
     busSize: string;
-    startDates: string[]; // e.g., ["04-03-2025", "06-03-2025", ...]
+    startDates: (StartDate | null | undefined)[];
     price: number;
   };
   onDelete: (id: number) => void;
   onEdit: (id: number) => void;
 }
 
-// Validate and parse a date string in "dd-mm-yyyy" format
-const isValidStartDate = (startDate: string): Date | null => {
-  const [day, month, year] = startDate.split("-").map(Number);
-  const tripDate = new Date(year, month - 1, day); // month - 1 because months are 0-based
-  return isNaN(tripDate.getTime()) ? null : tripDate;
+// Validate and parse a date string in "dd-MM-yyyy" format
+const isValidStartDate = (startDate: unknown): { date: Date; seats: number | "block" } | null => {
+  if (!startDate || typeof startDate !== "object" || !("date" in startDate) || !("seats" in startDate)) {
+    return null;
+  }
+
+  const { date, seats } = startDate as StartDate;
+  if (typeof date !== "string" || !/^\d{2}-\d{2}-\d{4}$/.test(date)) {
+    return null;
+  }
+
+  const parsedDate = parse(date, "dd-MM-yyyy", new Date());
+  if (!isValid(parsedDate)) {
+    return null;
+  }
+
+  if (seats !== "block" && seats !== 20 && seats !== 32) {
+    return null;
+  }
+
+  return { date: parsedDate, seats };
 };
 
-// Format date as "dd-mm-yyyy"
-const formatDate = (date: Date): string => {
+// Format date as "dd-MM-yyyy" with seats
+const formatDateWithSeats = (date: Date, seats: number | "block"): string => {
   const day = String(date.getDate()).padStart(2, "0");
-  const month = String(date.getMonth() + 1).padStart(2, "0"); // Months are 0-based
+  const month = String(date.getMonth() + 1).padStart(2, "0");
   const year = date.getFullYear();
-  return `${day}-${month}-${year}`;
+  const dateStr = `${day}-${month}-${year}`;
+  return `${dateStr} (${seats === "block" ? "Block" : `${seats} Seats`})`;
 };
 
 export const TripCard = ({ trip, onDelete, onEdit }: TripCardProps) => {
   const navigate = useNavigate();
-  const today = new Date(); // Dynamically get today's date
-  const bannerURL = IMAGE_URL + trip.banner;
-  // Convert all start dates to Date objects and filter valid ones
+  const today = new Date();
+  const bannerURL = IMAGE_URL + trip.image;
+
+  // Convert all start dates to objects with Date and seats, filter valid ones
   const validStartDates = trip.startDates
     .map(isValidStartDate)
-    .filter((date): date is Date => date !== null)
-    .sort((a, b) => a.getTime() - b.getTime()); // Sort dates chronologically
+    .filter((item): item is { date: Date; seats: number | "block" } => item !== null)
+    .sort((a, b) => a.date.getTime() - b.date.getTime());
 
   // Find if today matches any start date
-  const todayMatch = validStartDates.find((date) => date.toDateString() === today.toDateString());
+  const todayMatch = validStartDates.find(
+    (item) => item.date.toDateString() === today.toDateString()
+  );
 
   // If today matches, use it; otherwise, find the next date after today
-  const displayDate = todayMatch || 
-    validStartDates.find((date) => date > today) || 
+  const displayDate = todayMatch ||
+    validStartDates.find((item) => item.date > today) ||
     validStartDates[0];
 
-  // If no valid dates exist, return null
-  if (!displayDate) return null;
+  // Handle case with no valid dates
+  if (!displayDate) {
+    return (
+      <div className="bg-white rounded-xl shadow-sm p-6 text-red-600">
+        No valid start dates available for {trip.title}.
+      </div>
+    );
+  }
 
   const handleEdit = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -83,7 +116,7 @@ export const TripCard = ({ trip, onDelete, onEdit }: TripCardProps) => {
       >
         <img
           src={
-            bannerURL||
+            bannerURL ||
             "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b"
           }
           alt={trip.title}
@@ -105,7 +138,7 @@ export const TripCard = ({ trip, onDelete, onEdit }: TripCardProps) => {
           </div>
           <div className="flex items-center text-gray-600">
             <Calendar className="h-4 w-4 mr-2" />
-            <span>{formatDate(displayDate)}</span>
+            <span>{formatDateWithSeats(displayDate.date, displayDate.seats)}</span>
           </div>
         </div>
         <div className="flex items-center justify-between mt-4">
@@ -113,20 +146,19 @@ export const TripCard = ({ trip, onDelete, onEdit }: TripCardProps) => {
             ₹{trip.price.toLocaleString("en-IN")}
           </span>
           <div className="flex gap-2">
-            <motion.button
-              {...scaleOnHover}
+            <Button
+              variant="default"
               onClick={handleEdit}
-              className="bg-yellow-500 text-white px-4 py-2 rounded-lg hover:bg-yellow-600"
+              className="bg-yellow-500 hover:bg-yellow-600 text-white"
             >
               Edit
-            </motion.button>
-            <motion.button
-              {...scaleOnHover}
+            </Button>
+            <Button
+              variant="destructive"
               onClick={handleDelete}
-              className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600"
             >
               Delete
-            </motion.button>
+            </Button>
           </div>
         </div>
       </div>

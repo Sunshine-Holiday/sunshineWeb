@@ -11,15 +11,21 @@ import {
   HelpCircle,
   AlertCircle,
 } from "lucide-react";
-import { useNavigate, useParams } from "react-router-dom"; // Removed unused useLocation
+import { useNavigate, useParams } from "react-router-dom";
 import { fadeInUp, staggerChildren } from "../../utils/animations";
 import { useGettripsIDQuery } from "@/store/api/trips";
-import { format, parse, isValid } from "date-fns"; // Import date-fns utilities
+import { format, parse, isValid, startOfDay } from "date-fns";
 import { IMAGE_URL } from "@/store/store";
+import { Button } from "@/components/ui/button";
 
 interface Amenity {
   icon: React.ElementType;
   name: string;
+}
+
+interface StartDate {
+  date: string;
+  seats: number | "block";
 }
 
 const amenitiesList: Amenity[] = [
@@ -29,42 +35,44 @@ const amenitiesList: Amenity[] = [
   { icon: Power, name: "Charging Points" },
 ];
 
-// Function to format Date objects to "dd-MM-yyyy"
-const formatDateToString = (date: string | Date): string => {
-  const parsedDate =
-    typeof date === "string" ? parse(date, "dd-MM-yyyy", new Date()) : date;
+// Function to format StartDate to "dd-MM-yyyy (seats)"
+const formatDateWithSeats = (startDate: StartDate): string => {
+  const parsedDate = parse(startDate.date, "dd-MM-yyyy", new Date());
   if (!isValid(parsedDate)) {
-    console.error("Invalid date:", date);
+    console.error("Invalid date:", startDate.date);
     return "Invalid Date";
   }
-  return format(parsedDate, "dd-MM-yyyy");
+  const formattedDate = format(parsedDate, "dd-MM-yyyy");
+  return `${formattedDate} (${startDate.seats === "block" ? "Block" : `${startDate.seats} Seats`})`;
 };
 
 const TripDetails = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const [trip, setTrips] = useState<any>({});
-  const [selectedDate, setSelectedDate] = useState<string>("");
+  const [selectedDate, setSelectedDate] = useState<StartDate | null>(null);
   const { data, isLoading, isError } = useGettripsIDQuery({ id: id });
   const bannerURL = IMAGE_URL + trip.banner;
-  // Check if a date is valid and in the future
-  const isDateValid = (dateStr: string): boolean => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const parsedDate = parse(dateStr, "dd-MM-yyyy", new Date());
+
+  // Check if a StartDate is valid and in the future
+  const isDateValid = (startDate: StartDate): boolean => {
+    if (!startDate || typeof startDate !== "object" || !("date" in startDate)) {
+      return false;
+    }
+    const today = startOfDay(new Date());
+    const parsedDate = parse(startDate.date, "dd-MM-yyyy", new Date());
     return isValid(parsedDate) && parsedDate >= today;
   };
 
-  const getAvailableDates = (): string[] => {
+  const getAvailableDates = (): StartDate[] => {
     if (!trip.startDates) return [];
-    return trip.startDates.filter((date: string) => isDateValid(date));
+    return trip.startDates.filter((date: StartDate) => isDateValid(date));
   };
 
   useEffect(() => {
     if (data) {
       setTrips(data);
-      const availableDates =
-        data.startDates?.filter((date: string) => isDateValid(date)) || [];
+      const availableDates = data.startDates?.filter((date: StartDate) => isDateValid(date)) || [];
       if (availableDates.length > 0) {
         setSelectedDate(availableDates[0]); // Set the first valid date
       }
@@ -72,7 +80,10 @@ const TripDetails = () => {
   }, [data]);
 
   const handleDateChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
-    setSelectedDate(event.target.value);
+    const selected = trip.startDates.find(
+      (date: StartDate) => formatDateWithSeats(date) === event.target.value
+    );
+    setSelectedDate(selected || null);
   };
 
   const handleBookNow = () => {
@@ -165,18 +176,18 @@ const TripDetails = () => {
                       </label>
                       <select
                         id="dateSelect"
-                        value={selectedDate}
+                        value={selectedDate ? formatDateWithSeats(selectedDate) : ""}
                         onChange={handleDateChange}
                         className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
                       >
                         <option value="">Choose a date</option>
-                        {trip.startDates.map((date: string, index: number) => (
+                        {trip.startDates.map((date: StartDate, index: number) => (
                           <option
                             key={index}
-                            value={date}
+                            value={formatDateWithSeats(date)}
                             disabled={!isDateValid(date)}
                           >
-                            {formatDateToString(date)}{" "}
+                            {formatDateWithSeats(date)}{" "}
                             {!isDateValid(date) ? "(Past date)" : ""}
                           </option>
                         ))}
@@ -200,7 +211,7 @@ const TripDetails = () => {
                   <div className="border-t border-gray-200 pt-6">
                     <h2 className="text-xl font-semibold mb-4">Description</h2>
                     <div
-                      className=" "
+                      className=""
                       dangerouslySetInnerHTML={{ __html: trip.description }}
                     />
                   </div>
@@ -265,7 +276,7 @@ const TripDetails = () => {
                 <div className="mb-4">
                   <p className="text-gray-600">Selected Date:</p>
                   <p className="font-medium">
-                    {formatDateToString(selectedDate)}
+                    {formatDateWithSeats(selectedDate)}
                   </p>
                 </div>
               )}
@@ -286,27 +297,25 @@ const TripDetails = () => {
                 </div>
               </div>
 
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
+              <Button
                 onClick={handleBookNow}
                 disabled={!selectedDate || availableDates.length === 0}
-                className={`w-full py-3 rounded-lg font-medium ${
+                className={`w-full ${
                   !selectedDate || availableDates.length === 0
                     ? "bg-gray-300 cursor-not-allowed"
-                    : "bg-blue-600 text-white hover:bg-blue-700"
+                    : "bg-blue-600 hover:bg-blue-700 text-white"
                 }`}
               >
                 {availableDates.length === 0
                   ? "No Available Dates"
                   : "Book Now"}
-              </motion.button>
+              </Button>
 
               <div className="mt-6 text-sm text-gray-500">
                 <p className="flex items-center mb-2">
                   <Calendar className="h-12 w-15 mr-2" size={35} />
                   75% refund within 5-7 working days, if notified 8 or more days
-                  prior to the event date . 
+                  prior to the event date.
                 </p>
               </div>
             </div>

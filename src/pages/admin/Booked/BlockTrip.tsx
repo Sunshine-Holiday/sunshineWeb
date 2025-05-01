@@ -2,7 +2,6 @@ import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { SeatLayout } from "./components/SeatLayout";
 import { BookingSummary } from "./components/BookingSummary";
-import { PassengerForm, PassengerData } from "./components/PassengerForm";
 import { fadeInUp } from "@/utils/animations";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
@@ -11,98 +10,149 @@ import {
 } from "@/store/api/trips";
 import { toast } from "react-toastify";
 import { useCreatebookingMutation } from "@/store/api/booking";
-import { useCreatePaymentIntentMutation } from "@/store/api/terms";
-import { RAZORPAY_API_KEY } from "@/store/store";
 import { useSelector } from "react-redux";
 import { selectCurrentUser } from "@/store/reducer/auth";
 import { FaSpinner } from "react-icons/fa";
 import { format, parse, isValid } from "date-fns";
 
-const INITIAL_STEP = "select-seats";
+interface StartDate {
+  date: string;
+  seats: number | "block";
+}
+
+interface Trip {
+  _id: string;
+  location: string;
+  category: string;
+  startDates: StartDate[];
+  duration: string;
+  busSize: string;
+  amenities: string[];
+  price: string;
+  boardingPoints: Array<{
+    location: string;
+    time: string;
+    details: string;
+    maplink: string;
+  }>;
+}
+
+interface TripDetails {
+  from: string;
+  to: string;
+  date: string[];
+  time: string;
+  busType: string;
+  amenities: string[];
+  price: number;
+  boardingPoints: Array<{
+    location: string;
+    time: string;
+    details: string;
+    maplink: string;
+  }>;
+  busSize: string;
+}
 
 const BookingPage = () => {
-  const location = useLocation();
   const { state } = useLocation();
   const userDetails = useSelector(selectCurrentUser);
 
-  const tripId = location.state?.trip._id;
+  const tripId = state?.trip?._id;
   const startDate = state?.startDate;
   const navigate = useNavigate();
-  // console.log(tripDetail.startDates)
+
   // State variables
   const [selectedDate, setSelectedDate] = useState<string>(startDate || "");
   const [selectedSeats, setSelectedSeats] = useState<string[]>([]);
   const [bookedSeats, setBookedSeats] = useState<string[]>([]);
-  const [passengers, setPassengers] = useState<PassengerData[]>([]);
-  const [step, setStep] = useState<"select-seats" | "passenger-details">(
-    INITIAL_STEP
-  );
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [trip, setTrip] = useState<any>(null);
+  const [trip, setTrip] = useState<Trip | null>(null);
 
   // Date formatting functions
   const formatDateToString = (dateInput: string | Date): string => {
-    const date =
-      typeof dateInput === "string"
-        ? parse(dateInput, "dd-MM-yyyy", new Date())
-        : dateInput;
-    return isValid(date) ? format(date, "dd-MM-yyyy") : "Invalid Date";
+    try {
+      const date =
+        typeof dateInput === "string"
+          ? parse(dateInput, "dd-MM-yyyy", new Date())
+          : dateInput;
+      return isValid(date) ? format(date, "dd-MM-yyyy") : "Invalid Date";
+    } catch (error) {
+      console.warn("Error formatting date:", dateInput, error);
+      return "Invalid Date";
+    }
   };
+
   const formatDateForAPI = (dateInput: string | Date): string => {
-    const date =
-      typeof dateInput === "string"
-        ? parse(dateInput, "dd-MM-yyyy", new Date())
-        : dateInput;
-    if (!isValid(date)) {
-      //   console.error("Invalid date for API:", dateInput);
+    try {
+      const date =
+        typeof dateInput === "string"
+          ? parse(dateInput, "dd-MM-yyyy", new Date())
+          : dateInput;
+      return isValid(date) ? format(date, "dd-MM-yyyy") : "";
+    } catch (error) {
+      console.warn("Error formatting date for API:", dateInput, error);
       return "";
     }
-    return format(date, "dd-MM-yyy");
   };
+
   // API queries and mutations
   const {
     data: tripData,
     isLoading: tripLoading,
     isError: tripError,
-  } = useGettripsIDQuery({ id: tripId });
+  } = useGettripsIDQuery({ id: tripId }, { skip: !tripId });
 
   const {
     data: bookingData,
     isLoading: bookingLoading,
     isError: bookingError,
-  } = useSelectedDateBookingQuery({
-    trip_id: tripId,
-    selectedDate: selectedDate ? formatDateForAPI(selectedDate) : "",
-  });
+  } = useSelectedDateBookingQuery(
+    {
+      trip_id: tripId,
+      selectedDate: selectedDate ? formatDateForAPI(selectedDate) : "",
+    },
+    { skip: !tripId || !selectedDate }
+  );
 
   const [createBooking] = useCreatebookingMutation();
-  const [createPayment] = useCreatePaymentIntentMutation();
 
   // Date checking function
-  const checkAndUpdateDate = (startDates: string[]) => {
+  const checkAndUpdateDate = (startDates: StartDate[]) => {
     const today = format(new Date(), "dd-MM-yyyy");
-    const currentDateIndex = startDates.findIndex(
-      (date) => formatDateToString(date) === today
-    );
 
-    if (currentDateIndex !== -1) {
-      setSelectedDate(startDates[currentDateIndex]);
+    // Validate and filter valid dates
+    const validDates = (startDates || []).filter((item): item is StartDate => {
+      if (!item || typeof item.date !== "string" || !item.date.trim()) {
+        console.warn("Invalid or non-string date:", item);
+        return false;
+      }
+      return true;
+    });
+
+    // Check if today is in valid dates
+    const currentDate = validDates.find(
+      (item) => formatDateToString(item.date) === today
+    );
+    if (currentDate) {
+      setSelectedDate(currentDate.date);
       return;
     }
 
-    const sortedDates = [...startDates].sort((a, b) => {
-      const dateA = parse(a, "dd-MM-yyyy", new Date());
-      const dateB = parse(b, "dd-MM-yyyy", new Date());
+    // Sort valid dates and find the next future date
+    const sortedDates = [...validDates].sort((a, b) => {
+      const dateA = parse(a.date, "dd-MM-yyyy", new Date());
+      const dateB = parse(b.date, "dd-MM-yyyy", new Date());
       return dateA.getTime() - dateB.getTime();
     });
 
-    const nextDate = sortedDates.find((date) => {
-      const parsedDate = parse(date, "dd-MM-yyyy", new Date());
-      return parsedDate > new Date();
+    const nextDate = sortedDates.find((item) => {
+      const parsedDate = parse(item.date, "dd-MM-yyyy", new Date());
+      return isValid(parsedDate) && parsedDate > new Date();
     });
 
     if (nextDate) {
-      setSelectedDate(nextDate);
+      setSelectedDate(nextDate.date);
     }
   };
 
@@ -137,7 +187,7 @@ const BookingPage = () => {
   const isTripToday = () => {
     const today = format(new Date(), "dd-MM-yyyy");
     return trip?.startDates?.some(
-      (date: string) => formatDateToString(date) === today
+      (item) => formatDateToString(item.date) === today
     );
   };
 
@@ -154,121 +204,51 @@ const BookingPage = () => {
     );
   };
 
-  const handlePassengerChange = (index: number, data: PassengerData) => {
-    if (isSubmitting) return;
-    setPassengers((prev) => {
-      const updatedPassengers = [...prev];
-      updatedPassengers[index] = data;
-      return updatedPassengers;
-    });
-  };
-
-  const validatePassengerDetails = () => {
-    return passengers.every(
-      (passenger) =>
-        passenger.name &&
-        passenger.age &&
-        passenger.gender &&
-        passenger.idProof &&
-        passenger.idProofNumber &&
-        passenger.address
-    );
-  };
-
-  const handlePayment = async (paymentDetail: any, finalAmount: number) => {
-    return new Promise<void>((resolve, reject) => {
-      const options = {
-        key: RAZORPAY_API_KEY,
-        amount: paymentDetail.amount,
-        currency: paymentDetail.currency,
-        name: "Your Store Name",
-        description: "Purchase Description",
-        order_id: paymentDetail.id,
-        handler: async (response: any) => {
-          try {
-            const resp = await createBooking({
-              tripId,
-              selectedSeats,
-              selectedDate: formatDateToString(selectedDate),
-              passengers,
-              price: finalAmount,
-            }).unwrap();
-
-            toast.success("Trip booked successfully");
-            navigate("/booked", {
-              state: {
-                bookingDetails: resp,
-                paymentResponse: response,
-              },
-            });
-            resolve();
-          } catch (error) {
-            console.error("Booking error:", error);
-            toast.error("Booking failed!");
-            reject(error);
-          }
-        },
-        prefill: {
-          name: `${userDetails?.username}`,
-          email: userDetails?.email,
-          contact: "",
-        },
-        theme: {
-          color: "#3399cc",
-        },
-        method: {
-          netbanking: true,
-          card: true,
-          wallet: true,
-          upi: true,
-        },
-      };
-
-      const razorpay = new window.Razorpay(options);
-      razorpay.on("payment.failed", (response: any) => {
-        toast.error("Payment failed. Please try again.");
-        reject(response);
-      });
-      razorpay.open();
-    });
-  };
-
   const handleProceed = async () => {
     if (isSubmitting) return;
-    console.log("1");
-    if (step === "select-seats") {
-      if (selectedSeats.length === 0) {
-        toast.error("Please select at least one seat.");
-        return;
-      }
-      console.log("2");
 
-      setIsSubmitting(true);
+    if (!tripId || !selectedDate) {
+      toast.error("Invalid trip or date selected.");
+      return;
+    }
 
-      const totalAmount = selectedSeats.length * trip.price;
-      const gst = totalAmount * 0.05;
-      const finalAmount = totalAmount + gst;
+    if (selectedSeats.length === 0) {
+      toast.error("Please select at least one seat.");
+      return;
+    }
 
-      console.log(finalAmount);
-      try {
-        const resp = await createBooking({
-          tripId,
-          selectedSeats,
-          selectedDate: formatDateToString(selectedDate),
-          passengers,
-          price: finalAmount,
-        }).unwrap();
+    setIsSubmitting(true);
 
-        toast.success("Trip booked successfully");
-        navigate("/admin/booked");
-      } catch (error) {
-        console.error("Booking error:", error);
-        toast.error("Booking failed!");
-      } finally {
-        setIsSubmitting(false);
-      }
+    const totalAmount = selectedSeats.length * Number(trip.price);
+    const gst = totalAmount * 0.05;
+    const finalAmount = totalAmount + gst;
+
+    try {
+      const resp = await createBooking({
+        tripId,
+        selectedSeats,
+        selectedDate: formatDateToString(selectedDate),
+        passengers: [], // Empty passengers array
+        price: finalAmount,
+      }).unwrap();
+
+      toast.success("Trip booked successfully");
+      navigate("/admin/booked", {
+        state: {
+          bookingDetails: resp,
+        },
+      });
+    } catch (error) {
+      console.error("Booking error:", error);
+      toast.error("Failed to process booking. Please try again.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
+
+  if (!tripId) {
+    return <div className="text-center">Invalid trip ID. Please select a trip.</div>;
+  }
 
   if (tripLoading || (bookingLoading && selectedDate)) {
     return (
@@ -282,15 +262,15 @@ const BookingPage = () => {
     return <div className="text-center">Failed to load trip details.</div>;
   }
 
-  const tripDetails = {
+  const tripDetails: TripDetails = {
     from: trip.location || "Unknown",
     to: trip.category || "Unknown",
-    date: trip.startDates || [],
+    date: trip.startDates?.map((item: StartDate) => item.date) || [],
     time: trip.duration || "N/A",
     busType: trip.busSize || "Standard",
     amenities: trip.amenities || [],
-    price: trip?.price || 1499,
-    boardingPoints: trip?.boardingPoints || [],
+    price: Number(trip.price) || 1499,
+    boardingPoints: trip.boardingPoints || [],
     busSize: trip.busSize || "20",
   };
 
@@ -316,21 +296,17 @@ const BookingPage = () => {
           className="text-center mb-12"
         >
           <h1 className="text-4xl font-bold text-gray-900 mb-4">
-            {step === "select-seats"
-              ? "Select Your Seats"
-              : "Passenger Details"}
+            Select Your Seats
           </h1>
           <p className="text-gray-600">
-            {step === "select-seats"
-              ? "Choose your preferred seats for a comfortable journey"
-              : "Please fill in the details for all passengers"}
+            Choose your preferred seats for a comfortable journey
           </p>
         </motion.div>
 
         <div className="grid md:grid-cols-3 gap-8">
           <div className="md:col-span-2">
             <SeatLayout
-              totalSeats={Number(tripDetails?.busSize)}
+              totalSeats={Number(30)}
               selectedSeats={selectedSeats}
               onSeatSelect={handleSeatSelect}
               bookedSeats={bookedSeats}

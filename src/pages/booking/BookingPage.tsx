@@ -20,12 +20,17 @@ import { format, parse, isValid } from "date-fns";
 
 const INITIAL_STEP = "select-seats";
 
+interface StartDate {
+  date: string;
+  seats: number | "block";
+}
+
 const BookingPage = () => {
   const location = useLocation();
   const userDetails = useSelector(selectCurrentUser);
   const tripId = location.state?.tripId;
-  const [selectedDate, setSelectedDate] = useState<string>(
-    location.state?.selectedDate || ""
+  const [selectedDate, setSelectedDate] = useState<StartDate | null>(
+    location.state?.selectedDate || null
   );
   const navigate = useNavigate();
 
@@ -36,28 +41,42 @@ const BookingPage = () => {
   const [step, setStep] = useState<"select-seats" | "passenger-details">(
     INITIAL_STEP
   );
-  const [isSubmitting, setIsSubmitting] = useState(false); // Changed from loading to isSubmitting for clarity
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [trip, setTrip] = useState<any>(null);
 
   // Date formatting functions
-  const formatDateToString = (dateInput: string | Date): string => {
-    const date =
-      typeof dateInput === "string"
-        ? parse(dateInput, "dd-MM-yyyy", new Date())
-        : dateInput;
+  const formatDateToString = (dateInput: StartDate | string | Date): string => {
+    let date: Date;
+    if (typeof dateInput === "object" && "date" in dateInput) {
+      date = parse(dateInput.date, "dd-MM-yyyy", new Date());
+    } else if (typeof dateInput === "string") {
+      date = parse(dateInput, "dd-MM-yyyy", new Date());
+    } else {
+      date = dateInput;
+    }
     return isValid(date) ? format(date, "dd-MM-yyyy") : "Invalid Date";
   };
 
-  const formatDateForAPI = (dateInput: string | Date): string => {
-    const date =
-      typeof dateInput === "string"
-        ? parse(dateInput, "dd-MM-yyyy", new Date())
-        : dateInput;
+  const formatDateForAPI = (dateInput: StartDate | string | Date): string => {
+    let date: Date;
+    if (typeof dateInput === "object" && "date" in dateInput) {
+      date = parse(dateInput.date, "dd-MM-yyyy", new Date());
+    } else if (typeof dateInput === "string") {
+      date = parse(dateInput, "dd-MM-yyyy", new Date());
+    } else {
+      date = dateInput;
+    }
     if (!isValid(date)) {
       console.error("Invalid date for API:", dateInput);
       return "";
     }
-    return format(date, "dd-MM-yyy");
+    return format(date, "dd-MM-yyyy");
+  };
+
+  // Format date with seats for display
+  const formatDateWithSeats = (startDate: StartDate): string => {
+    const dateStr = formatDateToString(startDate);
+    return `${dateStr} (${startDate.seats === "block" ? "Block" : `${startDate.seats} Seats`})`;
   };
 
   // API queries and mutations
@@ -91,26 +110,48 @@ const BookingPage = () => {
   useEffect(() => {
     if (bookingData?.selectedSeats) {
       setBookedSeats(bookingData.selectedSeats);
-      console.log(bookingData?.selectedSeats);
+      console.log("Booked seats:", bookingData?.selectedSeats);
     } else {
       setBookedSeats([]);
     }
   }, [bookingData]);
 
+  useEffect(() => {
+    // If selectedDate is a block booking, skip seat selection
+    if (selectedDate?.seats === "block") {
+      setStep("passenger-details");
+      setPassengers([
+        {
+          name: "",
+          age: "",
+          gender: "",
+          idProof: "",
+          idProofNumber: "",
+          address: "",
+        },
+      ]);
+      setSelectedSeats(["block"]);
+    } else {
+      setStep(INITIAL_STEP);
+      setSelectedSeats([]);
+      setPassengers([]);
+    }
+  }, [selectedDate]);
+
   // Handlers
-  const changeDate = (date: string) => {
+  const changeDate = (date: StartDate) => {
     setSelectedDate(date);
   };
 
   const isTripToday = () => {
     const today = format(new Date(), "dd-MM-yyyy");
     return trip?.startDates?.some(
-      (date: string) => formatDateToString(date) === today
+      (date: StartDate) => formatDateToString(date) === today
     );
   };
 
   const handleSeatSelect = (seatId: string) => {
-    if (isSubmitting) return; // Prevent seat selection during submission
+    if (isSubmitting || selectedDate?.seats === "block") return;
     if (bookedSeats.includes(seatId)) {
       toast.error("This seat is already booked");
       return;
@@ -121,14 +162,9 @@ const BookingPage = () => {
         : [...prev, seatId].sort()
     );
   };
-  //     setSelectedSeats((prev) =>
-  //       prev.includes(seatId)
-  //         ? prev.filter((id) => id !== seatId)
-  //         : [...prev, seatId].sort()
-  //     );
-  //   };
+
   const handlePassengerChange = (index: number, data: PassengerData) => {
-    if (isSubmitting) return; // Prevent passenger data changes during submission
+    if (isSubmitting) return;
     setPassengers((prev) => {
       const updatedPassengers = [...prev];
       updatedPassengers[index] = data;
@@ -179,7 +215,7 @@ const BookingPage = () => {
             console.error("Booking error:", error);
             toast.error("Booking failed!");
             reject(error);
-            setIsSubmitting(false); // Reset submitting state on booking failure
+            setIsSubmitting(false);
           }
         },
         prefill: {
@@ -196,10 +232,9 @@ const BookingPage = () => {
           wallet: true,
           upi: true,
         },
-        // Add modal configuration to handle closure
         modal: {
           ondismiss: () => {
-            setIsSubmitting(false); // Reset submitting state when user closes payment modal
+            setIsSubmitting(false);
             toast.info("Payment cancelled by user");
             reject(new Error("Payment cancelled"));
           },
@@ -209,7 +244,7 @@ const BookingPage = () => {
       const razorpay = new window.Razorpay(options);
       razorpay.on("payment.failed", (response: any) => {
         toast.error("Payment failed. Please try again.");
-        setIsSubmitting(false); // Reset submitting state on payment failure
+        setIsSubmitting(false);
         reject(response);
       });
       razorpay.open();
@@ -220,21 +255,23 @@ const BookingPage = () => {
     if (isSubmitting) return;
 
     if (step === "select-seats") {
-      if (selectedSeats.length === 0) {
+      if (selectedSeats.length === 0 && selectedDate?.seats !== "block") {
         toast.error("Please select at least one seat.");
         return;
       }
 
-      setPassengers(
-        Array(selectedSeats.length).fill({
-          name: "",
-          age: "",
-          gender: "",
-          idProof: "",
-          idProofNumber: "",
-          address: "",
-        })
-      );
+      if (selectedDate?.seats !== "block") {
+        setPassengers(
+          Array(selectedSeats.length).fill({
+            name: "",
+            age: "",
+            gender: "",
+            idProof: "",
+            idProofNumber: "",
+            address: "",
+          })
+        );
+      }
       setStep("passenger-details");
     } else {
       if (!validatePassengerDetails()) {
@@ -244,9 +281,21 @@ const BookingPage = () => {
 
       setIsSubmitting(true);
       try {
-        const totalAmount = selectedSeats.length * trip.price;
-        const gst = totalAmount * 0.05;
+   
+        // Validate trip.price
+        if (typeof trip.price !== "string" || isNaN(trip.price)) {
+          throw new Error("Invalid trip price");
+        }
+
+        const totalAmount = selectedDate?.seats === "block" ? Number(trip.price) : selectedSeats.length * Number(trip.price);
+        const gst = totalAmount * 0.05; // 5% GST
         const finalAmount = totalAmount + gst;
+
+        // Debug calculations
+        if (isNaN(totalAmount) || isNaN(gst) || isNaN(finalAmount)) {
+          console.warn("Invalid amount calculation:", { totalAmount, gst, finalAmount, tripPrice: trip.price });
+          throw new Error("Invalid amount calculation");
+        }
 
         const respPayment = await createPayment({
           amount: finalAmount,
@@ -257,10 +306,7 @@ const BookingPage = () => {
         }
       } catch (error: any) {
         console.error("Payment error:", error);
-        toast.error(error.data?.message || "Payment processing failed.");
-      } finally {
-        // This will already handle setting isSubmitting to false
-        // after any outcome (success, failure, or cancellation)
+        toast.error(error.message || error.data?.message || "Payment processing failed.");
         setIsSubmitting(false);
       }
     }
@@ -290,6 +336,16 @@ const BookingPage = () => {
     busSize: trip.busSize || "20",
   };
 
+  // Determine totalSeats for SeatLayout
+  const totalSeats = selectedDate?.seats && typeof selectedDate.seats === "number"
+    ? selectedDate.seats
+    : Number(tripDetails.busSize);
+
+  // Validate totalSeats
+  if (totalSeats !== 20 && totalSeats !== 32) {
+    console.warn(`Invalid totalSeats value: ${totalSeats}. Expected 20 or 32.`);
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 pt-24 pb-16 relative">
       {isSubmitting && (
@@ -313,33 +369,38 @@ const BookingPage = () => {
         >
           <h1 className="text-4xl font-bold text-gray-900 mb-4">
             {step === "select-seats"
-              ? "Select Your Seats"
+              ? selectedDate?.seats === "block"
+                ? "Confirm Block Booking"
+                : "Select Your Seats"
               : "Passenger Details"}
           </h1>
           <p className="text-gray-600">
             {step === "select-seats"
-              ? "Choose your preferred seats for a comfortable journey"
+              ? selectedDate?.seats === "block"
+                ? "Confirm your full bus booking"
+                : "Choose your preferred seats for a comfortable journey"
               : "Please fill in the details for all passengers"}
           </p>
         </motion.div>
 
         <div className="grid md:grid-cols-3 gap-8">
           <div className="md:col-span-2">
-            {step === "select-seats" ? (
+            {step === "select-seats" && selectedDate?.seats !== "block" ? (
               <SeatLayout
-                totalSeats={Number(tripDetails?.busSize)}
+                totalSeats={totalSeats}
                 selectedSeats={selectedSeats}
                 onSeatSelect={handleSeatSelect}
                 bookedSeats={bookedSeats}
                 seatPrice={tripDetails.price}
+                disabled={isSubmitting}
               />
             ) : (
               <div className="space-y-4">
-                {selectedSeats.map((seat, index) => (
+                {passengers.map((_, index) => (
                   <PassengerForm
-                    key={seat}
+                    key={index}
                     tripDetails={tripDetails}
-                    seatNumber={seat}
+                    seatNumber={selectedDate?.seats === "block" ? "Block" : selectedSeats[index]}
                     index={index}
                     onChange={handlePassengerChange}
                     passengers={passengers}
@@ -368,4 +429,3 @@ const BookingPage = () => {
 };
 
 export default BookingPage;
-// hello

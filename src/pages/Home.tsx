@@ -6,7 +6,8 @@ import GlobalTraveler from '../components/InternationalPresence'
 
 const Home = () => {
   return (
-    <main>
+    <main className=''>
+
     <Hero />
     {/* <FeaturedTrips /> */}
     <GlobalTraveler />

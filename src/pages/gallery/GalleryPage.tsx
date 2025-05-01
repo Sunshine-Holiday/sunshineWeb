@@ -249,14 +249,7 @@ const GalleryPage: React.FC = () => {
         </div>
       )}
 
-      {/* Floating Action Button */}
-      <button
-        onClick={handleAddItemClick}
-        className="fixed bottom-6 sm:bottom-8 right-6 sm:right-8 bg-blue-600 text-white p-3 sm:p-4 rounded-full shadow-lg hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-300 transition-all duration-300 transform hover:scale-110"
-        aria-label="Add New Item"
-      >
-        <FaPlus className="w-5 h-5 sm:w-6 sm:h-6" />
-      </button>
+ 
     </div>
   );
 };

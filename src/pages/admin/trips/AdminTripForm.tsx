@@ -10,11 +10,32 @@ import { FaSpinner, FaTrash } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 const locales = { "en-US": enUS };
 const localizer = dateFnsLocalizer({
-  format: (date:any, formatStr:any) => formatDate(date, formatStr, { locale: enUS }),
-  parse: (dateStr:any, formatStr:any) => parse(dateStr, formatStr, new Date(), { locale: enUS }),
+  format: (date: any, formatStr: any) =>
+    formatDate(date, formatStr, { locale: enUS }),
+  parse: (dateStr: any, formatStr: any) =>
+    parse(dateStr, formatStr, new Date(), { locale: enUS }),
   startOfWeek,
   getDay,
   locales,
@@ -27,13 +48,18 @@ interface BoardingPoint {
   maplink: string;
 }
 
+interface StartDate {
+  date: Date;
+  seats: number | "block";
+}
+
 interface TripDetails {
   title: string;
   price: string;
   location: string;
   duration: string;
   description: string;
-  startDates: Date[];
+  startDates: StartDate[];
   busSize: string;
   category: string;
   amenities: string[];
@@ -78,26 +104,31 @@ const AdminTripForm: React.FC = () => {
   const [errors, setErrors] = useState<FormErrors>({});
   const [touched, setTouched] = useState<{ [key: string]: boolean }>({});
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [selectedSeats, setSelectedSeats] = useState<number | "block" | null>(
+    null
+  );
 
   const quillModules = {
     toolbar: [
-      [{ 'header': [1, 2, 3, false] }],
-      ['bold', 'italic', 'underline', 'strike'],
-      [{'list': 'ordered'}, {'list': 'bullet'}],
-      ['link'],
-      ['clean']
+      [{ header: [1, 2, 3, false] }],
+      ["bold", "italic", "underline", "strike"],
+      [{ list: "ordered" }, { list: "bullet" }],
+      ["link"],
+      ["clean"],
     ],
   };
 
   const quillFormats = [
-    'header',
-    'bold',
-    'italic',
-    'underline',
-    'strike',
-    'list',
-    'bullet',
-    'link',
+    "header",
+    "bold",
+    "italic",
+    "underline",
+    "strike",
+    "list",
+    "bullet",
+    "link",
   ];
 
   const handleChange = (field: keyof TripDetails, value: string | any) => {
@@ -112,15 +143,19 @@ const AdminTripForm: React.FC = () => {
     if (file) {
       const validTypes = ["image/png", "image/jpeg", "image/jpg"];
       if (!validTypes.includes(file.type)) {
-        setErrors({ ...errors, file: "Please upload a PNG, JPG, or JPEG file" });
+        setErrors({
+          ...errors,
+
+          file: "Please upload a PNG, JPG, or JPEG file",
+        });
         return;
       }
       if (file.size > 5 * 1024 * 1024) {
         setErrors({ ...errors, file: "File size must be less than 5MB" });
         return;
       }
-      
-      setTripDetails({ ...tripDetails, file: file });
+
+      setTripDetails({ ...tripDetails, file });
       setErrors({ ...errors, file: "" });
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -144,13 +179,15 @@ const AdminTripForm: React.FC = () => {
         break;
       case "price":
         if (!tripDetails.price) newErrors.price = "Price is required";
-        else if (isNaN(Number(tripDetails.price))) newErrors.price = "Price must be a number";
+        else if (isNaN(Number(tripDetails.price)))
+          newErrors.price = "Price must be a number";
         break;
       case "location":
         if (!tripDetails.location) newErrors.location = "Location is required";
         break;
       case "description":
-        if (!tripDetails.description) newErrors.description = "Description is required";
+        if (!tripDetails.description)
+          newErrors.description = "Description is required";
         break;
       case "busSize":
         if (!tripDetails.busSize) newErrors.busSize = "Bus size is required";
@@ -159,7 +196,8 @@ const AdminTripForm: React.FC = () => {
         if (!tripDetails.category) newErrors.category = "Category is required";
         break;
       case "amenities":
-        if (tripDetails.amenities.length === 0) newErrors.amenities = "At least one amenity is required";
+        if (tripDetails.amenities.length === 0)
+          newErrors.amenities = "At least one amenity is required";
         break;
       case "file":
         if (!tripDetails.file) newErrors.file = "Banner image is required";
@@ -180,10 +218,15 @@ const AdminTripForm: React.FC = () => {
   };
 
   const handleRemoveBoardingPoint = (index: number) => {
-    const updatedPoints = tripDetails.boardingPoints.filter((_, i) => i !== index);
+    const updatedPoints = tripDetails.boardingPoints.filter(
+      (_, i) => i !== index
+    );
     setTripDetails({ ...tripDetails, boardingPoints: updatedPoints });
     if (updatedPoints.length === 0) {
-      setErrors({ ...errors, boardingPoints: "Boarding points must have at least one entry" });
+      setErrors({
+        ...errors,
+        boardingPoints: "Boarding points must have at least one entry",
+      });
     }
   };
 
@@ -200,49 +243,72 @@ const AdminTripForm: React.FC = () => {
 
   const handleDateSelection = (date: Date) => {
     const normalizedDate = new Date(date.setHours(0, 0, 0, 0));
-    const selectedDates = [...tripDetails.startDates.map(d => new Date(d.setHours(0, 0, 0, 0)))];
+    const existingDate = tripDetails.startDates.find(
+      (d) => new Date(d.date).getTime() === normalizedDate.getTime()
+    );
 
-    const dateTime = normalizedDate.getTime();
-
-    if (selectedDates.some((d) => d.getTime() === dateTime)) {
+    if (existingDate) {
+      // Remove the date if already selected
       setTripDetails({
         ...tripDetails,
-        startDates: selectedDates.filter((d) => d.getTime() !== dateTime),
+        startDates: tripDetails.startDates.filter(
+          (d) => new Date(d.date).getTime() !== normalizedDate.getTime()
+        ),
       });
     } else {
-      const newDates = [...selectedDates, normalizedDate].sort((a, b) =>
-        a.getTime() - b.getTime()
-      );
-      setTripDetails({
-        ...tripDetails,
-        startDates: newDates,
-      });
+      // Open modal to select seats
+      setSelectedDate(normalizedDate);
+      setSelectedSeats(null);
+      setIsModalOpen(true);
     }
   };
 
+  const handleModalSubmit = () => {
+    if (selectedDate && selectedSeats) {
+      const newStartDate: StartDate = { date: selectedDate, seats: selectedSeats };
+      const newDates = [...tripDetails.startDates, newStartDate].sort((a, b) =>
+        a.date.getTime() - b.date.getTime()
+      );
+      setTripDetails({ ...tripDetails, startDates: newDates });
+      setErrors({ ...errors, startDates: "" });
+    }
+    setIsModalOpen(false);
+    setSelectedDate(null);
+    setSelectedSeats(null);
+  };
+
   const validateForm = () => {
-    const requiredFields = ["title", "price", "location", "description", "busSize", "category", "file"];
+    const requiredFields = [
+      "title",
+      "price",
+      "location",
+      "description",
+      "busSize",
+      "category",
+      "file",
+    ];
     let newErrors: FormErrors = {};
     let isValid = true;
 
     requiredFields.forEach((field) => {
       if (!tripDetails[field as keyof TripDetails]) {
-        newErrors[field] = `${field.charAt(0).toUpperCase() + field.slice(1)} is required`;
+        newErrors[field] = `${
+          field.charAt(0).toUpperCase() + field.slice(1)
+        } is required`;
         isValid = false;
       }
     });
 
     if (tripDetails.startDates.length === 0) {
-      newErrors.startDates = "At least one date must be selected";
+      newErrors.startDates = "At least one date with seats must be selected";
       isValid = false;
     }
 
     if (tripDetails.boardingPoints.length === 0) {
-      newErrors.boardingPoints = "Boarding points must have at least one entry";
+      newErrors.boardingPoints =
+        "Boarding points must have at least one entry";
       isValid = false;
     }
-
- 
 
     setErrors(newErrors);
     return isValid;
@@ -256,18 +322,29 @@ const AdminTripForm: React.FC = () => {
     setLoading(true);
     try {
       const formData = new FormData();
-      
+
       formData.append("title", tripDetails.title);
       formData.append("price", tripDetails.price);
       formData.append("location", tripDetails.location);
       formData.append("duration", tripDetails.duration);
       formData.append("description", tripDetails.description);
-      formData.append("startDates", JSON.stringify(tripDetails.startDates.map(date => formatDateToString(date))));
+      formData.append(
+        "startDates",
+        JSON.stringify(
+          tripDetails.startDates.map((d) => ({
+            date: formatDateToString(d.date),
+            seats: d.seats,
+          }))
+        )
+      );
       formData.append("busSize", tripDetails.busSize);
       formData.append("category", tripDetails.category);
       formData.append("amenities", JSON.stringify(tripDetails.amenities));
-      formData.append("boardingPoints", JSON.stringify(tripDetails.boardingPoints));
-      
+      formData.append(
+        "boardingPoints",
+        JSON.stringify(tripDetails.boardingPoints)
+      );
+
       if (tripDetails.file) {
         formData.append("file", tripDetails.file);
       }
@@ -286,30 +363,33 @@ const AdminTripForm: React.FC = () => {
   const today = new Date();
 
   const inputClassName = (field: string) =>
-    `w-full p-3 rounded-lg border ${
-      touched[field] && errors[field]
-        ? "border-red-500 focus:ring-red-500"
-        : "border-gray-300 focus:ring-blue-500"
-    } focus:outline-none focus:ring-2`;
+    `w-full ${touched[field] && errors[field] ? "border-red-500" : ""}`;
 
   return (
     <div className="min-h-screen bg-gray-100 py-8">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="bg-white rounded-xl shadow-lg p-6">
-          <h1 className="text-3xl font-bold text-gray-900 mb-6">Create New Trip</h1>
+          <h1 className="text-3xl font-bold text-gray-900 mb-6">
+            Create New Trip
+          </h1>
 
           <div className="space-y-8">
             <div>
-              <h2 className="text-xl font-semibold mb-4">Upload Trip Banner *</h2>
+              <h2 className="text-xl font-semibold mb-4">
+                Upload Trip Banner *
+              </h2>
               <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                <input
+                <Input
                   type="file"
                   accept=".png,.jpg,.jpeg"
                   onChange={handleImageUpload}
                   className="hidden"
                   id="banner-upload"
                 />
-                <label htmlFor="banner-upload" className="cursor-pointer block">
+                <Label
+                  htmlFor="banner-upload"
+                  className="cursor-pointer block"
+                >
                   {imagePreview ? (
                     <div className="relative">
                       <img
@@ -317,7 +397,9 @@ const AdminTripForm: React.FC = () => {
                         alt="Banner preview"
                         className="max-h-48 mx-auto rounded-lg"
                       />
-                      <p className="mt-2 text-sm text-gray-600">Click to change image</p>
+                      <p className="mt-2 text-sm text-gray-600">
+                        Click to change image
+                      </p>
                     </div>
                   ) : (
                     <div>
@@ -335,14 +417,15 @@ const AdminTripForm: React.FC = () => {
                         />
                       </svg>
                       <p className="mt-1 text-sm text-gray-600">
-                        Drag and drop or click to upload a banner (PNG, JPG, JPEG)
+                        Drag and drop or click to upload a banner (PNG, JPG,
+                        JPEG)
                       </p>
                       <p className="mt-1 text-xs text-gray-500">
                         Maximum file size: 5MB
                       </p>
                     </div>
                   )}
-                </label>
+                </Label>
               </div>
               {touched.file && errors.file && (
                 <p className="mt-2 text-sm text-red-500">{errors.file}</p>
@@ -351,9 +434,10 @@ const AdminTripForm: React.FC = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <input
-                  type="text"
-                  placeholder="Trip Title *"
+                <Label htmlFor="title">Trip Title *</Label>
+                <Input
+                  id="title"
+                  placeholder="Trip Title"
                   value={tripDetails.title}
                   onChange={(e) => handleChange("title", e.target.value)}
                   onBlur={() => handleBlur("title")}
@@ -364,9 +448,10 @@ const AdminTripForm: React.FC = () => {
                 )}
               </div>
               <div>
-                <input
-                  type="text"
-                  placeholder="Price *"
+                <Label htmlFor="price">Price *</Label>
+                <Input
+                  id="price"
+                  placeholder="Price"
                   value={tripDetails.price}
                   onChange={(e) => handleChange("price", e.target.value)}
                   onBlur={() => handleBlur("price")}
@@ -377,9 +462,10 @@ const AdminTripForm: React.FC = () => {
                 )}
               </div>
               <div>
-                <input
-                  type="text"
-                  placeholder="Location *"
+                <Label htmlFor="location">Location *</Label>
+                <Input
+                  id="location"
+                  placeholder="Location"
                   value={tripDetails.location}
                   onChange={(e) => handleChange("location", e.target.value)}
                   onBlur={() => handleBlur("location")}
@@ -390,32 +476,42 @@ const AdminTripForm: React.FC = () => {
                 )}
               </div>
               <div>
-                <select
+                <Label htmlFor="busSize">Bus Size *</Label>
+                <Select
                   value={tripDetails.busSize}
-                  onChange={(e) => handleChange("busSize", e.target.value)}
-                  onBlur={() => handleBlur("busSize")}
-                  className={inputClassName("busSize")}
+                  onValueChange={(value) => handleChange("busSize", value)}
+                  onOpenChange={() => handleBlur("busSize")}
                 >
-                  <option value="">Select Bus Size *</option>
-                  <option value="20">20 Seats</option>
-                  <option value="32">32 Seats</option>
-                </select>
+                  <SelectTrigger className={inputClassName("busSize")}>
+                    <SelectValue placeholder="Select Bus Size" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="20">20 Seats</SelectItem>
+                    <SelectItem value="32">32 Seats</SelectItem>
+                  </SelectContent>
+                </Select>
                 {touched.busSize && errors.busSize && (
                   <p className="mt-1 text-sm text-red-500">{errors.busSize}</p>
                 )}
               </div>
               <div>
-                <select
+                <Label htmlFor="category">Category *</Label>
+                <Select
                   value={tripDetails.category}
-                  onChange={(e) => handleChange("category", e.target.value)}
-                  onBlur={() => handleBlur("category")}
-                  className={inputClassName("category")}
+                  onValueChange={(value) => handleChange("category", value)}
+                  onOpenChange={() => handleBlur("category")}
                 >
-                  <option value="">Select Category *</option>
-                  <option value="One Day Tours">One Day Tours</option>
-                  <option value="Stay Package">Stay Package</option>
-                  <option value="Domestic Tours">Domestic Tours</option>
-                </select>
+                  <SelectTrigger className={inputClassName("category")}>
+                    <SelectValue placeholder="Select Category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="One Day Tours">One Day Tours</SelectItem>
+                    <SelectItem value="Stay Package">Stay Package</SelectItem>
+                    <SelectItem value="Domestic Tours">
+                      Domestic Tours
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
                 {touched.category && errors.category && (
                   <p className="mt-1 text-sm text-red-500">{errors.category}</p>
                 )}
@@ -423,7 +519,9 @@ const AdminTripForm: React.FC = () => {
             </div>
 
             <div>
-              <h2 className="text-xl font-semibold mb-2">Trip Description *</h2>
+              <h2 className="text-xl font-semibold mb-2">
+                Trip Description *
+              </h2>
               <ReactQuill
                 theme="snow"
                 value={tripDetails.description}
@@ -432,14 +530,16 @@ const AdminTripForm: React.FC = () => {
                 modules={quillModules}
                 formats={quillFormats}
                 className={`border ${
-                  touched.description && errors.description 
-                    ? "border-red-500" 
+                  touched.description && errors.description
+                    ? "border-red-500"
                     : "border-gray-300"
                 } rounded-lg`}
-                style={{ height: '200px', marginBottom: '40px' }}
+                style={{ height: "200px", marginBottom: "40px" }}
               />
               {touched.description && errors.description && (
-                <p className="mt-1 text-sm text-red-500">{errors.description}</p>
+                <p className="mt-1 text-sm text-red-500">
+                  {errors.description}
+                </p>
               )}
             </div>
 
@@ -447,10 +547,12 @@ const AdminTripForm: React.FC = () => {
               <h2 className="text-xl font-semibold mb-4">Select Trip Dates *</h2>
               <BigCalendar
                 localizer={localizer}
-                events={tripDetails.startDates.map((date) => ({
-                  start: new Date(date.setHours(0, 0, 0, 0)),
-                  end: new Date(date.setHours(0, 0, 0, 0)),
-                  title: formatDateToString(date),
+                events={tripDetails.startDates.map((d) => ({
+                  start: new Date(d.date.setHours(0, 0, 0, 0)),
+                  end: new Date(d.date.setHours(0, 0, 0, 0)),
+                  title: `${formatDateToString(d.date)} (${
+                    d.seats === "block" ? "Block" : `${d.seats} Seats`
+                  })`,
                 }))}
                 selectable
                 onSelectSlot={(slotInfo) => handleDateSelection(slotInfo.start)}
@@ -467,10 +569,15 @@ const AdminTripForm: React.FC = () => {
               )}
               {tripDetails.startDates.length > 0 && (
                 <div className="mt-4">
-                  <h3 className="text-lg font-medium text-gray-700">Selected Dates:</h3>
+                  <h3 className="text-lg font-medium text-gray-700">
+                    Selected Dates:
+                  </h3>
                   <ul className="mt-2 list-disc pl-5 text-gray-600">
-                    {tripDetails.startDates.map((date, index) => (
-                      <li key={index}>{formatDateToString(date)}</li>
+                    {tripDetails.startDates.map((d, index) => (
+                      <li key={index}>
+                        {formatDateToString(d.date)} -{" "}
+                        {d.seats === "block" ? "Block" : `${d.seats} Seats`}
+                      </li>
                     ))}
                   </ul>
                 </div>
@@ -481,22 +588,28 @@ const AdminTripForm: React.FC = () => {
               <h2 className="text-xl font-semibold mb-4">Amenities *</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                 {availableAmenities.map((amenity) => (
-                  <label key={amenity.name} className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
+                  <div key={amenity.name} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={amenity.name}
                       checked={tripDetails.amenities.includes(amenity.name)}
-                      onChange={(e) => {
-                        const newAmenities = e.target.checked
+                      onCheckedChange={(checked) => {
+                        const newAmenities = checked
                           ? [...tripDetails.amenities, amenity.name]
-                          : tripDetails.amenities.filter((a) => a !== amenity.name);
+                          : tripDetails.amenities.filter(
+                              (a) => a !== amenity.name
+                            );
                         handleChange("amenities", newAmenities);
                         validateField("amenities");
                       }}
-                      className="h-4 w-4 text-blue-600 rounded"
                     />
-                    <amenity.icon className="h-5 w-5 text-gray-600" />
-                    <span className="text-gray-700">{amenity.name}</span>
-                  </label>
+                    <Label
+                      htmlFor={amenity.name}
+                      className="flex items-center space-x-2"
+                    >
+                      <amenity.icon className="h-5 w-5 text-gray-600" />
+                      <span>{amenity.name}</span>
+                    </Label>
+                  </div>
                 ))}
               </div>
               {touched.amenities && errors.amenities && (
@@ -507,79 +620,160 @@ const AdminTripForm: React.FC = () => {
             <div>
               <h2 className="text-xl font-semibold mb-4">Boarding Points *</h2>
               {tripDetails.boardingPoints.map((boardingPoint, index) => (
-                <div key={index} className="relative mb-6 p-4 bg-gray-50 rounded-lg">
+                <div
+                  key={index}
+                  className="relative mb-6 p-4 bg-gray-50 rounded-lg"
+                >
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <input
-                      type="text"
-                      placeholder="Pick Up Location"
-                      value={boardingPoint.location}
-                      onChange={(e) =>
-                        handleBoardingPointChange(index, "location", e.target.value)
-                      }
-                      className="p-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                    <input
-                      type="text"
-                      placeholder="Map Link (URL)"
-                      value={boardingPoint.maplink}
-                      onChange={(e) =>
-                        handleBoardingPointChange(index, "maplink", e.target.value)
-                      }
-                      className="p-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                    <input
-                      type="time"
-                      value={boardingPoint.time}
-                      onChange={(e) =>
-                        handleBoardingPointChange(index, "time", e.target.value)
-                      }
-                      className="p-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                    <input
-                      type="text"
-                      placeholder="Pick Up Details"
-                      value={boardingPoint.details}
-                      onChange={(e) =>
-                        handleBoardingPointChange(index, "details", e.target.value)
-                      }
-                      className="p-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
+                    <div>
+                      <Label htmlFor={`location-${index}`}>
+                        Pick Up Location
+                      </Label>
+                      <Input
+                        id={`location-${index}`}
+                        placeholder="Pick Up Location"
+                        value={boardingPoint.location}
+                        onChange={(e) =>
+                          handleBoardingPointChange(
+                            index,
+                            "location",
+                            e.target.value
+                          )
+                        }
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor={`maplink-${index}`}>
+                        Map Link (URL)
+                      </Label>
+                      <Input
+                        id={`maplink-${index}`}
+                        placeholder="Map Link (URL)"
+                        value={boardingPoint.maplink}
+                        onChange={(e) =>
+                          handleBoardingPointChange(
+                            index,
+                            "maplink",
+                            e.target.value
+                          )
+                        }
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor={`time-${index}`}>Pick Up Time</Label>
+                      <Input
+                        id={`time-${index}`}
+                        type="time"
+                        value={boardingPoint.time}
+                        onChange={(e) =>
+                          handleBoardingPointChange(index, "time", e.target.value)
+                        }
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor={`details-${index}`}>
+                        Pick Up Details
+                      </Label>
+                      <Input
+                        id={`details-${index}`}
+                        placeholder="Pick Up Details"
+                        value={boardingPoint.details}
+                        onChange={(e) =>
+                          handleBoardingPointChange(
+                            index,
+                            "details",
+                            e.target.value
+                          )
+                        }
+                      />
+                    </div>
                   </div>
                   {tripDetails.boardingPoints.length > 1 && (
-                    <button
+                    <Button
+                      variant="destructive"
+                      size="icon"
+                      className="absolute top-2 right-2"
                       onClick={() => handleRemoveBoardingPoint(index)}
-                      className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
                     >
                       <FaTrash className="h-4 w-4" />
-                    </button>
+                    </Button>
                   )}
                 </div>
               ))}
               {errors.boardingPoints && (
-                <p className="mt-2 text-sm text-red-500">{errors.boardingPoints}</p>
+                <p className="mt-2 text-sm text-red-500">
+                  {errors.boardingPoints}
+                </p>
               )}
-              <button
+              <Button
                 onClick={handleAddBoardingPoint}
-                className="mt-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                className="mt-2"
               >
                 Add Boarding Point
-              </button>
+              </Button>
             </div>
 
-            <button
+            <Button
               onClick={handleSave}
               disabled={loading}
-              className="w-full py-3 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition-colors disabled:bg-green-400 disabled:cursor-not-allowed flex items-center justify-center"
+              className="w-full flex items-center justify-center"
             >
               {loading ? (
                 <FaSpinner className="animate-spin h-5 w-5" />
               ) : (
                 "Save Trip"
               )}
-            </button>
+            </Button>
           </div>
         </div>
       </div>
+
+      {/* Modal for Seat Selection */}
+      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              Select Seats for {selectedDate && formatDateToString(selectedDate)}
+            </DialogTitle>
+          </DialogHeader>
+          <RadioGroup
+            value={selectedSeats?.toString()}
+            onValueChange={(value) =>
+              setSelectedSeats(
+                value === "block" ? "block" : parseInt(value)
+              )
+            }
+            className="space-y-4"
+          >
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="20" id="seats-20" />
+              <Label htmlFor="seats-20">20 Seats</Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="32" id="seats-32" />
+              <Label htmlFor="seats-32">32 Seats</Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="block" id="seats-block" />
+              <Label htmlFor="seats-block">Block (No seat selection)</Label>
+            </div>
+          </RadioGroup>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsModalOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleModalSubmit}
+              disabled={!selectedSeats}
+            >
+              Confirm
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

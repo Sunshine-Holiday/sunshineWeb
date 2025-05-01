@@ -106,7 +106,9 @@ const RefundModal = ({
           <ul className="list-disc pl-4">
             <li>75% refund if cancelled 8+ days before selected date</li>
             <li>50% refund if cancelled 4-7 days before selected date</li>
-            <li>0% refund if cancelled less than 4 days before or on selected date</li>
+            <li>
+              0% refund if cancelled less than 4 days before or on selected date
+            </li>
             <li>No refund after the selected date</li>
             <li>No show, No Refund</li>
             <li>Tickets cannot be transferred to another date or person</li>
@@ -200,6 +202,19 @@ const Booked = () => {
     return today <= eventDate;
   };
 
+  const canWriteReview = (bookingDate: string, status?: string) => {
+    const eventDate = new Date(bookingDate.split("-").reverse().join("-"));
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    eventDate.setHours(0, 0, 0, 0);
+    const daysDifference = Math.ceil(
+      (today.getTime() - eventDate.getTime()) / (1000 * 3600 * 24)
+    );
+    return (
+      daysDifference >= 1 && status !== "processing" && status !== "resolved"
+    );
+  };
+
   if (isLoading) return <LoadingState />;
   if (isError) {
     return (
@@ -232,6 +247,7 @@ const Booked = () => {
                     "Passengers",
                     "Details/Status",
                     "Refund",
+                    "Review",
                   ].map((header) => (
                     <TableHead
                       key={header}
@@ -256,6 +272,10 @@ const Booked = () => {
                     : "N/A";
                   const isToday = bookingDate === todayFormatted;
                   const canRequestRefund = isRefundableDate(bookingDate);
+                  const reviewEligible = canWriteReview(
+                    bookingDate,
+                    booking.status
+                  );
 
                   return (
                     <TableRow
@@ -331,6 +351,16 @@ const Booked = () => {
                             </button>
                           )}
                       </TableCell>
+                      <TableCell className="px-4 py-2 text-sm text-gray-700">
+                        {
+                          <button
+                            className="text-purple-500 hover:underline"
+                            onClick={() => navigate(`/review/${booking._id}`)}
+                          >
+                            Write Review
+                          </button>
+                        }
+                      </TableCell>
                     </TableRow>
                   );
                 })}
@@ -353,6 +383,10 @@ const Booked = () => {
                 : "N/A";
               const isToday = bookingDate === todayFormatted;
               const canRequestRefund = isRefundableDate(bookingDate);
+              const reviewEligible = canWriteReview(
+                bookingDate,
+                booking.status
+              );
 
               return (
                 <div
@@ -386,13 +420,14 @@ const Booked = () => {
                     </div>
                     <div>
                       <strong className="text-gray-700">Passengers:</strong>
-                      {booking.passengers?.length > 0 ? (
-                        booking.passengers.map((passenger, index) => (
-                          <PassengerDetails key={index} passenger={passenger} />
-                        ))
-                      ) : (
-                        "No passengers"
-                      )}
+                      {booking.passengers?.length > 0
+                        ? booking.passengers.map((passenger, index) => (
+                            <PassengerDetails
+                              key={index}
+                              passenger={passenger}
+                            />
+                          ))
+                        : "No passengers"}
                     </div>
                     <div className="flex flex-col gap-2">
                       {!isToday && (
@@ -430,6 +465,14 @@ const Booked = () => {
                             Request Refund
                           </button>
                         )}
+                      {
+                        <button
+                          className="text-purple-500 hover:underline"
+                          onClick={() => navigate(`/review/${booking._id}`)}
+                        >
+                          Write Review
+                        </button>
+                      }
                     </div>
                   </div>
                 </div>

@@ -28,6 +28,7 @@ import ProtectedRoute from "./protectedRoute/protectedRouter";
 import RedirectRoute from "./protectedRoute/RedirectRoute";
 import Layout from "./layout/Layout";
 import BookingDetail from "./pages/admin/BookingDetail";
+import ReviewCreatePage from "./pages/review/CreateReview";
 const About = React.lazy(() => import("./pages/about/About"));
 
 const PrivacyPolicy = React.lazy(
@@ -136,6 +137,14 @@ export const AppContent = () => {
             element={
               <ProtectedRoute role={user?.role}>
                 <BookingPage />
+              </ProtectedRoute>
+            }
+          />
+             <Route
+            path="/review/:id"
+            element={
+              <ProtectedRoute role={user?.role}>
+                <ReviewCreatePage />
               </ProtectedRoute>
             }
           />

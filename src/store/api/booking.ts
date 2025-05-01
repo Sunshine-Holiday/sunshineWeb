@@ -15,6 +15,16 @@ export const BookingApiSlice = apiWithTag.injectEndpoints({
 
       invalidatesTags: ["booking"],
     }),
+    createReview: builder.mutation<any, any>({
+      query: (credentials) => ({
+        url: "/api/v1/review",
+        method: "POST",
+
+        body: credentials,
+      }),
+
+      invalidatesTags: ["booking"],
+    }),
     requestCancelBooking: builder.mutation<any, any>({
       query: (credentials) => ({
         url: "/api/v1/booking/request",
@@ -146,5 +156,6 @@ export const {
   useGetuserAllprocessbookingQuery,
   useProcessRefundAmountMutation,
   useUpdateTripMutation,
-  useDeleteBookingMutation
+  useDeleteBookingMutation,
+  useCreateReviewMutation
 } = BookingApiSlice;

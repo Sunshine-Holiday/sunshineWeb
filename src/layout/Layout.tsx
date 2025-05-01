@@ -20,6 +20,9 @@ import BookedPage from "@/pages/admin/Booked/Booked";
 import BookingDetails from "@/pages/admin/Booked/booking-details";
 import BlockTrip from "@/pages/admin/Booked/BlockTrip";
 import CancelTrips from "@/pages/admin/CancelTrips";
+import Special_sections from "@/pages/admin/special_sections";
+import CreateSpecialSection from "@/pages/admin/CreateSpecialSection";
+import EditSpecialSection from "@/pages/admin/EditSpecialSection";
 const Layout = () => {
   return (
     <div className="flex h-screen bg-background pt-14">
@@ -27,6 +30,9 @@ const Layout = () => {
       <main className="flex-1 overflow-y-auto p-8">
         <Routes>
           <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/special_sections" element={<Special_sections />} />
+          <Route path="/special_sections/create" element={<CreateSpecialSection />} />
+          <Route path="/special_sections/Edit/:id" element={<EditSpecialSection />} />
           <Route path="/refund" element={<CancelTrips />} />
           <Route path="/users" element={<UserManagement />} />
           <Route path="/about" element={<AboutPage />} />

@@ -9,6 +9,7 @@ import image5 from "../asserts/C36E7446CE105FD1715FC0BE36_1721113011268.avif";
 import image6 from "../asserts/image6.jpg";
 import { useState } from "react";
 import { motion } from "framer-motion";
+import SpecialSections from "./SpecialSections";
 
 const GlobalTraveler = () => {
   const images = [
@@ -115,6 +116,7 @@ const GlobalTraveler = () => {
             </motion.div>
           </div>
         )}
+        <SpecialSections/>
 
         {/* Video and Testimonials Section */}
         <div className="mt-20 grid md:grid-cols-2 gap-8">

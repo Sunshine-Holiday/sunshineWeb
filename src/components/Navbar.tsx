@@ -48,7 +48,7 @@ export const Navbar: React.FC = () => {
             <div className="hidden md:flex items-center space-x-4 lg:space-x-8">
               {user?.role === "admin" && <NavLink to="/admin">Admin</NavLink>}
               <NavLink to="/trips">Trips</NavLink>
-              <NavLink to="/blog">Blog</NavLink>
+              {/* <NavLink to="/blog">Blog</NavLink> */}
               <NavLink to="/gallery">Gallery</NavLink>
               <NavLink to="/contact">Contact</NavLink>
               {user ? (
@@ -97,7 +97,7 @@ export const Navbar: React.FC = () => {
                   <NavLink to="/admin" onClick={handleMobileMenuToggle}>Admin</NavLink>
                 )}
                 <NavLink to="/trips" onClick={handleMobileMenuToggle}>Trips</NavLink>
-                <NavLink to="/blog" onClick={handleMobileMenuToggle}>Blog</NavLink>
+                {/* <NavLink to="/blog" onClick={handleMobileMenuToggle}>Blog</NavLink> */}
                 <NavLink to="/gallery" onClick={handleMobileMenuToggle}>Gallery</NavLink>
                 <NavLink to="/contact" onClick={handleMobileMenuToggle}>Contact</NavLink>
                 {user && (

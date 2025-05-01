@@ -1,60 +1,93 @@
 import React from "react";
 import { motion } from "framer-motion";
-import { MapPin, Clock, Users, Calendar } from "lucide-react";
+import { MapPin, Users, Calendar } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { parse, isValid, isSameDay, isAfter, format } from "date-fns";
 import { scaleOnHover } from "@/utils/animations";
-import { format, parse, isSameDay, isAfter } from "date-fns"; // Add isSameDay import
 import { IMAGE_URL } from "@/store/store";
+import { Button } from "@/components/ui/button";
+
+interface StartDate {
+  date: string;
+  seats: number | "block";
+}
 
 interface TripCardProps {
   trip: {
     _id: string;
     title: string;
-    image: string;
     location: string;
     duration: string;
     busSize: string;
-    startDates: string[];
+    startDates: (StartDate | null | undefined)[];
     price: number;
     banner: string;
   };
 }
 
-// Function to validate and parse a date string
-const isValidStartDate = (startDate: string): Date | null => {
-  const parsedDate = parse(startDate, "dd-MM-yyyy", new Date());
-  return isNaN(parsedDate.getTime()) ? null : parsedDate;
+// Validate and parse a date string in "dd-MM-yyyy" format
+const isValidStartDate = (startDate: unknown): { date: Date; seats: number | "block" } | null => {
+  if (!startDate || typeof startDate !== "object" || !("date" in startDate) || !("seats" in startDate)) {
+    return null;
+  }
+
+  const { date, seats } = startDate as StartDate;
+  if (typeof date !== "string" || !/^\d{2}-\d{2}-\d{4}$/.test(date)) {
+    return null;
+  }
+
+  const parsedDate = parse(date, "dd-MM-yyyy", new Date());
+  if (!isValid(parsedDate)) {
+    return null;
+  }
+
+  if (seats !== "block" && seats !== 20 && seats !== 32) {
+    return null;
+  }
+
+  return { date: parsedDate, seats };
 };
 
-// Format a Date object to "dd-MM-yyyy"
-const formatDateToString = (date: Date): string => {
+// Format a Date object to "dd-MM-yyyy" with seats
+const formatDateWithSeats = (date: Date, seats: number | "block"): string => {
   if (!(date instanceof Date) || isNaN(date.getTime())) {
     return "Invalid Date";
   }
-  return format(date, "dd-MM-yyyy");
+  const formattedDate = format(date, "dd-MM-yyyy");
+  return `${formattedDate} (${seats === "block" ? "Block" : `${seats} Seats`})`;
 };
 
 export const TripCard = ({ trip }: TripCardProps) => {
   const navigate = useNavigate();
-  const today = new Date(); // Dynamically get today's date
+  const today = new Date();
   const bannerURL = IMAGE_URL + trip.banner;
-  // Convert all start dates to Date objects and filter valid ones
+
+  // Debug: Log startDates to identify issues
+  console.log(`Trip ${trip.title} startDates:`, trip.startDates);
+
+  // Convert all start dates to objects with Date and seats, filter valid ones
   const validStartDates = trip.startDates
     .map(isValidStartDate)
-    .filter((date): date is Date => date !== null)
-    .sort((a, b) => a.getTime() - b.getTime()); // Sort dates chronologically
+    .filter((item): item is { date: Date; seats: number | "block" } => item !== null)
+    .sort((a, b) => a.date.getTime() - b.date.getTime());
 
   // Find if today matches any start date
-  const todayMatch = validStartDates.find((date) => isSameDay(date, today));
+  const todayMatch = validStartDates.find((item) => isSameDay(item.date, today));
 
   // If today matches, use it; otherwise, find the next date after today
   const displayDate =
     todayMatch ||
-    validStartDates.find((date) => isAfter(date, today)) ||
+    validStartDates.find((item) => isAfter(item.date, today)) ||
     validStartDates[0];
 
-  // If no valid dates exist, return null
-  if (!displayDate) return null;
+  // Handle case with no valid dates
+  if (!displayDate) {
+    return (
+      <div className="bg-white rounded-xl shadow-sm p-6 text-red-600">
+        No valid start dates available for {trip.title}.
+      </div>
+    );
+  }
 
   const handleClick = () => {
     navigate(`/trips/${trip._id}`, { state: { trip } });
@@ -95,23 +128,22 @@ export const TripCard = ({ trip }: TripCardProps) => {
           </div>
           <div className="flex items-center text-gray-600">
             <Calendar className="h-4 w-4 mr-2" />
-            <span>{formatDateToString(displayDate)}</span>
+            <span>{formatDateWithSeats(displayDate.date, displayDate.seats)}</span>
           </div>
         </div>
         <div className="flex items-center justify-between mt-4">
           <span className="text-2xl font-bold text-blue-600">
             ₹{trip.price.toLocaleString("en-IN")}
           </span>
-          <motion.button
-            {...scaleOnHover}
+          <Button
             onClick={(e) => {
               e.stopPropagation();
               navigate(`/trips/${trip._id}`, { state: { tripId: trip._id } });
             }}
-            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
+            className="bg-blue-600 hover:bg-blue-700 text-white"
           >
             Book Now
-          </motion.button>
+          </Button>
         </div>
       </div>
     </motion.div>

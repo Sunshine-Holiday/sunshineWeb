@@ -18,7 +18,6 @@ const Hero: React.FC = () => {
     const interval = setInterval(() => {
       setCurrentImage((prevImage) => (prevImage + 1) % travelImages.length);
     }, 7000);
-
     return () => clearInterval(interval);
   }, []);
 
@@ -27,18 +26,26 @@ const Hero: React.FC = () => {
   };
 
   return (
-    <div className="relative min-h-screen overflow-hidden">
-      {/* Background Image */}
-      <div
-        className="absolute inset-0 bg-fixed bg-cover bg-center transition-all duration-1000 ease-in-out"
-        style={{
-          backgroundImage: `url(${travelImages[currentImage]})`,
-          filter: "brightness(0.7)",
-        }}
-      />
+    <div className="relative w-full h-56 sm:h-72 md:h-96 lg:h-screen overflow-hidden">
+      {/* Image as regular element with better mobile optimization */}
+      <div className="relative w-full h-full">
+        <img
+          src={travelImages[currentImage]}
+          alt="Travel destination"
+          className="w-full h-full object-cover transition-all duration-1000 ease-in-out"
+          style={{ filter: "brightness(0.7)" }}
+        />
+      </div>
 
-      {/* Button container */}
-      <div className="relative flex items-end justify-center min-h-screen px-4 pb-36">
+      {/* Content Container */}
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <div className="text-center px-4 sm:px-6 md:px-8">
+          {/* You can add a heading or text here if needed */}
+        </div>
+      </div>
+
+      {/* Button Container - positioned better for mobile */}
+      <div className="absolute bottom-0 left-0 right-0 z-10 flex items-center justify-center w-full px-4 pb-3 sm:pb-5 md:pb-8 lg:pb-16">
         <CustomButton onClickHandler={getStartedHandler} />
       </div>
     </div>

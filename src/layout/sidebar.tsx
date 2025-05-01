@@ -40,6 +40,11 @@ const navigationItems = [
     icon: MapPin, // Represents trips or destinations
   },
   {
+    name: "special-sections",
+    href: "/admin/special_sections",
+    icon: MapPin, // Represents trips or destinations
+  },
+  {
     name: "Booked",
     href: "/admin/booked",
     icon: CheckSquare, // Represents booked items

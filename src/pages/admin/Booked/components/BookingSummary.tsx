@@ -19,7 +19,7 @@ interface BookingSummaryProps {
   seatPrice: number;
   onProceed: () => void;
   loading: boolean;
-  disabled?: boolean; // Added disabled prop
+  disabled?: boolean;
 }
 
 export const BookingSummary = ({
@@ -30,7 +30,7 @@ export const BookingSummary = ({
   selectedDate,
   setSelectedData,
   onProceed,
-  disabled = false, // Default to false
+  disabled = false,
 }: BookingSummaryProps) => {
   const totalAmount = selectedSeats.length * seatPrice;
   const gst = totalAmount * 0.05; // 5% GST
@@ -38,20 +38,36 @@ export const BookingSummary = ({
 
   // Format date to "dd-MM-yyyy"
   const formatDateToString = (dateInput: string): string => {
-    const date = parse(dateInput, "dd-MM-yyyy", new Date());
-    if (!isValid(date)) {
-      console.error("Invalid date:", dateInput);
+    try {
+      const date = parse(dateInput, "dd-MM-yyyy", new Date());
+      if (!isValid(date)) {
+        console.warn("Invalid date format:", dateInput);
+        return "Invalid Date";
+      }
+      return format(date, "dd-MM-yyyy");
+    } catch (error) {
+      console.error("Error parsing date:", dateInput, error);
       return "Invalid Date";
     }
-    return format(date, "dd-MM-yyyy");
   };
 
-  // Filter dates to only include present or future dates
-  const validDates = tripDetails.date.filter((date) => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const checkDate = parse(date, "dd-MM-yyyy", new Date());
-    return isValid(checkDate) && checkDate >= today;
+  // Filter dates to only include valid, present, or future dates
+  const validDates = (tripDetails.date || []).filter((date) => {
+    // Ensure date is a string and not empty
+    if (typeof date !== "string" || !date.trim()) {
+      console.warn("Non-string or empty date detected:", date);
+      return false;
+    }
+
+    try {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const checkDate = parse(date, "dd-MM-yyyy", new Date());
+      return isValid(checkDate) && checkDate >= today;
+    } catch (error) {
+      console.error("Error parsing date in filter:", date, error);
+      return false;
+    }
   });
 
   return (
@@ -59,7 +75,7 @@ export const BookingSummary = ({
       variants={fadeInUp}
       initial="initial"
       animate="animate"
-      className={`bg-white rounded-xl shadow-lg p-6 ${disabled ? 'opacity-50' : ''}`}
+      className={`bg-white rounded-xl shadow-lg p-6 ${disabled ? "opacity-50" : ""}`}
     >
       <h3 className="text-xl font-semibold mb-4">Booking Summary</h3>
 
@@ -67,7 +83,7 @@ export const BookingSummary = ({
         <div className="flex items-center text-gray-600">
           <MapPin className="w-5 h-5 mr-2" />
           <span>
-            {tripDetails.from} → {tripDetails.to}
+            {tripDetails.from || "N/A"} → {tripDetails.to || "N/A"}
           </span>
         </div>
         <div className="flex items-center text-gray-600">
@@ -75,8 +91,8 @@ export const BookingSummary = ({
           <select
             className="border p-2 rounded-md w-full disabled:bg-gray-100 disabled:cursor-not-allowed"
             value={selectedDate}
-            onChange={(e) => !disabled && setSelectedData(e.target.value)} // Prevent change when disabled
-            disabled={disabled || loading} // Disable when parent is disabled or loading
+            onChange={(e) => !disabled && setSelectedData(e.target.value)}
+            disabled={disabled || loading || validDates.length === 0}
           >
             {validDates.length === 0 ? (
               <option value="">No available dates</option>
@@ -106,19 +122,19 @@ export const BookingSummary = ({
         </div>
         <div className="flex justify-between mb-2">
           <span>GST (5%)</span>
-          <span>₹{gst.toLocaleString("en-IN")}</span>
+          <span>₹{gst.toLocaleString("en-IN", { maximumFractionDigits: 2 })}</span>
         </div>
         <div className="flex justify-between font-semibold text-lg mt-4">
           <span>Total Amount</span>
-          <span>₹{finalAmount.toLocaleString("en-IN")}</span>
+          <span>₹{finalAmount.toLocaleString("en-IN", { maximumFractionDigits: 2 })}</span>
         </div>
       </div>
 
       <motion.button
-        whileHover={{ scale: !disabled && !loading ? 1.02 : 1 }} // Disable hover when disabled/loading
-        whileTap={{ scale: !disabled && !loading ? 0.98 : 1 }} // Disable tap when disabled/loading
-        onClick={() => !disabled && onProceed()} // Prevent click when disabled
-        disabled={selectedSeats.length === 0 || loading || disabled} // Combined disable conditions
+        whileHover={{ scale: !disabled && !loading ? 1.02 : 1 }}
+        whileTap={{ scale: !disabled && !loading ? 0.98 : 1 }}
+        onClick={() => !disabled && onProceed()}
+        disabled={selectedSeats.length === 0 || loading || disabled || !validDates.length}
         className="w-full bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed relative"
       >
         {loading ? (

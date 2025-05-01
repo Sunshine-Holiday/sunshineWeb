@@ -11,6 +11,25 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { IMAGE_URL } from "@/store/store";
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 const locales = { "en-US": enUS };
 const localizer = dateFnsLocalizer({
@@ -28,6 +47,11 @@ interface BoardingPoint {
   maplink: string;
 }
 
+interface StartDate {
+  date: Date;
+  seats: number | "block";
+}
+
 interface TripDetails {
   _id?: string;
   title: string;
@@ -35,7 +59,7 @@ interface TripDetails {
   location: string;
   duration: string;
   description: string;
-  startDates: Date[];
+  startDates: StartDate[];
   busSize: string;
   category: string;
   amenities: string[];
@@ -85,49 +109,34 @@ const EditTrips: React.FC = () => {
     boardingPoints: [{ location: "", time: "", details: "", maplink: "" }],
     file: null,
   });
-  console.log({tripDetails})
+
   const [errors, setErrors] = useState<FormErrors>({});
   const [touched, setTouched] = useState<{ [key: string]: boolean }>({});
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [selectedSeats, setSelectedSeats] = useState<number | "block" | null>(null);
 
   useEffect(() => {
-    console.log("Fetched Data:", data);
     if (data) {
       const parsedDates = data.startDates
-        .map((date: string | Date, index: number) => {
+        .map((item: { date: string; seats: number | "block" }, index: number) => {
           try {
-            // Check if date is already a Date object
-            if (date instanceof Date) {
-              return startOfDay(date);
-            }
-            
-            // Check if the date is in dd-MM-yyyy format
-            if (typeof date === 'string' && /^\d{2}-\d{2}-\d{4}$/.test(date)) {
-              // Use the parse function from date-fns
-              const parsedDate = parse(date, 'dd-MM-yyyy', new Date());
-              if (isNaN(parsedDate.getTime())) {
-                console.error(`Invalid date at index ${index}: ${date}`);
-                return null;
-              }
-              return startOfDay(parsedDate);
-            }
-            
-            // Try normal date parsing
-            const dateObj = new Date(date);
-            if (isNaN(dateObj.getTime())) {
-              console.error(`Invalid date at index ${index}: ${date}`);
+            const parsedDate = parse(item.date, "dd-MM-yyyy", new Date());
+            if (isNaN(parsedDate.getTime())) {
+              console.error(`Invalid date at index ${index}: ${item.date}`);
               return null;
             }
-            return startOfDay(dateObj);
+            return {
+              date: startOfDay(parsedDate),
+              seats: item.seats,
+            };
           } catch (error) {
-            console.error(`Error parsing date at index ${index}: ${date}`, error);
+            console.error(`Error parsing date at index ${index}: ${item.date}`, error);
             return null;
           }
         })
-        .filter((date: Date | null): date is Date => date !== null);
-    
-      console.log("Parsed Dates:", parsedDates.map((d:any) => formatDateToString(d)));
-    
+        .filter((item: StartDate | null): item is StartDate => item !== null);
 
       const updatedDetails = {
         _id: data._id || id,
@@ -147,19 +156,11 @@ const EditTrips: React.FC = () => {
             : [{ location: "", time: "", details: "", maplink: "" }],
       };
       setTripDetails(updatedDetails);
-      console.log("Updated Trip Details:", updatedDetails);
       if (data.banner) {
         setImagePreview(`${IMAGE_URL}${data.banner}`);
       }
     }
   }, [data, id]);
-
-  useEffect(() => {
-    console.log(
-      "Trip Details Changed - Start Dates:",
-      tripDetails.startDates.map((d) => formatDateToString(d))
-    );
-  }, [tripDetails]);
 
   const quillModules = {
     toolbar: [
@@ -277,25 +278,38 @@ const EditTrips: React.FC = () => {
 
   const handleDateSelection = useCallback(
     (date: Date) => {
-      // Normalize selected date to midnight
       const normalizedDate = startOfDay(date);
-      const selectedDates = [...tripDetails.startDates];
-      const dateTime = normalizedDate.getTime();
+      const existingDate = tripDetails.startDates.find(
+        (d) => d.date.getTime() === normalizedDate.getTime()
+      );
 
-      if (selectedDates.some((d) => d.getTime() === dateTime)) {
+      if (existingDate) {
         setTripDetails((prev) => ({
           ...prev,
-          startDates: selectedDates.filter((d) => d.getTime() !== dateTime),
+          startDates: prev.startDates.filter((d) => d.date.getTime() !== normalizedDate.getTime()),
         }));
       } else {
-        const updatedDates = [...selectedDates, normalizedDate].sort(
-          (a, b) => a.getTime() - b.getTime()
-        );
-        setTripDetails((prev) => ({ ...prev, startDates: updatedDates }));
+        setSelectedDate(normalizedDate);
+        setSelectedSeats(null);
+        setIsModalOpen(true);
       }
     },
     [tripDetails.startDates]
   );
+
+  const handleModalSubmit = useCallback(() => {
+    if (selectedDate && selectedSeats) {
+      const newStartDate: StartDate = { date: selectedDate, seats: selectedSeats };
+      const newDates = [...tripDetails.startDates, newStartDate].sort((a, b) =>
+        a.date.getTime() - b.date.getTime()
+      );
+      setTripDetails((prev) => ({ ...prev, startDates: newDates }));
+      setErrors((prev) => ({ ...prev, startDates: "" }));
+    }
+    setIsModalOpen(false);
+    setSelectedDate(null);
+    setSelectedSeats(null);
+  }, [selectedDate, selectedSeats, tripDetails.startDates]);
 
   const validateForm = useCallback(() => {
     const requiredFields = ["title", "price", "location", "description", "busSize", "category"];
@@ -310,7 +324,7 @@ const EditTrips: React.FC = () => {
     });
 
     if (tripDetails.startDates.length === 0) {
-      newErrors.startDates = "At least one date must be selected";
+      newErrors.startDates = "At least one date with seats must be selected";
       isValid = false;
     }
 
@@ -325,8 +339,6 @@ const EditTrips: React.FC = () => {
         }
       });
     }
-
-
 
     setErrors(newErrors);
     return isValid;
@@ -349,7 +361,12 @@ const EditTrips: React.FC = () => {
         formData.append("description", tripDetails.description);
         formData.append(
           "startDates",
-          JSON.stringify(tripDetails.startDates.map((date) => formatDate(date, "dd-MM-yyyy")))
+          JSON.stringify(
+            tripDetails.startDates.map((d) => ({
+              date: formatDateToString(d.date),
+              seats: d.seats,
+            }))
+          )
         );
         formData.append("busSize", tripDetails.busSize);
         formData.append("category", tripDetails.category);
@@ -359,7 +376,6 @@ const EditTrips: React.FC = () => {
           formData.append("file", tripDetails.file);
         }
 
-        console.log("Sending to API:", Object.fromEntries(formData));
         await editTrips(formData).unwrap();
         toast.success("Trip updated successfully!");
         navigate("/admin/trips");
@@ -376,11 +392,7 @@ const EditTrips: React.FC = () => {
   const today = new Date();
 
   const inputClassName = (field: string) =>
-    `w-full p-3 rounded-lg border ${
-      touched[field] && errors[field]
-        ? "border-red-500 focus:ring-red-500"
-        : "border-gray-300 focus:ring-blue-500"
-    } focus:outline-none focus:ring-2`;
+    `w-full ${touched[field] && errors[field] ? "border-red-500" : ""}`;
 
   if (!id) {
     return <div className="text-center py-10 text-red-500">Invalid trip ID</div>;
@@ -403,14 +415,14 @@ const EditTrips: React.FC = () => {
             <div>
               <h2 className="text-xl font-semibold mb-4">Update Trip Banner</h2>
               <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                <input
+                <Input
                   type="file"
                   accept=".png,.jpg,.jpeg"
                   onChange={handleImageUpload}
                   className="hidden"
                   id="banner-upload"
                 />
-                <label htmlFor="banner-upload" className="cursor-pointer block">
+                <Label htmlFor="banner-upload" className="cursor-pointer block">
                   {imagePreview ? (
                     <div className="relative">
                       <img
@@ -443,7 +455,7 @@ const EditTrips: React.FC = () => {
                       </p>
                     </div>
                   )}
-                </label>
+                </Label>
               </div>
               {touched.file && errors.file && (
                 <p className="mt-2 text-sm text-red-500">{errors.file}</p>
@@ -452,9 +464,10 @@ const EditTrips: React.FC = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <input
-                  type="text"
-                  placeholder="Trip Title *"
+                <Label htmlFor="title">Trip Title *</Label>
+                <Input
+                  id="title"
+                  placeholder="Trip Title"
                   value={tripDetails.title}
                   onChange={(e) => handleChange("title", e.target.value)}
                   onBlur={() => handleBlur("title")}
@@ -465,9 +478,10 @@ const EditTrips: React.FC = () => {
                 )}
               </div>
               <div>
-                <input
-                  type="text"
-                  placeholder="Price *"
+                <Label htmlFor="price">Price *</Label>
+                <Input
+                  id="price"
+                  placeholder="Price"
                   value={tripDetails.price}
                   onChange={(e) => handleChange("price", e.target.value)}
                   onBlur={() => handleBlur("price")}
@@ -478,9 +492,10 @@ const EditTrips: React.FC = () => {
                 )}
               </div>
               <div>
-                <input
-                  type="text"
-                  placeholder="Location *"
+                <Label htmlFor="location">Location *</Label>
+                <Input
+                  id="location"
+                  placeholder="Location"
                   value={tripDetails.location}
                   onChange={(e) => handleChange("location", e.target.value)}
                   onBlur={() => handleBlur("location")}
@@ -491,32 +506,40 @@ const EditTrips: React.FC = () => {
                 )}
               </div>
               <div>
-                <select
+                <Label htmlFor="busSize">Bus Size *</Label>
+                <Select
                   value={tripDetails.busSize}
-                  onChange={(e) => handleChange("busSize", e.target.value)}
-                  onBlur={() => handleBlur("busSize")}
-                  className={inputClassName("busSize")}
+                  onValueChange={(value) => handleChange("busSize", value)}
+                  onOpenChange={() => handleBlur("busSize")}
                 >
-                  <option value="">Select Bus Size *</option>
-                  <option value="20">20 Seats</option>
-                  <option value="32">32 Seats</option>
-                </select>
+                  <SelectTrigger className={inputClassName("busSize")}>
+                    <SelectValue placeholder="Select Bus Size" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="20">20 Seats</SelectItem>
+                    <SelectItem value="32">32 Seats</SelectItem>
+                  </SelectContent>
+                </Select>
                 {touched.busSize && errors.busSize && (
                   <p className="mt-1 text-sm text-red-500">{errors.busSize}</p>
                 )}
               </div>
               <div>
-                <select
+                <Label htmlFor="category">Category *</Label>
+                <Select
                   value={tripDetails.category}
-                  onChange={(e) => handleChange("category", e.target.value)}
-                  onBlur={() => handleBlur("category")}
-                  className={inputClassName("category")}
+                  onValueChange={(value) => handleChange("category", value)}
+                  onOpenChange={() => handleBlur("category")}
                 >
-                  <option value="">Select Category *</option>
-                  <option value="One Day Tours">One Day Tours</option>
-                  <option value="Stay Package">Stay Package</option>
-                  <option value="Domestic Tours">Domestic Tours</option>
-                </select>
+                  <SelectTrigger className={inputClassName("category")}>
+                    <SelectValue placeholder="Select Category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="One Day Tours">One Day Tours</SelectItem>
+                    <SelectItem value="Stay Package">Stay Package</SelectItem>
+                    <SelectItem value="Domestic Tours">Domestic Tours</SelectItem>
+                  </SelectContent>
+                </Select>
                 {touched.category && errors.category && (
                   <p className="mt-1 text-sm text-red-500">{errors.category}</p>
                 )}
@@ -548,16 +571,14 @@ const EditTrips: React.FC = () => {
               <h2 className="text-xl font-semibold mb-4">Select Trip Dates *</h2>
               <BigCalendar
                 localizer={localizer}
-                events={tripDetails.startDates.map((date, index) => {
-                  const event = {
-                    id: index,
-                    start: date,
-                    end: date,
-                    title: formatDateToString(date),
-                  };
-                  console.log("Calendar Event:", event);
-                  return event;
-                })}
+                events={tripDetails.startDates.map((d, index) => ({
+                  id: index,
+                  start: d.date,
+                  end: d.date,
+                  title: `${formatDateToString(d.date)} (${
+                    d.seats === "block" ? "Block" : `${d.seats} Seats`
+                  })`,
+                }))}
                 selectable
                 onSelectSlot={(slotInfo) => handleDateSelection(slotInfo.start)}
                 views={["month"]}
@@ -576,9 +597,12 @@ const EditTrips: React.FC = () => {
                   <h3 className="text-lg font-medium text-gray-700">Selected Dates:</h3>
                   <ul className="mt-2 list-disc pl-5 text-gray-600">
                     {tripDetails.startDates
-                      .sort((a, b) => a.getTime() - b.getTime())
-                      .map((date, index) => (
-                        <li key={index}>{formatDateToString(date)}</li>
+                      .sort((a, b) => a.date.getTime() - b.date.getTime())
+                      .map((d, index) => (
+                        <li key={index}>
+                          {formatDateToString(d.date)} -{" "}
+                          {d.seats === "block" ? "Block" : `${d.seats} Seats`}
+                        </li>
                       ))}
                   </ul>
                 </div>
@@ -589,22 +613,26 @@ const EditTrips: React.FC = () => {
               <h2 className="text-xl font-semibold mb-4">Amenities *</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                 {availableAmenities.map((amenity) => (
-                  <label key={amenity.name} className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
+                  <div key={amenity.name} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={amenity.name}
                       checked={tripDetails.amenities.includes(amenity.name)}
-                      onChange={(e) => {
-                        const newAmenities = e.target.checked
+                      onCheckedChange={(checked) => {
+                        const newAmenities = checked
                           ? [...tripDetails.amenities, amenity.name]
                           : tripDetails.amenities.filter((a) => a !== amenity.name);
                         handleChange("amenities", newAmenities);
                         validateField("amenities");
                       }}
-                      className="h-4 w-4 text-blue-600 rounded"
                     />
-                    <amenity.icon className="h-5 w-5 text-gray-600" />
-                    <span className="text-gray-700">{amenity.name}</span>
-                  </label>
+                    <Label
+                      htmlFor={amenity.name}
+                      className="flex items-center space-x-2"
+                    >
+                      <amenity.icon className="h-5 w-5 text-gray-600" />
+                      <span>{amenity.name}</span>
+                    </Label>
+                  </div>
                 ))}
               </div>
               {touched.amenities && errors.amenities && (
@@ -615,78 +643,130 @@ const EditTrips: React.FC = () => {
             <div>
               <h2 className="text-xl font-semibold mb-4">Boarding Points *</h2>
               {tripDetails.boardingPoints.map((boardingPoint, index) => (
-                <div key={index} className="relative mb-6 p-4 bg-gray-50 rounded-lg">
+                <div
+                  key={index}
+                  className="relative mb-6 p-4 bg-gray-50 rounded-lg"
+                >
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <input
-                      type="text"
-                      placeholder="Pick Up Location"
-                      value={boardingPoint.location}
-                      onChange={(e) =>
-                        handleBoardingPointChange(index, "location", e.target.value)
-                      }
-                      className="p-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                    <input
-                      type="text"
-                      placeholder="Map Link (URL)"
-                      value={boardingPoint.maplink}
-                      onChange={(e) =>
-                        handleBoardingPointChange(index, "maplink", e.target.value)
-                      }
-                      className="p-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                    <input
-                      type="time"
-                      value={boardingPoint.time}
-                      onChange={(e) =>
-                        handleBoardingPointChange(index, "time", e.target.value)
-                      }
-                      className="p-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                    <input
-                      type="text"
-                      placeholder="Pick Up Details"
-                      value={boardingPoint.details}
-                      onChange={(e) =>
-                        handleBoardingPointChange(index, "details", e.target.value)
-                      }
-                      className="p-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
+                    <div>
+                      <Label htmlFor={`location-${index}`}>Pick Up Location</Label>
+                      <Input
+                        id={`location-${index}`}
+                        placeholder="Pick Up Location"
+                        value={boardingPoint.location}
+                        onChange={(e) =>
+                          handleBoardingPointChange(index, "location", e.target.value)
+                        }
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor={`maplink-${index}`}>Map Link (URL)</Label>
+                      <Input
+                        id={`maplink-${index}`}
+                        placeholder="Map Link (URL)"
+                        value={boardingPoint.maplink}
+                        onChange={(e) =>
+                          handleBoardingPointChange(index, "maplink", e.target.value)
+                        }
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor={`time-${index}`}>Pick Up Time</Label>
+                      <Input
+                        id={`time-${index}`}
+                        type="time"
+                        value={boardingPoint.time}
+                        onChange={(e) =>
+                          handleBoardingPointChange(index, "time", e.target.value)
+                        }
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor={`details-${index}`}>Pick Up Details</Label>
+                      <Input
+                        id={`details-${index}`}
+                        placeholder="Pick Up Details"
+                        value={boardingPoint.details}
+                        onChange={(e) =>
+                          handleBoardingPointChange(index, "details", e.target.value)
+                        }
+                      />
+                    </div>
                   </div>
                   {tripDetails.boardingPoints.length > 1 && (
-                    <button
+                    <Button
+                      variant="destructive"
+                      size="icon"
+                      className="absolute top-2 right-2"
                       onClick={() => handleRemoveBoardingPoint(index)}
-                      className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
                     >
                       <FaTrash className="h-4 w-4" />
-                    </button>
+                    </Button>
                   )}
                   {errors[`boardingPoint_${index}`] && (
-                    <p className="mt-2 text-sm text-red-500">{errors[`boardingPoint_${index}`]}</p>
+                    <p className="mt-2 text-sm text-red-500">
+                      {errors[`boardingPoint_${index}`]}
+                    </p>
                   )}
                 </div>
               ))}
               {errors.boardingPoints && (
                 <p className="mt-2 text-sm text-red-500">{errors.boardingPoints}</p>
               )}
-              <button
-                onClick={handleAddBoardingPoint}
-                className="mt-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-              >
+              <Button onClick={handleAddBoardingPoint} className="mt-2">
                 Add Boarding Point
-              </button>
+              </Button>
             </div>
 
-            <button
+            <Button
               onClick={handleSave}
               disabled={loading}
-              className="w-full py-3 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition-colors disabled:bg-green-400 disabled:cursor-not-allowed flex items-center justify-center"
+              className="w-full flex items-center justify-center"
             >
               {loading ? <FaSpinner className="animate-spin h-5 w-5" /> : "Update Trip"}
-            </button>
+            </Button>
           </div>
         </div>
       </div>
+
+      {/* Modal for Seat Selection */}
+      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              Select Seats for {selectedDate && formatDateToString(selectedDate)}
+            </DialogTitle>
+          </DialogHeader>
+          <RadioGroup
+            value={selectedSeats?.toString()}
+            onValueChange={(value) =>
+              setSelectedSeats(value === "block" ? "block" : parseInt(value))
+            }
+            className="space-y-4"
+          >
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="20" id="seats-20" />
+              <Label htmlFor="seats-20">20 Seats</Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="32" id="seats-32" />
+              <Label htmlFor="seats-32">32 Seats</Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="block" id="seats-block" />
+              <Label htmlFor="seats-block">Block (No seat selection)</Label>
+            </div>
+          </RadioGroup>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleModalSubmit} disabled={!selectedSeats}>
+              Confirm
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
