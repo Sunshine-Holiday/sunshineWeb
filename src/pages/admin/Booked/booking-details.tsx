@@ -37,17 +37,18 @@ import { toast } from 'react-toastify';
 const BookingDetails = () => {
   const { state } = useLocation();
   const { date, tripId, tripName } = state || {};
+  console.log("BookingDetails state:", state);
   const [activeTab, setActiveTab] = useState("table");
   const [selectedSeats, setSelectedSeats] = useState<string[]>([]);
   const [editingBooking, setEditingBooking] = useState<string | null>(null);
   const [newSeatNumber, setNewSeatNumber] = useState<string>("");
   const [deleteBookingId, setDeleteBookingId] = useState<string | null>(null);
   const navigate = useNavigate();
-  const { data, isLoading, isError } = useGetTripBookingHistoryQuery({
+  const { data, isLoading, isError ,error} = useGetTripBookingHistoryQuery({
     trip: tripId,
     date: date
   });
-  
+  console.log("BookingDetails data:", error);
   const [updateTrip] = useUpdateTripMutation();
   const [deleteBooking] = useDeleteBookingMutation();
   

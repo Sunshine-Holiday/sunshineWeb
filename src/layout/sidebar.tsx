@@ -59,11 +59,11 @@ const navigationItems = [
     href: "/admin/gallery",
     icon: Image, // Represents a photo gallery
   },
-  {
-    name: "Blogs",
-    href: "/admin/blog",
-    icon: FileText, // Represents blog posts or text content
-  },
+  // {
+  //   name: "Blogs",
+  //   href: "/admin/blog",
+  //   icon: FileText, // Represents blog posts or text content
+  // },
   {
     name: "Terms and Condition",
     href: "/admin/term-and-condition",

@@ -47,9 +47,9 @@ const Layout = () => {
           <Route path="/booked/:id" element={<BookingDetail />} />
           <Route path="/gallery" element={<Gallery />} />
           <Route path="/gallery/add-gallery" element={<AddGallery />} />
-          <Route path="/blog" element={<Blogs />} />
+          {/* <Route path="/blog" element={<Blogs />} />
           <Route path="/blog/create" element={<BlogCreatePage />} />
-          <Route path="/blog/edit/:id" element={<BlogEdit />} />
+          <Route path="/blog/edit/:id" element={<BlogEdit />} /> */}
           <Route path="/term-and-condition" element={<TermAndCondition />} />
         </Routes>
       </main>

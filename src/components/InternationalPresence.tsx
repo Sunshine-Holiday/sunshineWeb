@@ -59,6 +59,7 @@ const GlobalTraveler = () => {
       transition={{ duration: 0.8 }}
       className="py-20 bg-gray-900 text-white"
     >
+              <SpecialSections/>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-12">
           <Globe className="w-16 h-16 mx-auto mb-4 text-blue-400" />
@@ -116,38 +117,11 @@ const GlobalTraveler = () => {
             </motion.div>
           </div>
         )}
-        <SpecialSections/>
+
 
         {/* Video and Testimonials Section */}
-        <div className="mt-20 grid md:grid-cols-2 gap-8">
-          <motion.div
-            className="bg-gray-800 p-8 rounded-xl"
-            initial={{ opacity: 0, y: 50 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.8 }}
-          >
-            <h3 className="text-2xl font-bold mb-6">Our Journey</h3>
-            <div className="aspect-w-16 aspect-h-9 bg-gray-700 rounded-lg">
-              <div className="flex items-center justify-center">
-                <button className="bg-blue-600 hover:bg-blue-700 text-white rounded-full p-4 transition-colors">
-                  <svg
-                    className="w-12 h-12"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"
-                    />
-                  </svg>
-                </button>
-              </div>
-            </div>
-          </motion.div>
+        <div className="mt-20 grid md:grid-cols-1 gap-8">
+      
 
           <motion.div
             className="bg-gray-800 p-8 rounded-xl"

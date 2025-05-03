@@ -40,6 +40,7 @@ interface Booking {
   selectedDate: string;
   status?: string;
   passengers: Passenger[];
+  isReview: boolean; // Added to reflect schema
 }
 
 const PassengerDetails = ({ passenger }: { passenger: Passenger }) => (
@@ -210,8 +211,9 @@ const Booked = () => {
     const daysDifference = Math.ceil(
       (today.getTime() - eventDate.getTime()) / (1000 * 3600 * 24)
     );
+    console.log(daysDifference)
     return (
-      daysDifference >= 1 && status !== "processing" && status !== "resolved"
+     status !== "processing" && status !== "resolved"
     );
   };
 
@@ -352,14 +354,14 @@ const Booked = () => {
                           )}
                       </TableCell>
                       <TableCell className="px-4 py-2 text-sm text-gray-700">
-                        {
+                        {!booking.isReview && reviewEligible && (
                           <button
                             className="text-purple-500 hover:underline"
                             onClick={() => navigate(`/review/${booking._id}`)}
                           >
                             Write Review
                           </button>
-                        }
+                        )}
                       </TableCell>
                     </TableRow>
                   );
@@ -465,14 +467,14 @@ const Booked = () => {
                             Request Refund
                           </button>
                         )}
-                      {
+                      {booking.isReview && reviewEligible && (
                         <button
                           className="text-purple-500 hover:underline"
                           onClick={() => navigate(`/review/${booking._id}`)}
                         >
                           Write Review
                         </button>
-                      }
+                      )}
                     </div>
                   </div>
                 </div>
