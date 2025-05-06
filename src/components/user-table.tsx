@@ -32,16 +32,16 @@ export function UserTable({ users, columns, onUpdateRole }: UserTableProps) {
   const [sortConfig, setSortConfig] = useState<{
     key: keyof User;
     direction: "asc" | "desc";
-  } | null>(null);
+  } | any>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10; // Number of users per page
 
   // Sorting logic
-  const sortedUsers = [...users].sort((a, b) => {
+  const sortedUsers = [...users].sort((a:any, b:any) => {
     if (!sortConfig) return 0;
 
-    const aValue = a[sortConfig.key];
-    const bValue = b[sortConfig.key];
+    const aValue:any = a[sortConfig.key];
+    const bValue:any = b[sortConfig.key];
 
     if (aValue < bValue) return sortConfig.direction === "asc" ? -1 : 1;
     if (aValue > bValue) return sortConfig.direction === "asc" ? 1 : -1;
@@ -56,7 +56,7 @@ export function UserTable({ users, columns, onUpdateRole }: UserTableProps) {
   );
 
   const requestSort = (key: keyof User) => {
-    setSortConfig((current) => ({
+    setSortConfig((current:any) => ({
       key,
       direction:
         current?.key === key && current.direction === "asc" ? "desc" : "asc",
@@ -74,7 +74,7 @@ export function UserTable({ users, columns, onUpdateRole }: UserTableProps) {
           <TableHeader>
             <TableRow>
               <TableHead>Sr No</TableHead>
-              {columns.map((column) => (
+              {columns.map((column:any) => (
                 <TableHead
                   key={column.id}
                   className={column.sortable ? "cursor-pointer" : ""}
@@ -90,7 +90,7 @@ export function UserTable({ users, columns, onUpdateRole }: UserTableProps) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {paginatedUsers.map((user, index) => (
+            {paginatedUsers.map((user:any, index:any):any => (
               <TableRow key={user._id}>
                 <TableCell>{(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
                 <TableCell>{user.username}</TableCell>

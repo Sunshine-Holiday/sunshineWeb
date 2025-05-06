@@ -117,7 +117,7 @@ export const authApiSlice = apiWithTag.injectEndpoints({
       }),
       invalidatesTags: ["user"],
     }),
-    adminUpdateUser: builder.mutation<UserResponse, updateUser>({
+    adminUpdateUser: builder.mutation<any, any>({
       query: (credential: any) => ({
         url: `/api/v1/user/allUser/${credential.id}`,
         method: "PUT",

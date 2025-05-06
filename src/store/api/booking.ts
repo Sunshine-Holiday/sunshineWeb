@@ -25,6 +25,30 @@ export const BookingApiSlice = apiWithTag.injectEndpoints({
 
       invalidatesTags: ["booking"],
     }),
+
+    updateBooking: builder.mutation<any, any>({
+      query: (credentials) => ({
+        url: `/api/v1/review/bookings/${credentials.bookingId}`,
+        method: "PUT",
+
+        body: credentials,
+      }),
+
+      invalidatesTags: ["booking"],
+    }),
+    UpdateReview: builder.mutation<any, any>({
+      query: (credentials) => ({
+        url: `/api/v1/review/${credentials._id}`,
+        method: "POST",
+
+        body: credentials,
+      }),
+
+      invalidatesTags: ["booking"],
+    }),
+
+
+
     requestCancelBooking: builder.mutation<any, any>({
       query: (credentials) => ({
         url: "/api/v1/booking/request",
@@ -73,6 +97,14 @@ export const BookingApiSlice = apiWithTag.injectEndpoints({
     getbookingID: builder.query<any, any>({
       query: (credentials: any) => ({
         url: `/api/v1/booking/${credentials.id}`,
+        method: "GET",
+      }),
+      keepUnusedDataFor: 0,
+      providesTags: ["booking"],
+    }),
+    getTripReviews: builder.query<any, any>({
+      query: (credentials: any) => ({
+        url: `/api/v1/review/${credentials.tripId}`,
         method: "GET",
       }),
       keepUnusedDataFor: 0,
@@ -157,5 +189,9 @@ export const {
   useProcessRefundAmountMutation,
   useUpdateTripMutation,
   useDeleteBookingMutation,
-  useCreateReviewMutation
+  useCreateReviewMutation,
+  useGetTripReviewsQuery,
+  useUpdateBookingMutation,
+  useUpdateReviewMutation,
+
 } = BookingApiSlice;

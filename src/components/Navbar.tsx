@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { User, Menu, X, LogOut } from "lucide-react";
-import logo1 from "../asserts/MRNJ1288.MP4"; // Video logo
+import logo1 from "../asserts/logo_sunshine.gif"; // Video logo
 import { logout, selectCurrentUser } from "@/store/reducer/auth";
 import { useDispatch, useSelector } from "react-redux";
 
@@ -13,7 +13,7 @@ export const Navbar: React.FC = () => {
   const user = useSelector(selectCurrentUser);
   const dispatch = useDispatch();
 
-  const handleMobileMenuToggle = () => setIsMobileMenuOpen(prev => !prev);
+  const handleMobileMenuToggle = () => setIsMobileMenuOpen((prev) => !prev);
   const handleLogout = () => {
     dispatch(logout());
     setIsLogoutModalOpen(false);
@@ -27,28 +27,24 @@ export const Navbar: React.FC = () => {
       <motion.nav
         initial={{ y: -100 }}
         animate={{ y: 0 }}
-        className="fixed w-full bg-white/70 backdrop-blur-sm z-50 shadow-sm"
+        className="w-full bg-white/70 backdrop-blur-sm z-50 shadow-sm"
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            <Link to="/" className="flex items-center space-x-2">
-              <video
+            <Link to="/" className="flex items-center">
+              <img
                 src={logo1}
-                className="h-10 w-10 sm:h-16 sm:w-16 md:h-15 md:w-15 rounded-full"
-                autoPlay
-                loop
-                muted
-                playsInline
+                alt="Sunshine Holiday Packages Logo"
+                className="h-14 w-14 sm:h-24 sm:w-24 md:h-20 md:w-20"
               />
-              <span className="text-sm sm:text-lg md:text-xl font-bold text-gray-900 truncate max-w-xs">
+              {/* <span className="text-sm sm:text-lg md:text-xl font-bold text-gray-900 truncate max-w-xs">
                 Sunshine Holiday Packages
-              </span>
+              </span> */}
             </Link>
 
             <div className="hidden md:flex items-center space-x-4 lg:space-x-8">
               {user?.role === "admin" && <NavLink to="/admin">Admin</NavLink>}
               <NavLink to="/trips">Trips</NavLink>
-              {/* <NavLink to="/blog">Blog</NavLink> */}
               <NavLink to="/gallery">Gallery</NavLink>
               <NavLink to="/contact">Contact</NavLink>
               {user ? (
@@ -79,7 +75,11 @@ export const Navbar: React.FC = () => {
             </div>
 
             <button className="md:hidden p-2" onClick={handleMobileMenuToggle}>
-              {isMobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+              {isMobileMenuOpen ? (
+                <X className="h-6 w-6" />
+              ) : (
+                <Menu className="h-6 w-6" />
+              )}
             </button>
           </div>
         </div>
@@ -94,16 +94,27 @@ export const Navbar: React.FC = () => {
             >
               <div className="flex flex-col space-y-4 p-4">
                 {user?.role === "admin" && (
-                  <NavLink to="/admin" onClick={handleMobileMenuToggle}>Admin</NavLink>
+                  <NavLink to="/admin" onClick={handleMobileMenuToggle}>
+                    Admin
+                  </NavLink>
                 )}
-                <NavLink to="/trips" onClick={handleMobileMenuToggle}>Trips</NavLink>
-                {/* <NavLink to="/blog" onClick={handleMobileMenuToggle}>Blog</NavLink> */}
-                <NavLink to="/gallery" onClick={handleMobileMenuToggle}>Gallery</NavLink>
-                <NavLink to="/contact" onClick={handleMobileMenuToggle}>Contact</NavLink>
+                <NavLink to="/trips" onClick={handleMobileMenuToggle}>
+                  Trips
+                </NavLink>
+                <NavLink to="/gallery" onClick={handleMobileMenuToggle}>
+                  Gallery
+                </NavLink>
+                <NavLink to="/contact" onClick={handleMobileMenuToggle}>
+                  Contact
+                </NavLink>
                 {user && (
                   <>
-                    <NavLink to="/profile" onClick={handleMobileMenuToggle}>Profile</NavLink>
-                    <NavLink to="/booked" onClick={handleMobileMenuToggle}>Booked</NavLink>
+                    <NavLink to="/profile" onClick={handleMobileMenuToggle}>
+                      Profile
+                    </NavLink>
+                    <NavLink to="/booked" onClick={handleMobileMenuToggle}>
+                      Booked
+                    </NavLink>
                   </>
                 )}
                 {user ? (

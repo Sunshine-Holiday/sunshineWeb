@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 
-import logo1 from "../../asserts/MRNJ1288.MP4"; // Video logo import
+import logo1 from "../../asserts/logo_sunshine.gif"; // Video logo import
 import { fadeInUp, staggerChildren } from "../../utils/animations";
 import { TripFilters } from "../trips/TripFilters";
 import { useNavigate } from "react-router-dom";
@@ -56,7 +56,9 @@ const TripsPage = () => {
         {isLoading ? (
           <div className="text-center mt-8 text-gray-600">Loading trips...</div>
         ) : error ? (
-          <div className="text-center mt-8 text-red-600">Error loading trips.</div>
+          <div className="text-center mt-8 text-red-600">
+            Error loading trips.
+          </div>
         ) : trips.length > 0 ? (
           <motion.div
             variants={staggerChildren}
@@ -72,13 +74,10 @@ const TripsPage = () => {
           </motion.div>
         ) : (
           <div className="flex flex-col items-center justify-center mt-8 text-gray-600">
-            <video
+            <img
               src={logo1}
+              alt="Sunshine Holiday Packages Logo"
               className="w-64 mx-auto mb-6 rounded-lg shadow-lg"
-              autoPlay
-              loop
-              muted
-              playsInline
             />
             <div className="text-2xl font-bold mt-4">Upcoming trips soon.</div>
           </div>
