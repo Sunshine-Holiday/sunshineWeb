@@ -5,15 +5,17 @@ import { User, Menu, X, LogOut } from "lucide-react";
 import logo1 from "../asserts/logo_sunshine.gif"; // Video logo
 import { logout, selectCurrentUser } from "@/store/reducer/auth";
 import { useDispatch, useSelector } from "react-redux";
+import * as Dialog from "@radix-ui/react-dialog";
+import { cn } from "@/lib/utils"; // Utility for className concatenation (ShadCN)
 
 export const Navbar: React.FC = () => {
   const navigate = useNavigate();
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const user = useSelector(selectCurrentUser);
   const dispatch = useDispatch();
 
-  const handleMobileMenuToggle = () => setIsMobileMenuOpen((prev) => !prev);
+  const handleDrawerToggle = () => setIsDrawerOpen((prev) => !prev);
   const handleLogout = () => {
     dispatch(logout());
     setIsLogoutModalOpen(false);
@@ -27,7 +29,7 @@ export const Navbar: React.FC = () => {
       <motion.nav
         initial={{ y: -100 }}
         animate={{ y: 0 }}
-        className="w-full bg-white/70 backdrop-blur-sm z-50 shadow-sm"
+        className="w-full bg-white/70 backdrop-blur-sm z-50 shadow-sm  top-0"
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
@@ -37,9 +39,6 @@ export const Navbar: React.FC = () => {
                 alt="Sunshine Holiday Packages Logo"
                 className="h-14 w-14 sm:h-24 sm:w-24 md:h-20 md:w-20"
               />
-              {/* <span className="text-sm sm:text-lg md:text-xl font-bold text-gray-900 truncate max-w-xs">
-                Sunshine Holiday Packages
-              </span> */}
             </Link>
 
             <div className="hidden md:flex items-center space-x-4 lg:space-x-8">
@@ -74,8 +73,8 @@ export const Navbar: React.FC = () => {
               )}
             </div>
 
-            <button className="md:hidden p-2" onClick={handleMobileMenuToggle}>
-              {isMobileMenuOpen ? (
+            <button className="md:hidden p-2" onClick={handleDrawerToggle}>
+              {isDrawerOpen ? (
                 <X className="h-6 w-6" />
               ) : (
                 <Menu className="h-6 w-6" />
@@ -83,72 +82,99 @@ export const Navbar: React.FC = () => {
             </button>
           </div>
         </div>
+      </motion.nav>
 
+      <Dialog.Root open={isDrawerOpen} onOpenChange={setIsDrawerOpen}>
         <AnimatePresence>
-          {isMobileMenuOpen && (
-            <motion.div
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className="md:hidden bg-white/90 backdrop-blur-sm shadow-md absolute top-16 w-full"
-            >
-              <div className="flex flex-col space-y-4 p-4">
-                {user?.role === "admin" && (
-                  <NavLink to="/admin" onClick={handleMobileMenuToggle}>
-                    Admin
+          {isDrawerOpen && (
+            <Dialog.Portal>
+              <Dialog.Overlay
+                className="fixed inset-0 bg-black/50 z-50"
+                asChild
+              >
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.3 }}
+                />
+              </Dialog.Overlay>
+              <Dialog.Content
+                className={cn(
+                  "fixed top-0 right-0 h-full w-64 bg-white/90 backdrop-blur-sm shadow-lg z-50 p-6",
+                  "focus:outline-none"
+                )}
+                asChild
+              >
+                <motion.div
+                  initial={{ x: "100%" }}
+                  animate={{ x: 0 }}
+                  exit={{ x: "100%" }}
+                  transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                  className="flex flex-col space-y-4"
+                >
+                  <Dialog.Close asChild>
+                    <button className="self-end p-2">
+                      <X className="h-6 w-6" />
+                    </button>
+                  </Dialog.Close>
+                  {user?.role === "admin" && (
+                    <NavLink to="/admin" onClick={handleDrawerToggle}>
+                      Admin
+                    </NavLink>
+                  )}
+                  <NavLink to="/trips" onClick={handleDrawerToggle}>
+                    Trips
                   </NavLink>
-                )}
-                <NavLink to="/trips" onClick={handleMobileMenuToggle}>
-                  Trips
-                </NavLink>
-                <NavLink to="/gallery" onClick={handleMobileMenuToggle}>
-                  Gallery
-                </NavLink>
-                <NavLink to="/contact" onClick={handleMobileMenuToggle}>
-                  Contact
-                </NavLink>
-                {user && (
-                  <>
-                    <NavLink to="/profile" onClick={handleMobileMenuToggle}>
-                      Profile
-                    </NavLink>
-                    <NavLink to="/booked" onClick={handleMobileMenuToggle}>
-                      Booked
-                    </NavLink>
-                  </>
-                )}
-                {user ? (
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    className="bg-red-600 text-white px-4 py-2 rounded-full flex items-center space-x-2 shadow-md self-start"
-                    onClick={() => {
-                      openLogoutModal();
-                      handleMobileMenuToggle();
-                    }}
-                  >
-                    <LogOut className="h-4 w-4" />
-                    <span>Logout</span>
-                  </motion.button>
-                ) : (
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    className="bg-blue-600 text-white px-4 py-2 rounded-full flex items-center space-x-2 shadow-md self-start"
-                    onClick={() => {
-                      navigate("/signin");
-                      handleMobileMenuToggle();
-                    }}
-                  >
-                    <User className="h-4 w-4" />
-                    <span>Sign In</span>
-                  </motion.button>
-                )}
-              </div>
-            </motion.div>
+                  <NavLink to="/gallery" onClick={handleDrawerToggle}>
+                    Gallery
+                  </NavLink>
+                  <NavLink to="/contact" onClick={handleDrawerToggle}>
+                    Contact
+                  </NavLink>
+                  {user && (
+                    <>
+                      <NavLink to="/profile" onClick={handleDrawerToggle}>
+                        Profile
+                      </NavLink>
+                      <NavLink to="/booked" onClick={handleDrawerToggle}>
+                        Booked
+                      </NavLink>
+                    </>
+                  )}
+                  {user ? (
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      className="bg-red-600 text-white px-4 py-2 rounded-full flex items-center space-x-2 shadow-md self-start"
+                      onClick={() => {
+                        openLogoutModal();
+                        handleDrawerToggle();
+                      }}
+                    >
+                      <LogOut className="h-4 w-4" />
+                      <span>Logout</span>
+                    </motion.button>
+                  ) : (
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      className="bg-blue-600 text-white px-4 py-2 rounded-full flex items-center space-x-2 shadow-md self-start"
+                      onClick={() => {
+                        navigate("/signin");
+                        handleDrawerToggle();
+                      }}
+                    >
+                      <User className="h-4 w-4" />
+                      <span>Sign In</span>
+                    </motion.button>
+                  )}
+                </motion.div>
+              </Dialog.Content>
+            </Dialog.Portal>
           )}
         </AnimatePresence>
-      </motion.nav>
+      </Dialog.Root>
 
       <AnimatePresence>
         {isLogoutModalOpen && (
