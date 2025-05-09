@@ -37,7 +37,7 @@ export const Navbar: React.FC = () => {
               <img
                 src={logo1}
                 alt="Sunshine Holiday Packages Logo"
-                className="h-14 w-14 sm:h-24 sm:w-24 md:h-20 md:w-20"
+                className="h-11 w-14 sm:h-20 sm:w-24 md:h-20 md:w-20"
               />
             </Link>
 

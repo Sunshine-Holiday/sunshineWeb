@@ -38,8 +38,8 @@ export const BookingApiSlice = apiWithTag.injectEndpoints({
     }),
     UpdateReview: builder.mutation<any, any>({
       query: (credentials) => ({
-        url: `/api/v1/review/${credentials._id}`,
-        method: "POST",
+        url: `/api/v1/review/${credentials.reviewId}`,
+        method: "PUT",
 
         body: credentials,
       }),
@@ -104,7 +104,7 @@ export const BookingApiSlice = apiWithTag.injectEndpoints({
     }),
     getTripReviews: builder.query<any, any>({
       query: (credentials: any) => ({
-        url: `/api/v1/review/${credentials.tripId}`,
+        url: `/api/v1/review/${credentials.tripId}/date/${credentials.selectedDate}`,
         method: "GET",
       }),
       keepUnusedDataFor: 0,

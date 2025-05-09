@@ -57,7 +57,8 @@ const BookingPage = React.lazy(() => import("./pages/booking/BookingPage"));
 const HomePage = React.lazy(() => import("./pages/Home"));
 
 // Skeleton Loader using Tailwind CSS
-
+import "slick-carousel/slick/slick.css";
+import "slick-carousel/slick/slick-theme.css";
 export const AppContent = () => {
   useSmooth();
   const { data, error, isLoading } = useGetMyProfileQuery();

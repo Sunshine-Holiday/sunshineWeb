@@ -27,7 +27,6 @@ const GlobalTraveler = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalImage, setModalImage] = useState<string | null>(null);
 
-
   const settings = {
     dots: true,
     infinite: true,
@@ -38,8 +37,6 @@ const GlobalTraveler = () => {
     autoplay: true,
     autoplaySpeed: 3000,
     arrows: true, // Disable default arrows
-
-
   };
 
   const openModal = (image: string) => {
@@ -57,9 +54,9 @@ const GlobalTraveler = () => {
       initial={{ opacity: 0, y: 50 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.8 }}
-      className="py-20 bg-gray-900 text-white"
+      className="py-2 bg-gray-900 text-white"
     >
-              <SpecialSections/>
+      <SpecialSections />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-12">
           <Globe className="w-16 h-16 mx-auto mb-4 text-blue-400" />
@@ -118,11 +115,8 @@ const GlobalTraveler = () => {
           </div>
         )}
 
-
         {/* Video and Testimonials Section */}
         <div className="mt-20 grid md:grid-cols-1 gap-8">
-      
-
           <motion.div
             className="bg-gray-800 p-8 rounded-xl"
             initial={{ opacity: 0, y: 50 }}

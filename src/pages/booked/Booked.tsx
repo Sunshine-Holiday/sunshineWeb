@@ -211,10 +211,8 @@ const Booked = () => {
     const daysDifference = Math.ceil(
       (today.getTime() - eventDate.getTime()) / (1000 * 3600 * 24)
     );
-    console.log(daysDifference)
-    return (
-     status !== "processing" && status !== "resolved"
-    );
+    console.log(daysDifference);
+    return status !== "processing" && status !== "resolved";
   };
 
   if (isLoading) return <LoadingState />;
@@ -354,7 +352,7 @@ const Booked = () => {
                           )}
                       </TableCell>
                       <TableCell className="px-4 py-2 text-sm text-gray-700">
-                        {!booking.isReview && reviewEligible && (
+                        {!booking.isReview && booking?.isReviewActivate && (
                           <button
                             className="text-purple-500 hover:underline"
                             onClick={() => navigate(`/review/${booking._id}`)}
@@ -467,7 +465,7 @@ const Booked = () => {
                             Request Refund
                           </button>
                         )}
-                      {booking.isReview && reviewEligible && (
+                      {booking.isReview && booking?.isReviewActivate && (
                         <button
                           className="text-purple-500 hover:underline"
                           onClick={() => navigate(`/review/${booking._id}`)}
