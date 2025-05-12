@@ -119,7 +119,7 @@ const EditTrips: React.FC = () => {
 
   useEffect(() => {
     if (data) {
-      const parsedDates = data.startDates
+      const parsedDates = data?.trip.startDates
         .map((item: { date: string; seats: number | "block" }, index: number) => {
           try {
             const parsedDate = parse(item.date, "dd-MM-yyyy", new Date());
@@ -139,28 +139,28 @@ const EditTrips: React.FC = () => {
         .filter((item: StartDate | null): item is StartDate => item !== null);
 
       const updatedDetails = {
-        _id: data._id || id,
-        title: data.title || "",
-        price: data.price || "",
-        location: data.location || "",
-        duration: data.duration || "",
+        _id: data.trip._id || id,
+        title: data?.trip.title || "",
+        price: data?.trip.price || "",
+        location: data?.trip.location || "",
+        duration: data?.trip.duration || "",
         file: null,
-        description: data.description || "",
+        description: data?.trip.description || "",
         startDates: parsedDates,
-        busSize: data.busSize || "",
-        category: data.category || "",
-        amenities: Array.isArray(data.amenities) && data.amenities.length > 0 ? data.amenities : [],
+        busSize: data?.trip.busSize || "",
+        category: data?.trip.category || "",
+        amenities: Array.isArray(data?.trip.amenities) && data?.trip.amenities.length > 0 ? data?.trip.amenities : [],
         boardingPoints:
-          Array.isArray(data.boardingPoints) && data.boardingPoints.length > 0
-            ? data.boardingPoints
+          Array.isArray(data?.trip.boardingPoints) && data?.trip.boardingPoints.length > 0
+            ? data?.trip.boardingPoints
             : [{ location: "", time: "", details: "", maplink: "" }],
       };
       setTripDetails(updatedDetails);
-      if (data.banner) {
-        setImagePreview(`${IMAGE_URL}${data.banner}`);
+      if (data?.trip.banner) {
+        setImagePreview(`${IMAGE_URL}${data?.trip.banner}`);
       }
     }
-  }, [data, id]);
+  }, [data?.trip, id]);
 
   const quillModules = {
     toolbar: [
