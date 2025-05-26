@@ -8,20 +8,20 @@ import { IMAGE_URL } from "@/store/store";
 import { Button } from "@/components/ui/button";
 
 interface StartDate {
-  date: string;
-  seats: number | "block";
+  date?: string;
+  seats?: number | "block";
 }
 
 interface TripCardProps {
-  trip: {
-    _id: number;
-    title: string;
-    image: string;
-    location: string;
-    duration: string;
-    busSize: string;
-    startDates: (StartDate | null | undefined)[];
-    price: number;
+  trip?: {
+    _id?: number;
+    title?: string;
+    image?: string;
+    location?: string;
+    duration?: string;
+    busSize?: string;
+    startDates?: (StartDate | null | undefined)[];
+    price?: number;
   };
   onDelete: (id: number) => void;
   onEdit: (id: number) => void;
@@ -51,21 +51,23 @@ const isValidStartDate = (startDate: unknown): { date: Date; seats: number | "bl
 };
 
 // Format date as "dd-MM-yyyy" with seats
-const formatDateWithSeats = (date: Date, ): string => {
+const formatDateWithSeats = (date?: Date): string => {
+  if (!date || !isValid(date)) {
+    return "N/A";
+  }
   const day = String(date.getDate()).padStart(2, "0");
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const year = date.getFullYear();
-  const dateStr = `${day}-${month}-${year}`;
-  return `${dateStr}`;
+  return `${day}-${month}-${year}`;
 };
 
 export const TripCard = ({ trip, onDelete, onEdit }: TripCardProps) => {
   const navigate = useNavigate();
   const today = new Date();
-  const bannerURL = IMAGE_URL + trip.banner;
+  const bannerURL = trip?.image ? `${IMAGE_URL}${trip.image}` : "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b";
 
   // Convert all start dates to objects with Date and seats, filter valid ones
-  const validStartDates = trip.startDates
+  const validStartDates = (trip?.startDates ?? [])
     .map(isValidStartDate)
     .filter((item): item is { date: Date; seats: number | "block" } => item !== null)
     .sort((a, b) => a.date.getTime() - b.date.getTime());
@@ -76,27 +78,25 @@ export const TripCard = ({ trip, onDelete, onEdit }: TripCardProps) => {
   );
 
   // If today matches, use it; otherwise, find the next date after today
-  const displayDate = todayMatch ||
-    validStartDates.find((item) => item.date > today) ||
-    validStartDates[0];
+  const displayDate = todayMatch || validStartDates.find((item) => item.date > today) || validStartDates[0];
 
-  // Handle case with no valid dates
-  // if (!displayDate) {
-  //   return (
-  //     <div className="bg-white rounded-xl shadow-sm p-6 text-red-600">
-  //       No valid start dates available for {trip.title}.
-  //     </div>
-  //   );
-  // }
+  // Handle case with no valid trip data
+  if (!trip?._id || !trip?.title) {
+    return (
+      <div className="bg-white rounded-xl shadow-sm p-6 text-red-600">
+        No valid trip data available.
+      </div>
+    );
+  }
 
   const handleEdit = (e: React.MouseEvent) => {
     e.stopPropagation();
-    onEdit(trip._id);
+    onEdit(trip._id!);
   };
 
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
-    onDelete(trip._id);
+    onDelete(trip._id!);
   };
 
   const handleCardClick = () => {
@@ -115,35 +115,32 @@ export const TripCard = ({ trip, onDelete, onEdit }: TripCardProps) => {
         onClick={handleCardClick}
       >
         <img
-          src={
-            bannerURL ||
-            "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b"
-          }
-          alt={trip.title}
+          src={bannerURL}
+          alt={trip.title ?? "Trip"}
           className="w-full h-full object-cover"
         />
       </motion.div>
       <div className="p-6">
         <h3 className="text-xl font-semibold text-gray-900 mb-4">
-          {trip.title}
+          {trip.title ?? "N/A"}
         </h3>
         <div className="space-y-2 mb-4">
           <div className="flex items-center text-gray-600">
             <MapPin className="h-4 w-4 mr-2" />
-            <span>{trip.location}</span>
+            <span>{trip.location ?? "N/A"}</span>
           </div>
           <div className="flex items-center text-gray-600">
             <Users className="h-4 w-4 mr-2" />
-            <span>{displayDate.seats}</span>
+            <span>{displayDate?.seats ?? "N/A"}</span>
           </div>
           <div className="flex items-center text-gray-600">
             <Calendar className="h-4 w-4 mr-2" />
-            <span>{displayDate&&formatDateWithSeats(displayDate.date)}</span>
+            <span>{displayDate ? formatDateWithSeats(displayDate.date) : "N/A"}</span>
           </div>
         </div>
         <div className="flex items-center justify-between mt-4">
           <span className="text-2xl font-bold text-blue-600">
-            ₹{trip.price.toLocaleString("en-IN")}
+            ₹{trip.price?.toLocaleString("en-IN") ?? "N/A"}
           </span>
           <div className="flex gap-2">
             <Button
