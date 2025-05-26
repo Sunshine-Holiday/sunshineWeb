@@ -51,12 +51,12 @@ const isValidStartDate = (startDate: unknown): { date: Date; seats: number | "bl
 };
 
 // Format date as "dd-MM-yyyy" with seats
-const formatDateWithSeats = (date: Date, seats: number | "block"): string => {
+const formatDateWithSeats = (date: Date, ): string => {
   const day = String(date.getDate()).padStart(2, "0");
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const year = date.getFullYear();
   const dateStr = `${day}-${month}-${year}`;
-  return `${dateStr} (${seats === "block" ? "Block" : `${seats} Seats`})`;
+  return `${dateStr}`;
 };
 
 export const TripCard = ({ trip, onDelete, onEdit }: TripCardProps) => {
@@ -134,11 +134,11 @@ export const TripCard = ({ trip, onDelete, onEdit }: TripCardProps) => {
           </div>
           <div className="flex items-center text-gray-600">
             <Users className="h-4 w-4 mr-2" />
-            <span>{trip.busSize}</span>
+            <span>{displayDate.seats}</span>
           </div>
           <div className="flex items-center text-gray-600">
             <Calendar className="h-4 w-4 mr-2" />
-            <span>{displayDate&&formatDateWithSeats(displayDate.date, displayDate.seats)}</span>
+            <span>{displayDate&&formatDateWithSeats(displayDate.date)}</span>
           </div>
         </div>
         <div className="flex items-center justify-between mt-4">

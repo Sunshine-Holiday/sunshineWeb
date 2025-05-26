@@ -49,12 +49,12 @@ const isValidStartDate = (startDate: unknown): { date: Date; seats: number | "bl
 };
 
 // Format a Date object to "dd-MM-yyyy" with seats
-const formatDateWithSeats = (date: Date, seats: number | "block"): string => {
+const formatDateWithSeats = (date: Date): string => {
   if (!(date instanceof Date) || isNaN(date.getTime())) {
     return "Invalid Date";
   }
   const formattedDate = format(date, "dd-MM-yyyy");
-  return `${formattedDate} (${seats === "block" ? "Block" : `${seats} Seats`})`;
+  return `${formattedDate} `;
 };
 
 export const TripCard = ({ trip }: TripCardProps) => {
@@ -124,11 +124,11 @@ export const TripCard = ({ trip }: TripCardProps) => {
           </div>
           <div className="flex items-center text-gray-600">
             <Users className="h-4 w-4 mr-2" />
-            <span>{trip.busSize}</span>
+            <span>{displayDate.seats}</span>
           </div>
           <div className="flex items-center text-gray-600">
             <Calendar className="h-4 w-4 mr-2" />
-            <span>{formatDateWithSeats(displayDate.date, displayDate.seats)}</span>
+            <span>{formatDateWithSeats(displayDate.date)}</span>
           </div>
         </div>
         <div className="flex items-center justify-between mt-4">

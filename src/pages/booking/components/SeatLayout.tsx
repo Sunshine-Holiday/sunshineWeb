@@ -65,6 +65,7 @@ export const SeatLayout = ({
   totalSeats,
   disabled = false,
 }: SeatLayoutProps) => {
+  console.log("SeatLayout rendered with totalSeats:", seatPrice);
   const [isTwoSeaterLayout, setIsTwoSeaterLayout] = useState(
     totalSeats !== 20 ? true : false
   );

@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 
 interface StartDate {
   date: string;
-  seats: number | "block";
+  seats: number;
 }
 
 interface BookingSummaryProps {
@@ -38,18 +38,16 @@ export const BookingSummary = ({
   onProceed,
   disabled = false,
 }: BookingSummaryProps) => {
-  const isBlockBooking = selectedSeats.includes("block");
-  const totalAmount = isBlockBooking ? seatPrice : selectedSeats.length * seatPrice;
-  const gst = Number(totalAmount) * 0.05; // 5% GST
+  const totalSeats = selectedDate?.seats || 0;
+  const isSeatSelection = totalSeats === 20 || totalSeats === 32;
+  const totalAmount = selectedSeats.length * seatPrice;
+  const gst = Number(totalAmount) * 0.05;
   const finalAmount = Number(totalAmount) + gst;
-  // console.log({ totalAmount ,gst})
 
-  // Debug calculations
   if (isNaN(totalAmount) || isNaN(gst) || isNaN(finalAmount)) {
     console.warn("Invalid amount calculation:", { totalAmount, gst, finalAmount, seatPrice, selectedSeats });
   }
 
-  // Format date to "dd-MM-yyyy" with seats
   const formatDateWithSeats = (startDate: StartDate): string => {
     const date = parse(startDate.date, "dd-MM-yyyy", new Date());
     if (!isValid(date)) {
@@ -57,10 +55,9 @@ export const BookingSummary = ({
       return "Invalid Date";
     }
     const formattedDate = format(date, "dd-MM-yyyy");
-    return `${formattedDate} (${startDate.seats === "block" ? "Block" : `${startDate.seats} Seats`})`;
+    return `${formattedDate} (${startDate.seats} Seats)`;
   };
 
-  // Filter dates to only include present or future dates
   const validDates = tripDetails.date.filter((startDate) => {
     if (!startDate || typeof startDate !== "object" || !("date" in startDate)) {
       return false;
@@ -118,23 +115,16 @@ export const BookingSummary = ({
       </div>
 
       <div className="border-t border-gray-200 pt-4 mb-6">
-        {!isBlockBooking && (
+        {isSeatSelection && (
           <div className="flex justify-between mb-2">
             <span>Selected Seats</span>
             <span>{selectedSeats.join(", ") || "None"}</span>
           </div>
         )}
-        {isBlockBooking ? (
-          <div className="flex justify-between mb-2">
-            <span>Booking Type</span>
-            <span>Block (1 seat)</span>
-          </div>
-        ) : (
-          <div className="flex justify-between mb-2">
-            <span>Price per Seat</span>
-            <span>₹{seatPrice.toLocaleString("en-IN")}</span>
-          </div>
-        )}
+        <div className="flex justify-between mb-2">
+          <span>Price per Seat</span>
+          <span>₹{seatPrice.toLocaleString("en-IN")}</span>
+        </div>
         <div className="flex justify-between mb-2">
           <span>Subtotal</span>
           <span>₹{totalAmount.toLocaleString("en-IN")}</span>
@@ -151,15 +141,15 @@ export const BookingSummary = ({
 
       <Button
         onClick={() => !disabled && onProceed()}
-        disabled={(!isBlockBooking && selectedSeats.length === 0) || loading || disabled}
+        disabled={(isSeatSelection && selectedSeats.length === 0) || loading || disabled}
         className={`w-full relative ${
-          (!isBlockBooking && selectedSeats.length === 0) || loading || disabled
+          (isSeatSelection && selectedSeats.length === 0) || loading || disabled
             ? "bg-gray-300 cursor-not-allowed"
             : "bg-blue-600 hover:bg-blue-700 text-white"
         }`}
       >
         {loading && <FaSpinner className="animate-spin inline mr-2" />}
-        Proceed to Payment
+        Proceed to {isSeatSelection ? "Passenger Details" : "Payment"}
       </Button>
     </motion.div>
   );

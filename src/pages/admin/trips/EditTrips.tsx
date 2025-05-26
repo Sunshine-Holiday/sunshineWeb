@@ -49,7 +49,7 @@ interface BoardingPoint {
 
 interface StartDate {
   date: Date;
-  seats: number | "block";
+  seats: number;
 }
 
 interface TripDetails {
@@ -60,7 +60,6 @@ interface TripDetails {
   duration: string;
   description: string;
   startDates: StartDate[];
-  busSize: string;
   category: string;
   amenities: string[];
   boardingPoints: BoardingPoint[];
@@ -103,7 +102,6 @@ const EditTrips: React.FC = () => {
     duration: "",
     description: "",
     startDates: [],
-    busSize: "",
     category: "",
     amenities: [],
     boardingPoints: [{ location: "", time: "", details: "", maplink: "" }],
@@ -115,7 +113,10 @@ const EditTrips: React.FC = () => {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [selectedSeats, setSelectedSeats] = useState<number | "block" | null>(null);
+  const [selectedSeats, setSelectedSeats] = useState<number | null>(null);
+  const [seatSelectionType, setSeatSelectionType] = useState<"fixed" | "block" | null>(null);
+  const [blockSeats, setBlockSeats] = useState<string>("");
+  const [blockSeatsError, setBlockSeatsError] = useState<string>("");
 
   useEffect(() => {
     if (data) {
@@ -129,7 +130,7 @@ const EditTrips: React.FC = () => {
             }
             return {
               date: startOfDay(parsedDate),
-              seats: item.seats,
+              seats: item.seats === "block" ? 0 : item.seats,
             };
           } catch (error) {
             console.error(`Error parsing date at index ${index}: ${item.date}`, error);
@@ -147,7 +148,6 @@ const EditTrips: React.FC = () => {
         file: null,
         description: data?.trip.description || "",
         startDates: parsedDates,
-        busSize: data?.trip.busSize || "",
         category: data?.trip.category || "",
         amenities: Array.isArray(data?.trip.amenities) && data?.trip.amenities.length > 0 ? data?.trip.amenities : [],
         boardingPoints:
@@ -225,9 +225,6 @@ const EditTrips: React.FC = () => {
         case "description":
           if (!tripDetails.description) newErrors.description = "Description is required";
           break;
-        case "busSize":
-          if (!tripDetails.busSize) newErrors.busSize = "Bus size is required";
-          break;
         case "category":
           if (!tripDetails.category) newErrors.category = "Category is required";
           break;
@@ -291,28 +288,63 @@ const EditTrips: React.FC = () => {
       } else {
         setSelectedDate(normalizedDate);
         setSelectedSeats(null);
+        setSeatSelectionType(null);
+        setBlockSeats("");
+        setBlockSeatsError("");
         setIsModalOpen(true);
       }
     },
     [tripDetails.startDates]
   );
 
+  const validateBlockSeats = useCallback((value: string) => {
+    const num = parseInt(value);
+    if (!value) {
+      return "Number of seats is required";
+    }
+    if (isNaN(num) || num <= 0) {
+      return "Please enter a valid number of seats";
+    }
+    return "";
+  }, []);
+
   const handleModalSubmit = useCallback(() => {
-    if (selectedDate && selectedSeats) {
+    if (selectedDate && selectedSeats !== null) {
       const newStartDate: StartDate = { date: selectedDate, seats: selectedSeats };
       const newDates = [...tripDetails.startDates, newStartDate].sort((a, b) =>
         a.date.getTime() - b.date.getTime()
       );
       setTripDetails((prev) => ({ ...prev, startDates: newDates }));
       setErrors((prev) => ({ ...prev, startDates: "" }));
+      setIsModalOpen(false);
+      setSelectedDate(null);
+      setSelectedSeats(null);
+      setSeatSelectionType(null);
+      setBlockSeats("");
+      setBlockSeatsError("");
+    } else if (seatSelectionType === "block") {
+      const error = validateBlockSeats(blockSeats);
+      if (error) {
+        setBlockSeatsError(error);
+      } else {
+        const newStartDate: StartDate = { date: selectedDate!, seats: parseInt(blockSeats) };
+        const newDates = [...tripDetails.startDates, newStartDate].sort((a, b) =>
+          a.date.getTime() - b.date.getTime()
+        );
+        setTripDetails((prev) => ({ ...prev, startDates: newDates }));
+        setErrors((prev) => ({ ...prev, startDates: "" }));
+        setIsModalOpen(false);
+        setSelectedDate(null);
+        setSelectedSeats(null);
+        setSeatSelectionType(null);
+        setBlockSeats("");
+        setBlockSeatsError("");
+      }
     }
-    setIsModalOpen(false);
-    setSelectedDate(null);
-    setSelectedSeats(null);
-  }, [selectedDate, selectedSeats, tripDetails.startDates]);
+  }, [selectedDate, selectedSeats, seatSelectionType, blockSeats, tripDetails.startDates]);
 
   const validateForm = useCallback(() => {
-    const requiredFields = ["title", "price", "location", "description", "busSize", "category"];
+    const requiredFields = ["title", "price", "location", "description", "category"];
     let newErrors: FormErrors = {};
     let isValid = true;
 
@@ -368,7 +400,6 @@ const EditTrips: React.FC = () => {
             }))
           )
         );
-        formData.append("busSize", tripDetails.busSize);
         formData.append("category", tripDetails.category);
         formData.append("amenities", JSON.stringify(tripDetails.amenities));
         formData.append("boardingPoints", JSON.stringify(tripDetails.boardingPoints));
@@ -506,25 +537,6 @@ const EditTrips: React.FC = () => {
                 )}
               </div>
               <div>
-                <Label htmlFor="busSize">Bus Size *</Label>
-                <Select
-                  value={tripDetails.busSize}
-                  onValueChange={(value) => handleChange("busSize", value)}
-                  onOpenChange={() => handleBlur("busSize")}
-                >
-                  <SelectTrigger className={inputClassName("busSize")}>
-                    <SelectValue placeholder="Select Bus Size" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="20">20 Seats</SelectItem>
-                    <SelectItem value="32">32 Seats</SelectItem>
-                  </SelectContent>
-                </Select>
-                {touched.busSize && errors.busSize && (
-                  <p className="mt-1 text-sm text-red-500">{errors.busSize}</p>
-                )}
-              </div>
-              <div>
                 <Label htmlFor="category">Category *</Label>
                 <Select
                   value={tripDetails.category}
@@ -575,9 +587,7 @@ const EditTrips: React.FC = () => {
                   id: index,
                   start: d.date,
                   end: d.date,
-                  title: `${formatDateToString(d.date)} (${
-                    d.seats === "block" ? "Block" : `${d.seats} Seats`
-                  })`,
+                  title: `${formatDateToString(d.date)} (${d.seats} Seats)`,
                 }))}
                 selectable
                 onSelectSlot={(slotInfo) => handleDateSelection(slotInfo.start)}
@@ -600,8 +610,7 @@ const EditTrips: React.FC = () => {
                       .sort((a, b) => a.date.getTime() - b.date.getTime())
                       .map((d, index) => (
                         <li key={index}>
-                          {formatDateToString(d.date)} -{" "}
-                          {d.seats === "block" ? "Block" : `${d.seats} Seats`}
+                          {formatDateToString(d.date)} - {d.seats} Seats
                         </li>
                       ))}
                   </ul>
@@ -738,10 +747,17 @@ const EditTrips: React.FC = () => {
             </DialogTitle>
           </DialogHeader>
           <RadioGroup
-            value={selectedSeats?.toString()}
-            onValueChange={(value) =>
-              setSelectedSeats(value === "block" ? "block" : parseInt(value))
-            }
+            value={seatSelectionType || ""}
+            onValueChange={(value) => {
+              setSeatSelectionType(value as "fixed" | "block");
+              setSelectedSeats(null);
+              setBlockSeats("");
+              setBlockSeatsError("");
+              if (value === "20" || value === "32") {
+                setSelectedSeats(parseInt(value));
+                setSeatSelectionType("fixed");
+              }
+            }}
             className="space-y-4"
           >
             <div className="flex items-center space-x-2">
@@ -754,14 +770,45 @@ const EditTrips: React.FC = () => {
             </div>
             <div className="flex items-center space-x-2">
               <RadioGroupItem value="block" id="seats-block" />
-              <Label htmlFor="seats-block">Block (No seat selection)</Label>
+              <Label htmlFor="seats-block">Block (Custom seat count)</Label>
             </div>
           </RadioGroup>
+          {seatSelectionType === "block" && (
+            <div className="mt-4">
+              <Label htmlFor="block-seats">Number of Seats to Block</Label>
+              <Input
+                id="block-seats"
+                type="number"
+                placeholder="Enter number of seats"
+                value={blockSeats}
+                onChange={(e) => {
+                  setBlockSeats(e.target.value);
+                  setBlockSeatsError(validateBlockSeats(e.target.value));
+                }}
+                className={blockSeatsError ? "border-red-500" : ""}
+              />
+              {blockSeatsError && (
+                <p className="mt-1 text-sm text-red-500">{blockSeatsError}</p>
+              )}
+            </div>
+          )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsModalOpen(false)}>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsModalOpen(false);
+                setSelectedSeats(null);
+                setSeatSelectionType(null);
+                setBlockSeats("");
+                setBlockSeatsError("");
+              }}
+            >
               Cancel
             </Button>
-            <Button onClick={handleModalSubmit} disabled={!selectedSeats}>
+            <Button
+              onClick={handleModalSubmit}
+              disabled={seatSelectionType === "block" ? !!blockSeatsError || !blockSeats : !selectedSeats}
+            >
               Confirm
             </Button>
           </DialogFooter>

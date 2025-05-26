@@ -265,10 +265,10 @@ const TripDetails = () => {
                       </div>
                     </div>
 
-                    <div className="flex items-center text-gray-600">
+                    {/* <div className="flex items-center text-gray-600">
                       <Users className="h-5 w-5 mr-2" />
                       <span>{trip.busSize} seats</span>
-                    </div>
+                    </div> */}
                   </div>
 
                   {trip.description && (

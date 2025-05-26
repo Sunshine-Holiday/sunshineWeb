@@ -17,12 +17,13 @@ import { useSelector } from "react-redux";
 import { selectCurrentUser } from "@/store/reducer/auth";
 import { FaSpinner } from "react-icons/fa";
 import { format, parse, isValid } from "date-fns";
+import { Button } from "@/components/ui/button";
 
 const INITIAL_STEP = "select-seats";
 
 interface StartDate {
   date: string;
-  seats: number | "block";
+  seats: number; // As per Trip model, seats is a Number
 }
 
 const BookingPage = () => {
@@ -66,17 +67,7 @@ const BookingPage = () => {
     } else {
       date = dateInput;
     }
-    if (!isValid(date)) {
-      console.error("Invalid date for API:", dateInput);
-      return "";
-    }
-    return format(date, "dd-MM-yyyy");
-  };
-
-  // Format date with seats for display
-  const formatDateWithSeats = (startDate: StartDate): string => {
-    const dateStr = formatDateToString(startDate);
-    return `${dateStr} (${startDate.seats === "block" ? "Block" : `${startDate.seats} Seats`})`;
+    return isValid(date) ? format(date, "dd-MM-yyyy") : "";
   };
 
   // API queries and mutations
@@ -104,7 +95,7 @@ const BookingPage = () => {
   }, [bookingError]);
 
   useEffect(() => {
-    if (tripData) setTrip(tripData);
+    if (tripData) setTrip(tripData.trip);
   }, [tripData]);
 
   useEffect(() => {
@@ -117,24 +108,27 @@ const BookingPage = () => {
   }, [bookingData]);
 
   useEffect(() => {
-    // If selectedDate is a block booking, skip seat selection
-    if (selectedDate?.seats === "block") {
-      setStep("passenger-details");
-      setPassengers([
-        {
-          name: "",
-          age: "",
-          gender: "",
-          idProof: "",
-          idProofNumber: "",
-          address: "",
-        },
-      ]);
-      setSelectedSeats(["block"]);
-    } else {
-      setStep(INITIAL_STEP);
-      setSelectedSeats([]);
-      setPassengers([]);
+    if (selectedDate) {
+      const totalSeats = selectedDate.seats;
+      // If totalSeats is not 20 or 32, skip seat selection and go to passenger details
+      if (totalSeats !== 20 && totalSeats !== 32) {
+        setStep("passenger-details");
+        setSelectedSeats([]); // No specific seats for non-20/32
+        setPassengers([
+          {
+            name: "",
+            age: "",
+            gender: "",
+            idProof: "",
+            idProofNumber: "",
+            address: "",
+          },
+        ]);
+      } else {
+        setStep(INITIAL_STEP);
+        setSelectedSeats([]);
+        setPassengers([]);
+      }
     }
   }, [selectedDate]);
 
@@ -151,7 +145,7 @@ const BookingPage = () => {
   };
 
   const handleSeatSelect = (seatId: string) => {
-    if (isSubmitting || selectedDate?.seats === "block") return;
+    if (isSubmitting) return;
     if (bookedSeats.includes(seatId)) {
       toast.error("This seat is already booked");
       return;
@@ -170,6 +164,33 @@ const BookingPage = () => {
       updatedPassengers[index] = data;
       return updatedPassengers;
     });
+  };
+
+  const addPassenger = () => {
+    if (isSubmitting) return;
+    const maxAvailableSeats = selectedDate
+      ? selectedDate.seats - bookedSeats.length
+      : 0;
+    if (passengers.length >= maxAvailableSeats) {
+      toast.error(`Cannot add more passengers. Only ${maxAvailableSeats} seats available.`);
+      return;
+    }
+    setPassengers((prev) => [
+      ...prev,
+      {
+        name: "",
+        age: "",
+        gender: "",
+        idProof: "",
+        idProofNumber: "",
+        address: "",
+      },
+    ]);
+  };
+
+  const removePassenger = (index: number) => {
+    if (isSubmitting) return;
+    setPassengers((prev) => prev.filter((_, i) => i !== index));
   };
 
   const validatePassengerDetails = () => {
@@ -197,7 +218,10 @@ const BookingPage = () => {
           try {
             const resp = await createBooking({
               tripId,
-              selectedSeats,
+              selectedSeats:
+                selectedDate?.seats !== 20 && selectedDate?.seats !== 32
+                  ? Array(passengers.length).fill("N/A") // No specific seats for non-20/32
+                  : selectedSeats,
               selectedDate: formatDateToString(selectedDate),
               passengers,
               price: finalAmount,
@@ -255,23 +279,20 @@ const BookingPage = () => {
     if (isSubmitting) return;
 
     if (step === "select-seats") {
-      if (selectedSeats.length === 0 && selectedDate?.seats !== "block") {
+      if (selectedSeats.length === 0) {
         toast.error("Please select at least one seat.");
         return;
       }
-
-      if (selectedDate?.seats !== "block") {
-        setPassengers(
-          Array(selectedSeats.length).fill({
-            name: "",
-            age: "",
-            gender: "",
-            idProof: "",
-            idProofNumber: "",
-            address: "",
-          })
-        );
-      }
+      setPassengers(
+        Array(selectedSeats.length).fill({
+          name: "",
+          age: "",
+          gender: "",
+          idProof: "",
+          idProofNumber: "",
+          address: "",
+        })
+      );
       setStep("passenger-details");
     } else {
       if (!validatePassengerDetails()) {
@@ -281,17 +302,14 @@ const BookingPage = () => {
 
       setIsSubmitting(true);
       try {
-   
-        // Validate trip.price
-        if (typeof trip.price !== "string" || isNaN(trip.price)) {
+        if (typeof trip.price !== "string" || isNaN(Number(trip.price))) {
           throw new Error("Invalid trip price");
         }
 
-        const totalAmount = selectedDate?.seats === "block" ? Number(trip.price) : selectedSeats.length * Number(trip.price);
-        const gst = totalAmount * 0.05; // 5% GST
+        const totalAmount = passengers.length * Number(trip.price);
+        const gst = totalAmount * 0.05;
         const finalAmount = totalAmount + gst;
 
-        // Debug calculations
         if (isNaN(totalAmount) || isNaN(gst) || isNaN(finalAmount)) {
           console.warn("Invalid amount calculation:", { totalAmount, gst, finalAmount, tripPrice: trip.price });
           throw new Error("Invalid amount calculation");
@@ -331,20 +349,13 @@ const BookingPage = () => {
     time: trip.duration || "N/A",
     busType: trip.busSize || "Standard",
     amenities: trip.amenities || [],
-    price: trip?.price || 1499,
-    boardingPoints: trip?.boardingPoints || [],
+    price: Number(trip.price) || 0,
+    boardingPoints: trip.boardingPoints || [],
     busSize: trip.busSize || "20",
   };
 
-  // Determine totalSeats for SeatLayout
-  const totalSeats = selectedDate?.seats && typeof selectedDate.seats === "number"
-    ? selectedDate.seats
-    : Number(tripDetails.busSize);
-
-  // Validate totalSeats
-  if (totalSeats !== 20 && totalSeats !== 32) {
-    console.warn(`Invalid totalSeats value: ${totalSeats}. Expected 20 or 32.`);
-  }
+  const totalSeats = selectedDate?.seats || Number(tripDetails.busSize);
+  const maxAvailableSeats = totalSeats - bookedSeats.length;
 
   return (
     <div className="min-h-screen bg-gray-50 pt-24 pb-16 relative">
@@ -368,24 +379,18 @@ const BookingPage = () => {
           className="text-center mb-12"
         >
           <h1 className="text-4xl font-bold text-gray-900 mb-4">
-            {step === "select-seats"
-              ? selectedDate?.seats === "block"
-                ? "Confirm Block Booking"
-                : "Select Your Seats"
-              : "Passenger Details"}
+            {step === "select-seats" ? "Select Your Seats" : "Passenger Details"}
           </h1>
           <p className="text-gray-600">
             {step === "select-seats"
-              ? selectedDate?.seats === "block"
-                ? "Confirm your full bus booking"
-                : "Choose your preferred seats for a comfortable journey"
-              : "Please fill in the details for all passengers"}
+              ? "Choose your preferred seats for a comfortable journey"
+              : `Enter details for up to ${maxAvailableSeats} passenger(s)`}
           </p>
         </motion.div>
 
         <div className="grid md:grid-cols-3 gap-8">
           <div className="md:col-span-2">
-            {step === "select-seats" && selectedDate?.seats !== "block" ? (
+            {step === "select-seats" && (totalSeats === 20 || totalSeats === 32) ? (
               <SeatLayout
                 totalSeats={totalSeats}
                 selectedSeats={selectedSeats}
@@ -397,15 +402,37 @@ const BookingPage = () => {
             ) : (
               <div className="space-y-4">
                 {passengers.map((_, index) => (
-                  <PassengerForm
-                    key={index}
-                    tripDetails={tripDetails}
-                    seatNumber={selectedDate?.seats === "block" ? "Block" : selectedSeats[index]}
-                    index={index}
-                    onChange={handlePassengerChange}
-                    passengers={passengers}
-                  />
+                  <div key={index} className="relative">
+                    <PassengerForm
+                      tripDetails={tripDetails}
+                      seatNumber={`Passenger ${index + 1}`}
+                      index={index}
+                      onChange={handlePassengerChange}
+                      passengers={passengers}
+                    />
+                    {passengers.length > 1 && (
+                      <Button
+                        onClick={() => removePassenger(index)}
+                        className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white"
+                        disabled={isSubmitting}
+                      >
+                        Remove
+                      </Button>
+                    )}
+                  </div>
                 ))}
+                {maxAvailableSeats > passengers.length &&totalSeats!==32 && totalSeats!==20 &&(
+                  <Button
+                    onClick={addPassenger}
+                    className="bg-green-500 hover:bg-green-600 text-white"
+                    disabled={isSubmitting}
+                  >
+                    Add Passenger
+                  </Button>
+                )}
+                <p className="text-sm text-gray-600">
+                  {maxAvailableSeats} seat(s) available
+                </p>
               </div>
             )}
           </div>

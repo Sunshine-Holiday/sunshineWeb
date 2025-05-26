@@ -8,7 +8,6 @@ import {
   useUpdateBookingMutation,
   useUpdateReviewMutation,
 } from "@/store/api/booking";
-
 import {
   Table,
   TableHeader,
@@ -17,22 +16,29 @@ import {
   TableCell,
   TableHead,
 } from "@/components/ui/table";
-import { 
-  CalendarDays, 
-  Ticket, 
-  MapPin, 
-  Edit, 
-  Trash2, 
-  FileText, 
-  Star, 
-  CheckCircle, 
-  XCircle, 
-  AlertCircle, 
-  Filter, 
-  ArrowLeft
+import {
+  CalendarDays,
+  Ticket,
+  MapPin,
+  Edit,
+  Trash2,
+  FileText,
+  Star,
+  CheckCircle,
+  XCircle,
+  AlertCircle,
+  Filter,
+  ArrowLeft,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+  CardFooter,
+} from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SeatLayout } from "@/pages/booking/components/SeatLayout";
 import { Button } from "@/components/ui/button";
@@ -86,7 +92,7 @@ const BookingDetails = () => {
     trip: tripId,
     date: date,
   });
-  
+
   const {
     data: reviewData,
     isLoading: isReviewLoading,
@@ -224,17 +230,21 @@ const BookingDetails = () => {
   }
 
   const { purchaseHistory, selectedDate, tripDetails, message } = bookingData;
+  console.log("Booking Data:", tripDetails);
   const seatPrice = tripDetails?.price || 0;
-  const totalSeats = tripDetails?.totalSeats || 31;
+  const totalSeats = selectedDate?.seats || Number(tripDetails.totalSeat);
   const bookedSeatCount = bookedSeats.length;
   const availableSeatCount = totalSeats - bookedSeatCount;
+
+  // Determine if SeatLayout should be shown (only for 20 or 32 seats)
+  const showSeatLayout = totalSeats === 20 || totalSeats === 32;
 
   return (
     <div className="container mx-auto p-4">
       <div className="flex items-center mb-4">
-        <Button 
-          variant="ghost" 
-          className="mr-2" 
+        <Button
+          variant="ghost"
+          className="mr-2"
           onClick={() => navigate(-1)}
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
@@ -258,7 +268,7 @@ const BookingDetails = () => {
         <div className="flex flex-wrap gap-2 mt-4 md:mt-0">
           <Badge variant="outline" className="px-3 py-1 bg-blue-50 text-blue-600 font-medium">
             <Ticket className="h-4 w-4 mr-1" />
-            {purchaseHistory.length} {purchaseHistory.length === 1 ? 'Booking' : 'Bookings'}
+            {purchaseHistory.length} {purchaseHistory.length === 1 ? "Booking" : "Bookings"}
           </Badge>
           <Badge variant="outline" className="px-3 py-1 bg-green-50 text-green-600 font-medium">
             <MapPin className="h-4 w-4 mr-1" />
@@ -356,10 +366,12 @@ const BookingDetails = () => {
                                     variant={booking.isReviewActivate ? "default" : "outline"}
                                     size="sm"
                                     className={booking.isReviewActivate ? "bg-green-600 hover:bg-green-700" : ""}
-                                    onClick={() => handleToggleReviewActivate(
-                                      booking.bookingId,
-                                      booking.isReviewActivate
-                                    )}
+                                    onClick={() =>
+                                      handleToggleReviewActivate(
+                                        booking.bookingId,
+                                        booking.isReviewActivate
+                                      )
+                                    }
                                     disabled={isUpdatingBooking}
                                   >
                                     {booking.isReviewActivate ? (
@@ -376,7 +388,11 @@ const BookingDetails = () => {
                                   </Button>
                                 </TooltipTrigger>
                                 <TooltipContent>
-                                  <p>{booking.isReviewActivate ? "Deactivate review option" : "Activate review option"}</p>
+                                  <p>
+                                    {booking.isReviewActivate
+                                      ? "Deactivate review option"
+                                      : "Activate review option"}
+                                  </p>
                                 </TooltipContent>
                               </Tooltip>
                             </TooltipProvider>
@@ -428,9 +444,13 @@ const BookingDetails = () => {
                                   <AlertDialogHeader>
                                     <AlertDialogTitle>Confirm Deletion</AlertDialogTitle>
                                     <AlertDialogDescription>
-                                      This action cannot be undone. This will permanently delete the booking for{" "}
-                                      <span className="font-medium">{booking.user.email}</span> with ID{" "}
-                                      <span className="font-medium">{booking.bookingId.substring(0, 8)}...</span>
+                                      This action cannot be undone. This will permanently delete
+                                      the booking for{" "}
+                                      <span className="font-medium">{booking.user.email}</span>{" "}
+                                      with ID{" "}
+                                      <span className="font-medium">
+                                        {booking.bookingId.substring(0, 8)}...
+                                      </span>
                                     </AlertDialogDescription>
                                   </AlertDialogHeader>
                                   <AlertDialogFooter>
@@ -465,7 +485,7 @@ const BookingDetails = () => {
             <CardHeader>
               <CardTitle>Seat Map</CardTitle>
               <CardDescription>
-                View booked and available seats for this trip on {selectedDate}. 
+                View booked and available seats for this trip on {selectedDate}.
                 <div className="flex gap-6 mt-2">
                   <div className="flex items-center gap-2">
                     <span className="h-3 w-3 rounded-full bg-green-500"></span>
@@ -479,13 +499,22 @@ const BookingDetails = () => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <SeatLayout
-                selectedSeats={[]}
-                onSeatSelect={handleSeatSelect}
-                bookedSeats={bookedSeats}
-                seatPrice={seatPrice}
-                totalSeats={totalSeats}
-              />
+              {showSeatLayout ? (
+                <SeatLayout
+                  selectedSeats={[]}
+                  onSeatSelect={handleSeatSelect}
+                  bookedSeats={bookedSeats}
+                  seatPrice={seatPrice}
+                  totalSeats={totalSeats}
+                />
+              ) : (
+                <div className="text-center py-8 border border-dashed rounded-lg">
+                  <MapPin className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+                  <p className="text-gray-500">
+                    Seat map is not available for this trip ({totalSeats} seats).
+                  </p>
+                </div>
+              )}
 
               {purchaseHistory.length > 0 && (
                 <div className="mt-8">
@@ -506,7 +535,8 @@ const BookingDetails = () => {
                                   {booking.user.email.split("@")[0]}
                                 </p>
                                 <p className="text-xs text-gray-500">
-                                  {booking.totalPassengers} passenger{booking.totalPassengers > 1 ? 's' : ''}
+                                  {booking.totalPassengers} passenger
+                                  {booking.totalPassengers > 1 ? "s" : ""}
                                 </p>
                               </div>
                             </div>
@@ -516,6 +546,7 @@ const BookingDetails = () => {
                                   variant="ghost"
                                   size="sm"
                                   className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                                  onClick={() => openDeleteDialog(booking.bookingId)}
                                 >
                                   <Trash2 className="h-4 w-4" />
                                 </Button>
@@ -524,8 +555,8 @@ const BookingDetails = () => {
                                 <AlertDialogHeader>
                                   <AlertDialogTitle>Confirm Deletion</AlertDialogTitle>
                                   <AlertDialogDescription>
-                                    This action cannot be undone. This will permanently delete the booking for{" "}
-                                    {booking.user.email} with ID{" "}
+                                    This action cannot be undone. This will permanently delete
+                                    the booking for {booking.user.email} with ID{" "}
                                     {booking.bookingId.substring(0, 8)}...
                                   </AlertDialogDescription>
                                 </AlertDialogHeader>
@@ -564,7 +595,9 @@ const BookingDetails = () => {
                                     <Button
                                       size="sm"
                                       className="h-8"
-                                      onClick={() => handleSubmitEdit(`${booking.bookingId}-${seat}`)}
+                                      onClick={() =>
+                                        handleSubmitEdit(`${booking.bookingId}-${seat}`)
+                                      }
                                       disabled={isUpdatingTrip}
                                     >
                                       Save
@@ -572,7 +605,10 @@ const BookingDetails = () => {
                                   </div>
                                 ) : (
                                   <div className="flex items-center gap-2 bg-gray-50 p-1 px-2 rounded-lg">
-                                    <Badge variant="secondary" className="bg-blue-100 text-blue-700">
+                                    <Badge
+                                      variant="secondary"
+                                      className="bg-blue-100 text-blue-700"
+                                    >
                                       {seat}
                                     </Badge>
                                     <Button
@@ -607,10 +643,7 @@ const BookingDetails = () => {
                   Approve or disapprove customer reviews for this trip
                 </CardDescription>
               </div>
-              <Select 
-                value={reviewFilter} 
-                onValueChange={setReviewFilter}
-              >
+              <Select value={reviewFilter} onValueChange={setReviewFilter}>
                 <SelectTrigger className="w-[180px]">
                   <div className="flex items-center">
                     <Filter className="mr-2 h-4 w-4" />
@@ -638,7 +671,8 @@ const BookingDetails = () => {
                 <div className="text-center py-12 border border-dashed rounded-lg">
                   <Star className="h-12 w-12 text-gray-300 mx-auto mb-4" />
                   <p className="text-gray-500">
-                    No reviews found {reviewFilter !== "all" ? `with '${reviewFilter}' status` : ""}.
+                    No reviews found{" "}
+                    {reviewFilter !== "all" ? `with '${reviewFilter}' status` : ""}.
                   </p>
                 </div>
               ) : (
@@ -657,13 +691,16 @@ const BookingDetails = () => {
                               <p className="font-medium">{review.user.email}</p>
                               <div className="flex items-center text-xs text-gray-500 mt-1">
                                 <CalendarDays className="h-3 w-3 mr-1" />
-                                <p>Travel: {new Date(review.travelDate).toLocaleDateString()}</p>
+                                <p>
+                                  Travel: {new Date(review.travelDate).toLocaleDateString()}
+                                </p>
                                 <span className="mx-2">•</span>
-                                <p>Booking: {new Date(review.bookingDate).toLocaleDateString()}</p>
+                                <p>
+                                  Booking: {new Date(review.bookingDate).toLocaleDateString()}
+                                </p>
                               </div>
                             </div>
                           </div>
-                          
                           <Badge
                             variant={
                               review.isAdminApproved
@@ -710,7 +747,9 @@ const BookingDetails = () => {
                               size="sm"
                               variant="outline"
                               className="text-green-600 border-green-200 hover:bg-green-50 hover:text-green-700"
-                              onClick={() => handleReviewStatusUpdate(review._id, "admin_approved")}
+                              onClick={() =>
+                                handleReviewStatusUpdate(review._id, "admin_approved")
+                              }
                               disabled={isUpdatingReview}
                             >
                               <CheckCircle className="h-4 w-4 mr-1" />
@@ -722,7 +761,9 @@ const BookingDetails = () => {
                               variant="outline"
                               size="sm"
                               className="text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
-                              onClick={() => handleReviewStatusUpdate(review._id, "admin_rejected")}
+                              onClick={() =>
+                                handleReviewStatusUpdate(review._id, "admin_rejected")
+                              }
                               disabled={isUpdatingReview}
                             >
                               <XCircle className="h-4 w-4 mr-1" />
@@ -745,14 +786,19 @@ const BookingDetails = () => {
           <CardContent className="p-4">
             <div className="flex items-start">
               <div className="mr-3 mt-1">
-                <svg 
-                  xmlns="http://www.w3.org/2000/svg" 
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
                   className="h-5 w-5 text-blue-600"
-                  fill="none" 
-                  viewBox="0 0 24 24" 
+                  fill="none"
+                  viewBox="0 0 24 24"
                   stroke="currentColor"
                 >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
                 </svg>
               </div>
               <p className="text-blue-700 text-sm">{message}</p>

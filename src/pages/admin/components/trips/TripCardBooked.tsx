@@ -2,8 +2,15 @@ import React from "react";
 import { motion } from "framer-motion";
 import { MapPin, Users, Calendar } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { parse, isValid } from "date-fns";
 import { scaleOnHover } from "@/utils/animations";
 import { IMAGE_URL } from "@/store/store";
+import { Button } from "@/components/ui/button";
+
+interface StartDate {
+  date: string;
+  seats: number | "block";
+}
 
 interface TripCardProps {
   trip: {
@@ -13,30 +20,36 @@ interface TripCardProps {
     location: string;
     duration: string;
     busSize: string;
-    startDates: (string | null | undefined)[];
+    startDates: (StartDate | null | undefined)[];
     price: number;
     banner?: string;
   };
 }
 
-// Validate and parse a date string in "dd-mm-yyyy" format
-const isValidStartDate = (startDate: string | null | undefined): Date | null => {
-  if (typeof startDate !== "string" || !startDate.trim()) {
-    console.warn("Invalid startDate:", startDate);
+// Validate and parse a date string in "dd-MM-yyyy" format
+const isValidStartDate = (startDate: unknown): { date: Date; seats: number | "block" } | null => {
+  if (!startDate || typeof startDate !== "object" || !("date" in startDate) || !("seats" in startDate)) {
     return null;
   }
 
-  const [day, month, year] = startDate.split("-").map(Number);
-  if (isNaN(day) || isNaN(month) || isNaN(year)) {
-    console.warn(`Invalid date format for startDate: ${startDate}`);
+  const { date, seats } = startDate as StartDate;
+  if (typeof date !== "string" || !/^\d{2}-\d{2}-\d{4}$/.test(date)) {
     return null;
   }
 
-  const tripDate = new Date(year, month - 1, day);
-  return isNaN(tripDate.getTime()) ? null : tripDate;
+  const parsedDate = parse(date, "dd-MM-yyyy", new Date());
+  if (!isValid(parsedDate)) {
+    return null;
+  }
+
+  if (seats !== "block" && seats !== 20 && seats !== 32) {
+    return null;
+  }
+
+  return { date: parsedDate, seats };
 };
 
-// Format date as "dd-mm-yyyy"
+// Format date as "dd-MM-yyyy"
 const formatDate = (date: Date): string => {
   const day = String(date.getDate()).padStart(2, "0");
   const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -49,31 +62,28 @@ export const TripCard = ({ trip }: TripCardProps) => {
   const today = new Date();
   const bannerURL = trip.banner ? IMAGE_URL + trip.banner : undefined;
 
-  // Convert all start dates to Date objects and filter valid ones
+  // Convert all start dates to objects with Date and seats, filter valid ones
   const validStartDates = trip.startDates
     .map(isValidStartDate)
-    .filter((date): date is Date => date !== null)
-    .sort((a, b) => a.getTime() - b.getTime());
+    .filter((item): item is { date: Date; seats: number | "block" } => item !== null)
+    .sort((a, b) => a.date.getTime() - b.date.getTime());
 
   // Find if today matches any start date
   const todayMatch = validStartDates.find(
-    (date) => date.toDateString() === today.toDateString()
+    (item) => item.date.toDateString() === today.toDateString()
   );
 
   // If today matches, use it; otherwise, find the next date after today, or use first available date
   const displayDate = todayMatch ||
-    validStartDates.find((date) => date > today) ||
+    validStartDates.find((item) => item.date > today) ||
     validStartDates[0];
-
-  // If no valid dates exist, display a message but still render the card
-  const hasValidDate = !!displayDate;
 
   const handleCardClick = () => {
     console.log(trip._id);
-    navigate(`/admin/block-trip/${trip._id}`, {
+    navigate(`/trips/${trip._id}`, {
       state: {
         trip,
-        startDate: displayDate ? formatDate(displayDate) : null,
+        startDate: displayDate ? formatDate(displayDate.date) : null,
       },
     });
   };
@@ -83,16 +93,17 @@ export const TripCard = ({ trip }: TripCardProps) => {
     navigate(`/admin/booked-data/${trip._id}`, {
       state: {
         trip,
-        startDate: displayDate ? formatDate(displayDate) : null,
+        startDate: displayDate ? formatDate(displayDate.date) : null,
       },
     });
   };
 
-  const handleBlockSeat = () => {
+  const handleBlockSeat = (e: React.MouseEvent) => {
+    e.stopPropagation();
     navigate(`/admin/block-trip/${trip._id}`, {
       state: {
         trip,
-        startDate: displayDate ? formatDate(displayDate) : null,
+        startDate: displayDate ? formatDate(displayDate.date) : null,
       },
     });
   };
@@ -130,14 +141,15 @@ export const TripCard = ({ trip }: TripCardProps) => {
             </div>
             <div className="flex items-center text-gray-600 text-sm sm:text-base">
               <Users className="h-4 w-4 mr-2 flex-shrink-0" />
-              <span className="truncate">{trip.busSize}</span>
+              <span>{displayDate ? displayDate.seats : "N/A"}</span>
             </div>
             <div className="flex items-center text-gray-600 text-sm sm:text-base">
               <Calendar className="h-4 w-4 mr-2 flex-shrink-0" />
               <span className="truncate">
-                {hasValidDate ? formatDate(displayDate) : "No valid dates available"}
+                {displayDate ? formatDate(displayDate.date) : "No valid date"}
               </span>
             </div>
+          
           </div>
         </div>
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mt-3">
@@ -146,20 +158,20 @@ export const TripCard = ({ trip }: TripCardProps) => {
           </span>
         </div>
         <div className="mt-3 flex flex-col sm:flex-row gap-2">
-          <motion.button
-            {...scaleOnHover}
+          <Button
+            variant="default"
             onClick={handleViewBooked}
-            className="bg-blue-500 text-white px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg hover:bg-blue-600 text-sm sm:text-base w-full sm:w-auto text-center"
+            className="bg-blue-500 hover:bg-blue-600 text-white w-full sm:w-auto"
           >
             View Booked
-          </motion.button>
-          <motion.button
-            {...scaleOnHover}
+          </Button>
+          <Button
+            variant="destructive"
             onClick={handleBlockSeat}
-            className="bg-red-500 text-white px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg hover:bg-red-600 text-sm sm:text-base w-full sm:w-auto text-center"
+            className="bg-red-500 hover:bg-red-600 text-white w-full sm:w-auto"
           >
             Block Seat
-          </motion.button>
+          </Button>
         </div>
       </div>
     </motion.div>

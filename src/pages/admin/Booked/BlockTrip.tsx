@@ -14,6 +14,7 @@ import { useSelector } from "react-redux";
 import { selectCurrentUser } from "@/store/reducer/auth";
 import { FaSpinner } from "react-icons/fa";
 import { format, parse, isValid } from "date-fns";
+import { MapPin } from "lucide-react";
 
 interface StartDate {
   date: string;
@@ -57,17 +58,17 @@ interface TripDetails {
 const BookingPage = () => {
   const { state } = useLocation();
   const userDetails = useSelector(selectCurrentUser);
-
   const tripId = state?.trip?._id;
-  const startDate = state?.startDate;
+  const startDate: StartDate | undefined = state?.startDate;
   const navigate = useNavigate();
 
   // State variables
-  const [selectedDate, setSelectedDate] = useState<string>(startDate || "");
+  const [selectedDate, setSelectedDate] = useState<string>(startDate?.date || "");
   const [selectedSeats, setSelectedSeats] = useState<string[]>([]);
   const [bookedSeats, setBookedSeats] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [trip, setTrip] = useState<Trip | null>(null);
+  const [showSeatLayout, setShowSeatLayout] = useState<boolean>(false);
 
   // Date formatting functions
   const formatDateToString = (dateInput: string | Date): string => {
@@ -117,6 +118,25 @@ const BookingPage = () => {
 
   const [createBooking] = useCreatebookingMutation();
 
+  // Get totalSeats from startDate or trip
+  const getTotalSeats = (): number | "block" | undefined => {
+    if (trip?.startDates) {
+      const matchingDate = trip.startDates.find(
+        (d) => d.date === selectedDate
+      );
+      return matchingDate?.seats;
+    }
+    return undefined;
+  };
+
+  const totalSeats = getTotalSeats();
+
+  // Effect to update showSeatLayout when totalSeats changes
+  useEffect(() => {
+    const isValidSeatCount = typeof totalSeats === "number" && (totalSeats === 20 || totalSeats === 32);
+    setShowSeatLayout(isValidSeatCount);
+  }, [totalSeats]);
+
   // Date checking function
   const checkAndUpdateDate = (startDates: StartDate[]) => {
     const today = format(new Date(), "dd-MM-yyyy");
@@ -162,14 +182,14 @@ const BookingPage = () => {
   }, [bookingError]);
 
   useEffect(() => {
-    if (tripData) setTrip(tripData);
+    if (tripData) setTrip(tripData.trip);
   }, [tripData]);
 
   useEffect(() => {
     if (trip?.startDates && !selectedDate) {
       checkAndUpdateDate(trip.startDates);
     }
-  }, [trip?.startDates]);
+  }, [trip?.startDates, selectedDate]);
 
   useEffect(() => {
     if (bookingData?.selectedSeats) {
@@ -182,13 +202,7 @@ const BookingPage = () => {
   // Handlers
   const changeDate = (date: string) => {
     setSelectedDate(date);
-  };
-
-  const isTripToday = () => {
-    const today = format(new Date(), "dd-MM-yyyy");
-    return trip?.startDates?.some(
-      (item) => formatDateToString(item.date) === today
-    );
+    setSelectedSeats([]); // Reset selected seats when date changes
   };
 
   const handleSeatSelect = (seatId: string) => {
@@ -212,23 +226,23 @@ const BookingPage = () => {
       return;
     }
 
-    if (selectedSeats.length === 0) {
+    if (showSeatLayout && selectedSeats.length === 0) {
       toast.error("Please select at least one seat.");
       return;
     }
 
     setIsSubmitting(true);
 
-    const totalAmount = selectedSeats.length * Number(trip.price);
+    const totalAmount = (showSeatLayout ? selectedSeats.length : 1) * Number(trip.price);
     const gst = totalAmount * 0.05;
     const finalAmount = totalAmount + gst;
 
     try {
       const resp = await createBooking({
         tripId,
-        selectedSeats,
+        selectedSeats: showSeatLayout ? selectedSeats : ["N/A"],
         selectedDate: formatDateToString(selectedDate),
-        passengers: [], // Empty passengers array
+        passengers: [],
         price: finalAmount,
       }).unwrap();
 
@@ -296,22 +310,35 @@ const BookingPage = () => {
           className="text-center mb-12"
         >
           <h1 className="text-4xl font-bold text-gray-900 mb-4">
-            Select Your Seats
+            {showSeatLayout ? "Select Your Seats" : "Block Seat Booking"}
           </h1>
           <p className="text-gray-600">
-            Choose your preferred seats for a comfortable journey
+            {showSeatLayout
+              ? "Choose your preferred seats for a comfortable journey"
+              : "This is a block seat booking. No seat selection is required."}
           </p>
         </motion.div>
 
         <div className="grid md:grid-cols-3 gap-8">
           <div className="md:col-span-2">
-            <SeatLayout
-              totalSeats={Number(30)}
-              selectedSeats={selectedSeats}
-              onSeatSelect={handleSeatSelect}
-              bookedSeats={bookedSeats}
-              seatPrice={tripDetails.price}
-            />
+            {showSeatLayout ? (
+              <SeatLayout
+                totalSeats={totalSeats as number} // Safe cast since showSeatLayout ensures number
+                selectedSeats={selectedSeats}
+                onSeatSelect={handleSeatSelect}
+                bookedSeats={bookedSeats}
+                seatPrice={tripDetails.price}
+              />
+            ) : (
+              <div className="text-center py-12 border border-dashed rounded-lg">
+                <MapPin className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+                <p className="text-gray-500">
+                  {totalSeats === "block"
+                    ? "This is a Block seat booking. No seat selection is available."
+                    : `Seat selection is not available for this trip (${totalSeats} seats).`}
+                </p>
+              </div>
+            )}
           </div>
 
           <div className="md:col-span-1">
