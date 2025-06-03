@@ -23,7 +23,7 @@ const INITIAL_STEP = "select-seats";
 
 interface StartDate {
   date: string;
-  seats: number; // As per Trip model, seats is a Number
+  seats: number;
 }
 
 const BookingPage = () => {
@@ -101,7 +101,6 @@ const BookingPage = () => {
   useEffect(() => {
     if (bookingData?.selectedSeats) {
       setBookedSeats(bookingData.selectedSeats);
-      console.log("Booked seats:", bookingData?.selectedSeats);
     } else {
       setBookedSeats([]);
     }
@@ -110,20 +109,17 @@ const BookingPage = () => {
   useEffect(() => {
     if (selectedDate) {
       const totalSeats = selectedDate.seats;
-      // If totalSeats is not 20 or 32, skip seat selection and go to passenger details
       if (totalSeats !== 20 && totalSeats !== 32) {
         setStep("passenger-details");
         setSelectedSeats([]); // No specific seats for non-20/32
-        setPassengers([
-          {
-            name: "",
-            age: "",
-            gender: "",
-            idProof: "",
-            idProofNumber: "",
-            address: "",
-          },
-        ]);
+        setPassengers([{
+          name: "",
+          age: "",
+          gender: "",
+          idProof: "",
+          idProofNumber: "",
+          address: "",
+        }]);
       } else {
         setStep(INITIAL_STEP);
         setSelectedSeats([]);
@@ -135,13 +131,8 @@ const BookingPage = () => {
   // Handlers
   const changeDate = (date: StartDate) => {
     setSelectedDate(date);
-  };
-
-  const isTripToday = () => {
-    const today = format(new Date(), "dd-MM-yyyy");
-    return trip?.startDates?.some(
-      (date: StartDate) => formatDateToString(date) === today
-    );
+    setSelectedSeats([]);
+    setPassengers([]);
   };
 
   const handleSeatSelect = (seatId: string) => {
@@ -150,11 +141,28 @@ const BookingPage = () => {
       toast.error("This seat is already booked");
       return;
     }
-    setSelectedSeats((prev) =>
-      prev.includes(seatId)
+    setSelectedSeats((prev) => {
+      const newSeats = prev.includes(seatId)
         ? prev.filter((id) => id !== seatId)
-        : [...prev, seatId].sort()
-    );
+        : [...prev, seatId].sort();
+      
+      // Update passengers array to match selected seats
+      setPassengers((prevPassengers) => {
+        const newPassengers = newSeats.map((seat, index) => 
+          prevPassengers[index] || {
+            name: "",
+            age: "",
+            gender: "",
+            idProof: "",
+            idProofNumber: "",
+            address: "",
+          }
+        );
+        return newPassengers;
+      });
+      
+      return newSeats;
+    });
   };
 
   const handlePassengerChange = (index: number, data: PassengerData) => {
@@ -191,6 +199,9 @@ const BookingPage = () => {
   const removePassenger = (index: number) => {
     if (isSubmitting) return;
     setPassengers((prev) => prev.filter((_, i) => i !== index));
+    if (selectedDate?.seats === 20 || selectedDate?.seats === 32) {
+      setSelectedSeats((prev) => prev.filter((_, i) => i !== index));
+    }
   };
 
   const validatePassengerDetails = () => {
@@ -203,6 +214,12 @@ const BookingPage = () => {
         passenger.idProofNumber &&
         passenger.address
     );
+  };
+
+  const handleGoBack = () => {
+    if (selectedDate?.seats === 20 || selectedDate?.seats === 32) {
+      setStep("select-seats");
+    }
   };
 
   const handlePayment = async (paymentDetail: any, finalAmount: number) => {
@@ -220,7 +237,7 @@ const BookingPage = () => {
               tripId,
               selectedSeats:
                 selectedDate?.seats !== 20 && selectedDate?.seats !== 32
-                  ? Array(passengers.length).fill("N/A") // No specific seats for non-20/32
+                  ? Array(passengers.length).fill("N/A")
                   : selectedSeats,
               selectedDate: formatDateToString(selectedDate),
               passengers,
@@ -278,21 +295,11 @@ const BookingPage = () => {
   const handleProceed = async () => {
     if (isSubmitting) return;
 
-    if (step === "select-seats") {
+    if (step === "select-seats" && (selectedDate?.seats === 20 || selectedDate?.seats === 32)) {
       if (selectedSeats.length === 0) {
         toast.error("Please select at least one seat.");
         return;
       }
-      setPassengers(
-        Array(selectedSeats.length).fill({
-          name: "",
-          age: "",
-          gender: "",
-          idProof: "",
-          idProofNumber: "",
-          address: "",
-        })
-      );
       setStep("passenger-details");
     } else {
       if (!validatePassengerDetails()) {
@@ -311,7 +318,6 @@ const BookingPage = () => {
         const finalAmount = totalAmount + gst;
 
         if (isNaN(totalAmount) || isNaN(gst) || isNaN(finalAmount)) {
-          console.warn("Invalid amount calculation:", { totalAmount, gst, finalAmount, tripPrice: trip.price });
           throw new Error("Invalid amount calculation");
         }
 
@@ -421,7 +427,7 @@ const BookingPage = () => {
                     )}
                   </div>
                 ))}
-                {maxAvailableSeats > passengers.length &&totalSeats!==32 && totalSeats!==20 &&(
+                {maxAvailableSeats > passengers.length && (
                   <Button
                     onClick={addPassenger}
                     className="bg-green-500 hover:bg-green-600 text-white"
@@ -433,12 +439,23 @@ const BookingPage = () => {
                 <p className="text-sm text-gray-600">
                   {maxAvailableSeats} seat(s) available
                 </p>
+                {step === "passenger-details" && (totalSeats === 20 || totalSeats === 32) && (
+                  <Button
+                    onClick={handleGoBack}
+                    className="bg-gray-500 hover:bg-gray-600 text-white"
+                    disabled={isSubmitting}
+                  >
+                    Back to Seat Selection
+                  </Button>
+                )}
               </div>
             )}
           </div>
 
           <div className="md:col-span-1">
             <BookingSummary
+            step={step}
+              passengers={passengers}
               tripDetails={tripDetails}
               loading={isSubmitting}
               selectedSeats={selectedSeats}

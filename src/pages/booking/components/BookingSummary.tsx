@@ -5,6 +5,7 @@ import { fadeInUp } from "../../../utils/animations";
 import { FaSpinner } from "react-icons/fa";
 import { format, parse, isValid } from "date-fns";
 import { Button } from "@/components/ui/button";
+import { PassengerData } from "./PassengerForm";
 
 interface StartDate {
   date: string;
@@ -22,9 +23,11 @@ interface BookingSummaryProps {
   selectedDate: StartDate | null;
   setSelectedData: (date: StartDate) => void;
   selectedSeats: string[];
+  passengers: PassengerData[];
   seatPrice: number;
   onProceed: () => void;
   loading: boolean;
+  step: "select-seats" | "passenger-details" | "payment";
   disabled?: boolean;
 }
 
@@ -32,21 +35,23 @@ export const BookingSummary = ({
   loading,
   tripDetails,
   selectedSeats,
+  passengers,
   seatPrice,
   selectedDate,
   setSelectedData,
+  step,
   onProceed,
   disabled = false,
 }: BookingSummaryProps) => {
   const totalSeats = selectedDate?.seats || 0;
   const isSeatSelection = totalSeats === 20 || totalSeats === 32;
-  const totalAmount = selectedSeats.length * seatPrice;
-  const gst = Number(totalAmount) * 0.05;
-  const finalAmount = Number(totalAmount) + gst;
-
-  if (isNaN(totalAmount) || isNaN(gst) || isNaN(finalAmount)) {
-    console.warn("Invalid amount calculation:", { totalAmount, gst, finalAmount, seatPrice, selectedSeats });
-  }
+  const numPassengers = isSeatSelection ? selectedSeats.length : passengers.length;
+  const pricePerPerson = seatPrice;
+  const gstPerPerson = pricePerPerson * 0.05;
+  const totalPricePerPerson = pricePerPerson + gstPerPerson;
+  const totalAmount = numPassengers * pricePerPerson;
+  const totalGst = numPassengers * gstPerPerson;
+  const finalAmount = numPassengers * totalPricePerPerson;
 
   const formatDateWithSeats = (startDate: StartDate): string => {
     const date = parse(startDate.date, "dd-MM-yyyy", new Date());
@@ -54,8 +59,7 @@ export const BookingSummary = ({
       console.error("Invalid date:", startDate.date);
       return "Invalid Date";
     }
-    const formattedDate = format(date, "dd-MM-yyyy");
-    return `${formattedDate} (${startDate.seats} Seats)`;
+    return `${format(date, "dd-MM-yyyy")} (${startDate.seats} Seats)`;
   };
 
   const validDates = tripDetails.date.filter((startDate) => {
@@ -122,34 +126,46 @@ export const BookingSummary = ({
           </div>
         )}
         <div className="flex justify-between mb-2">
-          <span>Price per Seat</span>
-          <span>₹{seatPrice.toLocaleString("en-IN")}</span>
+          <span>Number of Passengers</span>
+          <span>{numPassengers}</span>
         </div>
         <div className="flex justify-between mb-2">
-          <span>Subtotal</span>
+          <span>Price per Person</span>
+          <span>₹{pricePerPerson.toLocaleString("en-IN")}</span>
+        </div>
+        <div className="flex justify-between mb-2">
+          <span>GST per Person (5%)</span>
+          <span>₹{gstPerPerson.toLocaleString("en-IN")}</span>
+        </div>
+        <div className="flex justify-between mb-2">
+          <span>Total per Person</span>
+          <span>₹{totalPricePerPerson.toLocaleString("en-IN")}</span>
+        </div>
+        <div className="flex justify-between mb-2">
+          <span>Subtotal ({numPassengers} x ₹{pricePerPerson.toLocaleString("en-IN")})</span>
           <span>₹{totalAmount.toLocaleString("en-IN")}</span>
         </div>
         <div className="flex justify-between mb-2">
-          <span>GST (5%)</span>
-          <span>₹{gst.toLocaleString("en-IN")}</span>
+          <span>Total GST ({numPassengers} x ₹{gstPerPerson.toLocaleString("en-IN")})</span>
+          <span>₹{totalGst.toLocaleString("en-IN")}</span>
         </div>
         <div className="flex justify-between font-semibold text-lg mt-4">
-          <span>Total Amount</span>
+          <span>Final Amount</span>
           <span>₹{finalAmount.toLocaleString("en-IN")}</span>
         </div>
       </div>
 
       <Button
         onClick={() => !disabled && onProceed()}
-        disabled={(isSeatSelection && selectedSeats.length === 0) || loading || disabled}
+        disabled={(isSeatSelection && selectedSeats.length === 0 && step === "select-seats") || !selectedDate || loading || disabled}
         className={`w-full relative ${
-          (isSeatSelection && selectedSeats.length === 0) || loading || disabled
+          (isSeatSelection && selectedSeats.length === 0 && step === "select-seats") || !selectedDate || loading || disabled
             ? "bg-gray-300 cursor-not-allowed"
             : "bg-blue-600 hover:bg-blue-700 text-white"
         }`}
       >
         {loading && <FaSpinner className="animate-spin inline mr-2" />}
-        Proceed to {isSeatSelection ? "Passenger Details" : "Payment"}
+        Proceed to {isSeatSelection && step === "select-seats" ? "Passenger Details" : "Payment"}
       </Button>
     </motion.div>
   );

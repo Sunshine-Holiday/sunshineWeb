@@ -34,11 +34,12 @@ export const Navbar: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <Link to="/" className="flex items-center">
-              <img
-                src={logo1}
-                alt="Sunshine Holiday Packages Logo"
-                className="h-11 w-14 sm:h-20 sm:w-24 md:h-20 md:w-20"
-              />
+           <img
+  src={logo1}
+  alt="Sunshine Holiday Packages Logo"
+  className="h-11 w-14 sm:h-20 sm:w-24 md:h-20 md:w-20 object-cover object-center"
+  style={{ objectPosition: "0 -10px" }} // Adjusts the vertical position to crop top/bottom
+/>
             </Link>
 
             <div className="hidden md:flex items-center space-x-4 lg:space-x-8">

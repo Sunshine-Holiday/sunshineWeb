@@ -43,7 +43,8 @@ const isValidStartDate = (startDate: unknown): { date: Date; seats: number | "bl
     return null;
   }
 
-  if (seats !== "block" && seats !== 20 && seats !== 32) {
+  // Allow any positive number for seats or "block"
+  if (seats !== "block" && (typeof seats !== "number" || seats < 0)) {
     return null;
   }
 
@@ -62,6 +63,7 @@ const formatDateWithSeats = (date?: Date): string => {
 };
 
 export const TripCard = ({ trip, onDelete, onEdit }: TripCardProps) => {
+  console.log("TripCard rendered with trip:", trip);
   const navigate = useNavigate();
   const today = new Date();
   const bannerURL = trip?.image ? `${IMAGE_URL}${trip.image}` : "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b";

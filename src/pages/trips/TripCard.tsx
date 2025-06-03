@@ -9,8 +9,8 @@ import { Button } from "@/components/ui/button";
 
 interface StartDate {
   date: string;
-  _id?: string; // Optional _id field to match provided data
-  seats?: number | "block"; // Make seats optional
+  _id?: string;
+  seats?: number | "block";
 }
 
 interface TripCardProps {
@@ -42,25 +42,24 @@ const isValidStartDate = (startDate: unknown): { date: Date; seats: number | "bl
     return null;
   }
 
-  // If seats is undefined, default to "N/A"; otherwise, validate seats
+  // If seats is undefined, default to "N/A"; otherwise, allow any positive number or "block"
   if (seats === undefined) {
     return { date: parsedDate, seats: "N/A" };
   }
 
-  if (seats !== "block" && seats !== 20 && seats !== 32) {
+  if (seats !== "block" && (typeof seats !== "number" || seats < 0)) {
     return null;
   }
 
   return { date: parsedDate, seats };
 };
 
-// Format a Date object to "dd-MM-yyyy" with seats
+// Format a Date object to "dd-MM-yyyy"
 const formatDateWithSeats = (date: Date): string => {
   if (!(date instanceof Date) || isNaN(date.getTime())) {
-    return "Invalid Date";
+    return "N/A";
   }
-  const formattedDate = format(date, "dd-MM-yyyy");
-  return `${formattedDate} `;
+  return format(date, "dd-MM-yyyy");
 };
 
 export const TripCard = ({ trip }: TripCardProps) => {
@@ -76,17 +75,12 @@ export const TripCard = ({ trip }: TripCardProps) => {
     .filter((item): item is { date: Date; seats: number | "block" | "N/A" } => item !== null)
     .sort((a, b) => a.date.getTime() - b.date.getTime());
 
-  // Select the first valid start date, if any
-  const displayDate = validStartDates[0];
-
-  // Handle case with no valid dates
-  if (!displayDate) {
-    return (
-      <div className="bg-white rounded-xl shadow-sm p-6 text-red-600">
-        No valid start dates available for {trip.title}.
-      </div>
-    );
-  }
+  // Select the first valid start date that is today or in the future
+  const today = new Date();
+  today.setHours(0, 0, 0, 0); // Normalize to start of day for comparison
+  const displayDate = validStartDates.find(
+    (item) => item.date >= today
+  );
 
   const handleClick = () => {
     navigate(`/trips/${trip._id}`, { state: { trip } });
@@ -123,11 +117,11 @@ export const TripCard = ({ trip }: TripCardProps) => {
           </div>
           <div className="flex items-center text-gray-600">
             <Users className="h-4 w-4 mr-2" />
-            <span>{displayDate.seats}</span>
+            <span>{displayDate ? displayDate.seats : "N/A"}</span>
           </div>
           <div className="flex items-center text-gray-600">
             <Calendar className="h-4 w-4 mr-2" />
-            <span>{formatDateWithSeats(displayDate.date)}</span>
+            <span>{displayDate ? formatDateWithSeats(displayDate.date) : "N/A"}</span>
           </div>
         </div>
         <div className="flex items-center justify-between mt-4">

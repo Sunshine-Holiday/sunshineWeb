@@ -65,7 +65,6 @@ export const SeatLayout = ({
   totalSeats,
   disabled = false,
 }: SeatLayoutProps) => {
-  console.log("SeatLayout rendered with totalSeats:", seatPrice);
   const [isTwoSeaterLayout, setIsTwoSeaterLayout] = useState(
     totalSeats !== 20 ? true : false
   );
@@ -73,12 +72,11 @@ export const SeatLayout = ({
 
   const isBlockBooking = selectedSeats.includes("block");
 
-  // Validate totalSeats
   if (totalSeats !== 20 && totalSeats !== 32) {
     console.warn(`Invalid totalSeats value: ${totalSeats}. Expected 20 or 32.`);
+    return null;
   }
 
-  // Define seat layout for non-block booking
   const seats = isTwoSeaterLayout
     ? [
         ["", "", "", "1", "2"],
@@ -99,13 +97,12 @@ export const SeatLayout = ({
         ["16", "17", "18", "19"],
       ];
 
-  // Handle layout modal for non-block booking
   useEffect(() => {
     if (
       !isBlockBooking &&
       bookedSeats.length === seats.flat().filter(Boolean).length
     ) {
-      setShowLayoutModal(true); // All seats booked, show modal
+      setShowLayoutModal(true);
     }
   }, [bookedSeats, seats, isBlockBooking]);
 
@@ -116,7 +113,7 @@ export const SeatLayout = ({
 
   const handleIconClick = () => {
     if (!isBlockBooking && selectedSeats.length > 11) {
-      setShowLayoutModal(true); // Show modal when more than 11 seats are selected
+      setShowLayoutModal(true);
     }
   };
 
@@ -144,7 +141,6 @@ export const SeatLayout = ({
         disabled ? "opacity-50 pointer-events-none" : ""
       }`}
     >
-      {/* Legend */}
       <div className="mb-6 flex justify-between items-center">
         <div className="flex gap-4">
           <div className="flex items-center">
@@ -169,12 +165,10 @@ export const SeatLayout = ({
         </div>
       </div>
 
-      {/* Seat layout */}
       <div className="flex flex-col items-center">
         <div className="my-3">
           <p className="text-red-600">Your seats can be changed by admin</p>
         </div>
-        {/* Driver's cabin */}
         <div className="flex flex-row gap-10 items-center">
           <div className="w-20 h-20 bg-gray-300 rounded-lg flex items-center justify-center text-sm text-gray-600 mb-4">
             {totalSeats}
@@ -183,7 +177,6 @@ export const SeatLayout = ({
             Driver
           </div>
         </div>
-        {/* Seats */}
         <div
           className={`grid ${
             isTwoSeaterLayout ? "grid-cols-5" : "grid-cols-4"
@@ -205,7 +198,7 @@ export const SeatLayout = ({
                     totalSeats={totalSeats}
                   />
                 ) : (
-                  <div className="w-10 h-16"></div> // Empty space for aisle
+                  <div className="w-10 h-16"></div>
                 )}
               </div>
             ))
