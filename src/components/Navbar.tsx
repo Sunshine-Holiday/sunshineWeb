@@ -31,7 +31,7 @@ export const Navbar: React.FC = () => {
         animate={{ y: 0 }}
         className="w-full bg-white/70 backdrop-blur-sm z-50 shadow-sm  top-0"
       >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className=" px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <Link to="/" className="flex items-center">
            <img

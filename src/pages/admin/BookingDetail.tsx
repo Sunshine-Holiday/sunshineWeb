@@ -3,14 +3,14 @@ import { useParams } from "react-router-dom";
 import { useGetIDbookingQuery } from "@/store/api/booking";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
-import logo from "../../asserts/Sunshine.png";
+import logo from "../../asserts/hello.jpeg";
 import { FaSpinner } from "react-icons/fa";
 
 const BookingDetail = () => {
   const { id } = useParams();
   const { data, isLoading, isError, error } = useGetIDbookingQuery({ id });
   const [booking, setBooking] = useState<any>(null);
-  
+
   useEffect(() => {
     if (data && data.booking) {
       const selectedBooking = data.booking;
@@ -22,23 +22,47 @@ const BookingDetail = () => {
   const gst = totalAmount * 0.05; // 5% GST
   const finalAmount = totalAmount + gst;
 
-
-
   const handleDownloadInvoice = () => {
     if (booking) {
       const doc = new jsPDF() as any;
       const pageWidth = doc.internal.pageSize.getWidth();
 
-      // Add logo
+      // Add logo with cropping
       const img = new Image();
       img.src = logo;
       img.onload = () => {
-        const aspectRatio = img.width / img.height;
+        const imgWidth = img.width;
+        const imgHeight = img.height;
+        const aspectRatio = imgWidth / imgHeight;
+
+        // Define desired display size
         let width = 40,
           height = 20;
         if (aspectRatio > 1) height = width / aspectRatio;
         else width = height * aspectRatio;
-        doc.addImage(img, "PNG", 10, 10, width, height);
+
+        // Define cropping parameters (e.g., crop 20% from each side)
+        const cropX = imgWidth * 0.2; // Start 20% from the left
+        const cropY = imgHeight * 0.2; // Start 20% from the top
+        const cropWidth = imgWidth * 0.6; // Use 60% of the width
+        const cropHeight = imgHeight * 0.6; // Use 60% of the height
+
+        // Add cropped image to PDF
+        doc.addImage(
+          img,
+          "PNG",
+          10,
+          10,
+          width,
+          height,
+          undefined,
+          undefined,
+          0,
+          cropX,
+          cropY,
+          cropWidth,
+          cropHeight
+        );
 
         // Add company details
         doc.setFontSize(16);
@@ -75,9 +99,7 @@ const BookingDetail = () => {
             ["Location", booking.trip?.location || "N/A"],
             [
               "Price per seat",
-              `INR ${booking?.trip?.price || 0}*${
-                booking?.selectedSeats?.length || 0
-              }`,
+              `INR ${booking?.trip?.price || 0}*${booking?.selectedSeats?.length || 0}`,
             ],
             ["Subtotal", `INR ${totalAmount.toFixed(2)}`],
             ["GST (5%)", `INR ${gst.toFixed(2)}`],
@@ -94,7 +116,7 @@ const BookingDetail = () => {
         // Boarding Points Table
         const boardingStartY = doc.autoTable.previous.finalY + 10;
         doc.text("Boarding Points:", 10, boardingStartY);
-        
+
         if (booking.trip?.boardingPoints && booking.trip.boardingPoints.length > 0) {
           doc.autoTable({
             startY: boardingStartY + 5,
@@ -102,7 +124,7 @@ const BookingDetail = () => {
             body: booking.trip.boardingPoints.map((point: any) => [
               point.location || "N/A",
               point.time || "N/A",
-              point.details || "N/A"
+              point.details || "N/A",
             ]),
             theme: "grid",
             styles: { fontSize: 10 },
@@ -120,7 +142,7 @@ const BookingDetail = () => {
         // Passengers Table
         const passengersStartY = doc.autoTable.previous.finalY + 10;
         doc.text("Passengers:", 10, passengersStartY);
-        
+
         if (booking.passengers && booking.passengers.length > 0) {
           doc.autoTable({
             startY: passengersStartY + 5,
@@ -130,9 +152,7 @@ const BookingDetail = () => {
               passenger.age || "N/A",
               passenger.gender || "N/A",
               passenger.address || "N/A",
-              `${passenger.idProof || "N/A"} (${
-                passenger.idProofNumber || "N/A"
-              })`,
+              `${passenger.idProof || "N/A"} (${passenger.idProofNumber || "N/A"})`,
             ]),
             theme: "grid",
             styles: { fontSize: 10 },
@@ -167,11 +187,27 @@ const BookingDetail = () => {
     return (
       <div className="mx-auto max-w-4xl bg-white p-8 shadow-lg rounded-lg text-center my-8">
         <div className="mb-8">
-          <img
-            src={logo}
-            alt="Sunshine Holiday Packages"
-            className="w-24 h-auto mx-auto"
-          />
+          {/* Cropped logo using a container with overflow hidden */}
+          <div
+            className="mx-auto relative"
+            style={{
+              width: "100px", // Container width
+              height: "60px", // Container height
+              overflow: "hidden",
+            }}
+          >
+            <img
+              src={logo}
+              alt="Sunshine Holiday Packages"
+              className="absolute"
+              style={{
+                width: "140px", // Larger than container to allow cropping
+                height: "auto",
+                top: "-10px", // Adjust to crop top
+                left: "-20px", // Adjust to crop left
+              }}
+            />
+          </div>
           <h3 className="text-2xl font-semibold mt-4">
             Sunshine Holiday Packages
           </h3>
