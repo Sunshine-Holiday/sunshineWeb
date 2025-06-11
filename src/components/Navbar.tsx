@@ -34,12 +34,14 @@ export const Navbar: React.FC = () => {
         <div className=" px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <Link to="/" className="flex items-center">
-           <img
+     <Link to="/" className="flex items-center">
+<img
   src={logo1}
   alt="Sunshine Holiday Packages Logo"
-  className="h-14 w-32 sm:h-20 sm:w-24 md:h-20 md:w-20"
-
+  className="h-20 w-20 sm:h-20 sm:w-20 md:h-20 md:w-20 object-contain"
 />
+
+</Link>
             </Link>
 
             <div className="hidden md:flex items-center space-x-4 lg:space-x-8">
