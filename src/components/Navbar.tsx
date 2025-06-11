@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { User, Menu, X, LogOut } from "lucide-react";
-import logo1 from "../asserts/logo_sunshine.gif"; // Video logo
+import logo1 from "../asserts/Screen-Recording-2025-06-02-18-unscreen.gif"; // Video logo
 import { logout, selectCurrentUser } from "@/store/reducer/auth";
 import { useDispatch, useSelector } from "react-redux";
 import * as Dialog from "@radix-ui/react-dialog";
@@ -37,8 +37,8 @@ export const Navbar: React.FC = () => {
            <img
   src={logo1}
   alt="Sunshine Holiday Packages Logo"
-  className="h-11 w-14 sm:h-20 sm:w-24 md:h-20 md:w-20 object-cover object-center"
-  style={{ objectPosition: "0 -10px" }} // Adjusts the vertical position to crop top/bottom
+  className="h-14 w-32 sm:h-20 sm:w-24 md:h-20 md:w-20"
+
 />
             </Link>
 

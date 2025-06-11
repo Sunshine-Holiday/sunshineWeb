@@ -3,7 +3,7 @@ import { useParams } from "react-router-dom";
 import { useGetIDbookingQuery } from "@/store/api/booking";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
-import logo from "../../asserts/hello.jpeg";
+import logo from "../../asserts/favicon.png";
 import { FaSpinner } from "react-icons/fa";
 
 const BookingDetail = () => {
