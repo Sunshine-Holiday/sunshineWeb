@@ -92,7 +92,7 @@ const BookingDetails = () => {
     trip: tripId,
     date: date,
   });
-
+console.log("hello",bookingData)
   const {
     data: reviewData,
     isLoading: isReviewLoading,
