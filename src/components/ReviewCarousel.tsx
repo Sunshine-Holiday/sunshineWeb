@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { User, Calendar, ChevronLeft, ChevronRight } from "lucide-react";
@@ -87,10 +88,10 @@ const ReviewCarousel: React.FC<ReviewCarouselProps> = ({ reviews = [] }) => {
         const api = carouselApisRef.current.get(rowIndex);
         if (api) api.scrollPrev();
       }}
-      className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 bg-white rounded-full p-2 shadow-lg hover:bg-gray-100 transition-all z-10"
+      className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 bg-white/90 rounded-full p-2 shadow-md hover:bg-orange-50 transition-all duration-200 z-10"
       aria-label="Previous slide"
     >
-      <ChevronLeft className="h-6 w-6 text-gray-700" />
+      <ChevronLeft className="h-6 w-6 text-orange-500" />
     </button>
   );
 
@@ -100,25 +101,29 @@ const ReviewCarousel: React.FC<ReviewCarouselProps> = ({ reviews = [] }) => {
         const api = carouselApisRef.current.get(rowIndex);
         if (api) api.scrollNext();
       }}
-      className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 bg-white rounded-full p-2 shadow-lg hover:bg-gray-100 transition-all z-10"
+      className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 bg-white/90 rounded-full p-2 shadow-md hover:bg-orange-50 transition-all duration-200 z-10"
       aria-label="Next slide"
     >
-      <ChevronRight className="h-6 w-6 text-gray-700" />
+      <ChevronRight className="h-6 w-6 text-orange-500" />
     </button>
   );
 
   return (
-    <div className="my-8">
-      <h2 className="text-2xl font-bold mb-6">Traveler Reviews</h2>
+    <div className="my-10">
+      <h2 className="text-2xl font-semibold text-gray-800 mb-6">
+        Traveler Reviews
+      </h2>
 
       {approvedReviews.length === 0 ? (
-        <div className="text-center text-gray-500 py-12">
-          <p>No reviews found. Be the first to share your experience!</p>
+        <div className="text-center text-gray-600 py-12 border border-gray-200 rounded-lg shadow-sm">
+          <p className="font-medium">
+            No reviews found. Be the first to share your experience!
+          </p>
         </div>
       ) : (
-        <div className="space-y-12">
+        <div className="space-y-10">
           {reviewRows.map((row, rowIndex) => (
-            <div key={rowIndex} className="relative px-8">
+            <div key={rowIndex} className="relative px-6">
               <Carousel
                 setApi={(api) => {
                   if (api) {
@@ -145,20 +150,20 @@ const ReviewCarousel: React.FC<ReviewCarouselProps> = ({ reviews = [] }) => {
                         className="h-full"
                         transition={{ duration: 0.3 }}
                       >
-                        <div className="bg-white rounded-xl shadow-md p-6 h-64 overflow-hidden flex flex-col border border-gray-100">
+                        <div className="bg-white rounded-lg shadow-sm p-6 h-64 overflow-hidden flex flex-col border border-gray-200 hover:shadow-md hover:border-orange-200 transition-all duration-200">
                           <div className="flex items-center mb-4">
-                            <div className="bg-blue-100 p-2 rounded-full mr-3">
-                              <User className="h-5 w-5 text-blue-600" />
+                            <div className="bg-orange-100 p-2 rounded-full mr-3">
+                              <User className="h-5 w-5 text-orange-500" />
                             </div>
                             <div>
-                              <h3 className="font-medium text-gray-900">
+                              <h3 className="font-medium text-gray-800">
                                 {review.user?.username || "Traveler"}
                               </h3>
                             </div>
                           </div>
 
-                          <div className="flex items-center text-sm text-gray-500 mb-4">
-                            <Calendar className="h-4 w-4 mr-1" />
+                          <div className="flex items-center text-sm text-gray-600 mb-4">
+                            <Calendar className="h-4 w-4 mr-1 text-gray-500 hover:text-orange-500 transition-colors duration-200" />
                             <span>
                               Traveled on{" "}
                               {formatReviewDate(
@@ -168,7 +173,7 @@ const ReviewCarousel: React.FC<ReviewCarouselProps> = ({ reviews = [] }) => {
                           </div>
 
                           <div className="flex-grow overflow-y-auto">
-                            <div className="prose prose-sm max-w-none">
+                            <div className="prose prose-sm max-w-none text-gray-600">
                               {review.description.includes("<") ? (
                                 <div
                                   dangerouslySetInnerHTML={{
@@ -183,7 +188,7 @@ const ReviewCarousel: React.FC<ReviewCarouselProps> = ({ reviews = [] }) => {
 
                           {extractTextFromHtml(review.description).length >
                             200 && (
-                            <button className="text-blue-600 text-sm mt-2 hover:underline">
+                            <button className="text-orange-500 text-sm font-medium mt-2 hover:text-orange-600 transition-colors duration-200">
                               Read more
                             </button>
                           )}
@@ -200,6 +205,12 @@ const ReviewCarousel: React.FC<ReviewCarouselProps> = ({ reviews = [] }) => {
           ))}
         </div>
       )}
+
+      <style jsx>{`
+        h2, h3, p, span, button {
+          font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+      `}</style>
     </div>
   );
 };

@@ -1,3 +1,4 @@
+
 import React from "react";
 import { motion } from "framer-motion";
 import { MapPin, Users, Calendar } from "lucide-react";
@@ -42,7 +43,6 @@ const isValidStartDate = (startDate: unknown): { date: Date; seats: number | "bl
     return null;
   }
 
-  // If seats is undefined, default to "N/A"; otherwise, allow any positive number or "block"
   if (seats === undefined) {
     return { date: parsedDate, seats: "N/A" };
   }
@@ -90,12 +90,12 @@ export const TripCard = ({ trip }: TripCardProps) => {
     <motion.div
       variants={scaleOnHover}
       onClick={handleClick}
-      className="bg-white rounded-xl shadow-sm overflow-hidden cursor-pointer"
+      className="bg-white rounded-lg shadow-md overflow-hidden cursor-pointer border border-gray-200 hover:shadow-lg hover:border-orange-200 transition-all duration-200"
     >
       <motion.div
         className="relative h-48 overflow-hidden"
         whileHover={{ scale: 1.05 }}
-        transition={{ duration: 0.3 }}
+        transition={{ duration: 0.2 }}
       >
         <img
           src={
@@ -103,29 +103,29 @@ export const TripCard = ({ trip }: TripCardProps) => {
             "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b"
           }
           alt={trip.title}
-          className="w-full h-full object-cover"
+          className="w-full h-full object-cover transition-transform duration-200"
         />
       </motion.div>
       <div className="p-6">
-        <h3 className="text-xl font-semibold text-gray-900 mb-4">
+        <h3 className="text-xl font-semibold text-gray-800 mb-4">
           {trip.title}
         </h3>
-        <div className="space-y-2 mb-4">
+        <div className="space-y-3 mb-4">
           <div className="flex items-center text-gray-600">
-            <MapPin className="h-4 w-4 mr-2" />
+            <MapPin className="h-4 w-4 mr-2 text-gray-500 hover:text-orange-500 transition-colors duration-200" />
             <span>{trip.location}</span>
           </div>
           <div className="flex items-center text-gray-600">
-            <Users className="h-4 w-4 mr-2" />
+            <Users className="h-4 w-4 mr-2 text-gray-500 hover:text-orange-500 transition-colors duration-200" />
             <span>{displayDate ? displayDate.seats : "N/A"}</span>
           </div>
           <div className="flex items-center text-gray-600">
-            <Calendar className="h-4 w-4 mr-2" />
+            <Calendar className="h-4 w-4 mr-2 text-gray-500 hover:text-orange-500 transition-colors duration-200" />
             <span>{displayDate ? formatDateWithSeats(displayDate.date) : "N/A"}</span>
           </div>
         </div>
         <div className="flex items-center justify-between mt-4">
-          <span className="text-2xl font-bold text-blue-600">
+          <span className="text-2xl font-semibold text-orange-500">
             ₹{trip.price.toLocaleString("en-IN")}
           </span>
           <Button
@@ -133,12 +133,20 @@ export const TripCard = ({ trip }: TripCardProps) => {
               e.stopPropagation();
               navigate(`/trips/${trip._id}`, { state: { tripId: trip._id } });
             }}
-            className="bg-blue-600 hover:bg-blue-700 text-white"
+            className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white py-2 px-4 rounded-lg font-medium shadow-md transition-all duration-200"
           >
             Book Now
           </Button>
         </div>
       </div>
+
+      <style jsx>{`
+        h3, span, button {
+          font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+      `}</style>
     </motion.div>
   );
 };
+
+export default TripCard;
