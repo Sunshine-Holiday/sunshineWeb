@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import Masonry from "react-masonry-css";
 import { motion } from "framer-motion";
 import { MapPin, Calendar, Heart, Share2, Download, Eye, Play } from "lucide-react";
-import { FaPlus } from "react-icons/fa";
+
 import { useNavigate } from "react-router-dom";
 import { useGetGalleryQuery, useDeleteGalleryMutation } from "@/store/api/gallery";
 import { IMAGE_URL } from "@/store/store";
