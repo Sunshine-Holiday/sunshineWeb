@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import Masonry from "react-masonry-css";
 import { motion } from "framer-motion";
-import { X, MapPin, Calendar, Heart, Share2, Download, Eye, Play } from "lucide-react";
+import { MapPin, Calendar, Heart, Share2, Download, Eye, Play } from "lucide-react";
 import { FaPlus } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import { useGetGalleryQuery, useDeleteGalleryMutation } from "@/store/api/gallery";
@@ -216,20 +216,7 @@ const GalleryPage: React.FC = () => {
                     >
                       <Heart className={`w-5 h-5 ${likedItems.has(item._id) ? "fill-current" : ""}`} />
                     </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        confirmDelete(item);
-                      }}
-                      className="w-10 h-10 bg-white/90 backdrop-blur-md text-gray-700 rounded-full hover:bg-red-500 hover:text-white transition-all duration-300 flex items-center justify-center"
-                      disabled={  loadingId === item._id}
-                    >
-                      {  loadingId === item._id ? (
-                        <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                      ) : (
-                        <X className="w-5 h-5" />
-                      )}
-                    </button>
+               
                   </div>
                 </div>
                 {/* Content */}
@@ -295,12 +282,7 @@ const GalleryPage: React.FC = () => {
                     <button className="w-12 h-12 bg-white/20 backdrop-blur-sm text-white rounded-full hover:bg-white/30 transition-colors duration-200 flex items-center justify-center">
                       <Share2 className="w-6 h-6" />
                     </button>
-                    <button
-                      className="w-12 h-12 bg-white/20 backdrop-blur-sm text-white rounded-full hover:bg-white/30 transition-colors duration-200 flex items-center justify-center"
-                      onClick={closeModal}
-                    >
-                      <X className="w-6 h-6" />
-                    </button>
+                
                   </div>
                 </div>
               </div>
