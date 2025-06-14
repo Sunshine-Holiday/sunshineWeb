@@ -40,7 +40,6 @@ export default function Users() {
     );
     try {
       await adminUpdateUser({ id: userId }).unwrap();
-      // console.log(userId);
       toast.success("User role updated successfully");
     } catch (error) {
       toast.error("User role unable to updated ");
@@ -50,11 +49,18 @@ export default function Users() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">User Management</h1>
-        <p className="text-muted-foreground">
-          Manage user accounts and permissions.
-        </p>
+      <div className="flex justify-between items-start">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">User Management</h1>
+          <p className="text-muted-foreground">
+            Manage user accounts and permissions.
+          </p>
+        </div>
+        <div className="text-right">
+          <span className="text-lg font-semibold text-gray-700">
+            Total Users: {filteredUsers.length}
+          </span>
+        </div>
       </div>
 
       <UserFilters

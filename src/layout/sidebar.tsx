@@ -25,7 +25,7 @@ function SidebarHeader() {
 // Navigation items (Admin Routes)
 const navigationItems = [
   {
-    name: "Dashboard",
+    name: "Home Layout",
     href: "/admin/dashboard",
     icon: LayoutDashboard, // Represents the dashboard
   },

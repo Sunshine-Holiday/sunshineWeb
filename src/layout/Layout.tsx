@@ -23,13 +23,14 @@ import CancelTrips from "@/pages/admin/CancelTrips";
 import Special_sections from "@/pages/admin/special_sections";
 import CreateSpecialSection from "@/pages/admin/CreateSpecialSection";
 import EditSpecialSection from "@/pages/admin/EditSpecialSection";
+import AdminHomeControl from "@/components/dashboard/Home/home";
 const Layout = () => {
   return (
     <div className="flex h-screen bg-background pt-14">
       <Sidebar />
       <main className="flex-1 overflow-y-auto p-8">
         <Routes>
-          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/dashboard" element={<AdminHomeControl />} />
           <Route path="/special_sections" element={<Special_sections />} />
           <Route path="/special_sections/create" element={<CreateSpecialSection />} />
           <Route path="/special_sections/Edit/:id" element={<EditSpecialSection />} />

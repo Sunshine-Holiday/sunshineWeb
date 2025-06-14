@@ -1,25 +1,34 @@
 import React, { useEffect, useState } from "react";
-import CustomButton from "./CustomButton";
 import { useNavigate } from "react-router-dom";
-import image1 from "@/asserts/Kokan1.png";
-import image2 from "@/asserts/Kokan2.png";
-import image3 from "@/asserts/Kokan3.png";
-import image4 from "@/asserts/Kokan4.png";
-import image5 from "@/asserts/Kokan5.png";
-import image6 from "@/asserts/Kokan.png";
+import { motion } from "framer-motion";
+import CustomButton from "./CustomButton";
+import { useGetHomeImagesQuery } from "@/store/api/gallery";
+import { IMAGE_URL } from "@/store/store";
+import { AlertCircle, Loader2 } from "lucide-react";
 
-const travelImages: string[] = [image1, image2, image3, image4, image5, image6];
+interface Image {
+  _id: string;
+  path: string;
+  originalName: string;
+  mimeType: string;
+  sequence: number;
+  createdAt: string;
+}
 
 const Hero: React.FC = () => {
   const navigate = useNavigate();
   const [currentImage, setCurrentImage] = useState<number>(0);
+  const { data: images, isLoading, error } = useGetHomeImagesQuery();
 
+  // Slideshow effect
   useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentImage((prevImage) => (prevImage + 1) % travelImages.length);
-    }, 7000);
-    return () => clearInterval(interval);
-  }, []);
+    if (images && images.length > 0) {
+      const interval = setInterval(() => {
+        setCurrentImage((prevImage) => (prevImage + 1) % images.length);
+      }, 7000);
+      return () => clearInterval(interval);
+    }
+  }, [images]);
 
   const getStartedHandler = () => {
     navigate("/trips");
@@ -27,24 +36,53 @@ const Hero: React.FC = () => {
 
   return (
     <div className="relative w-full h-56 sm:h-72 md:h-96 lg:h-screen overflow-hidden">
-      {/* Image as regular element with better mobile optimization */}
-      <div className="relative w-full h-full">
-        <img
-          src={travelImages[currentImage]}
-          alt="Travel destination"
-          className="w-full h-full object-cover transition-all duration-1000 ease-in-out"
-          style={{ filter: "brightness(0.7)" }}
-        />
-      </div>
+      {/* Loading State */}
+      {isLoading && (
+        <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
+          <Loader2 className="w-12 h-12 text-orange-500 animate-spin" />
+        </div>
+      )}
+
+      {/* Error State */}
+      {error && (
+        <div className="absolute inset-0 flex items-center justify-center bg-red-50">
+          <div className="text-center">
+            <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+            <p className="text-red-600">Failed to load images. Please try again later.</p>
+          </div>
+        </div>
+      )}
+
+      {/* Image Slideshow */}
+      {!isLoading && !error && images && images.length > 0 && (
+        <div className="relative w-full h-full">
+          <motion.img
+            key={images[currentImage]._id}
+            src={`${IMAGE_URL}${images[currentImage].path}`}
+            alt={images[currentImage].originalName}
+            className="w-full h-full object-cover"
+            style={{ filter: "brightness(0.7)" }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 1, ease: "easeInOut" }}
+          />
+        </div>
+      )}
+
+      {/* Empty State */}
+      {!isLoading && !error && (!images || images.length === 0) && (
+        <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
+          <div className="text-center">
+            <p className="text-gray-600">No images available.</p>
+          </div>
+        </div>
+      )}
 
       {/* Content Container */}
-      <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <div className="text-center px-4 sm:px-6 md:px-8">
-          {/* You can add a heading or text here if needed */}
-        </div>
-      </div>
+     
 
-      {/* Button Container - positioned better for mobile */}
+      {/* Button Container */}
       <div className="absolute bottom-0 left-0 right-0 z-10 flex items-center justify-center w-full px-4 pb-3 sm:pb-5 md:pb-8 lg:pb-16">
         <CustomButton onClickHandler={getStartedHandler} />
       </div>
