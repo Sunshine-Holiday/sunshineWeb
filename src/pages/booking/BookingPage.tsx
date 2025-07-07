@@ -1,8 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { SeatLayout } from "./components/SeatLayout";
-import { BookingSummary } from "./components/BookingSummary";
-import { PassengerForm, PassengerData } from "./components/PassengerForm";
+import { PassengerData } from "./components/PassengerForm";
 import { fadeInUp } from "../../utils/animations";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
@@ -18,12 +16,27 @@ import { selectCurrentUser } from "@/store/reducer/auth";
 import { FaSpinner } from "react-icons/fa";
 import { format, parse, isValid } from "date-fns";
 import { Button } from "@/components/ui/button";
+import { Armchair, Calendar, MapPin } from "lucide-react";
 
 const INITIAL_STEP = "select-seats";
 
 interface StartDate {
   date: string;
   seats: number;
+}
+
+interface Package {
+  _id: string;
+  name: string;
+  price: number;
+  description: string;
+}
+
+interface RoomChoice {
+  _id: string;
+  type: string;
+  price: number;
+  description: string;
 }
 
 const BookingPage = () => {
@@ -44,6 +57,9 @@ const BookingPage = () => {
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [trip, setTrip] = useState<any>(null);
+  const [selectedPackage, setSelectedPackage] = useState<Package | null>(null);
+  const [selectedRoomChoice, setSelectedRoomChoice] = useState<RoomChoice | null>(null);
+  const [paymentOption, setPaymentOption] = useState<"full" | "advance">("full");
 
   // Date formatting functions
   const formatDateToString = (dateInput: StartDate | string | Date): string => {
@@ -95,7 +111,9 @@ const BookingPage = () => {
   }, [bookingError]);
 
   useEffect(() => {
-    if (tripData) setTrip(tripData.trip);
+    if (tripData) {
+      setTrip(tripData.trip);
+    }
   }, [tripData]);
 
   useEffect(() => {
@@ -112,27 +130,34 @@ const BookingPage = () => {
       if (totalSeats !== 20 && totalSeats !== 32) {
         setStep("passenger-details");
         setSelectedSeats([]); // No specific seats for non-20/32
-        setPassengers([{
-          name: "",
-          age: "",
-          gender: "",
-          idProof: "",
-          idProofNumber: "",
-          address: "",
-        }]);
+        setPassengers([
+          {
+            name: "",
+            age: "",
+            gender: "",
+            idProof: "",
+            idProofNumber: "",
+            address: "",
+          },
+        ]);
       } else {
         setStep(INITIAL_STEP);
         setSelectedSeats([]);
-        setPassengers([]);
+        // Only reset passengers if no package or room choice is selected
+        if (!selectedPackage && !selectedRoomChoice) {
+          setPassengers([]);
+        }
       }
     }
-  }, [selectedDate]);
+  }, [selectedDate, selectedPackage, selectedRoomChoice]);
 
   // Handlers
   const changeDate = (date: StartDate) => {
     setSelectedDate(date);
     setSelectedSeats([]);
-    setPassengers([]);
+    if (!selectedPackage && !selectedRoomChoice) {
+      setPassengers([]);
+    }
   };
 
   const handleSeatSelect = (seatId: string) => {
@@ -141,26 +166,39 @@ const BookingPage = () => {
       toast.error("This seat is already booked");
       return;
     }
+
+    // Calculate maxSeats: Use 4 as the limit when package or room is selected
+    const maxSeats = (selectedPackage || selectedRoomChoice)
+      ? Math.min(selectedDate?.seats - bookedSeats.length, selectedPackage?selectedPackage.personCount || 0 : selectedRoomChoice?.personCount || 0)
+      : (selectedDate?.seats || 0) - bookedSeats.length;
+console.log(selectedDate?.seats, bookedSeats.length, maxSeats, selectedPackage, selectedRoomChoice.personCount);
+    if (selectedSeats.length >= maxSeats && !selectedSeats.includes(seatId)) {
+      toast.error(`You can select up to ${maxSeats} seats only.`);
+      return;
+    }
+
     setSelectedSeats((prev) => {
       const newSeats = prev.includes(seatId)
         ? prev.filter((id) => id !== seatId)
         : [...prev, seatId].sort();
-      
-      // Update passengers array to match selected seats
-      setPassengers((prevPassengers) => {
-        const newPassengers = newSeats.map((seat, index) => 
-          prevPassengers[index] || {
-            name: "",
-            age: "",
-            gender: "",
-            idProof: "",
-            idProofNumber: "",
-            address: "",
-          }
-        );
-        return newPassengers;
-      });
-      
+
+      // Update passengers array to match selected seats when package or room is selected
+      if (selectedPackage || selectedRoomChoice) {
+        setPassengers((prevPassengers) => {
+          const newPassengers = newSeats.map((seat, index) =>
+            prevPassengers[index] || {
+              name: "",
+              age: "",
+              gender: "",
+              idProof: "",
+              idProofNumber: "",
+              address: "",
+            }
+          );
+          return newPassengers;
+        });
+      }
+
       return newSeats;
     });
   };
@@ -179,10 +217,17 @@ const BookingPage = () => {
     const maxAvailableSeats = selectedDate
       ? selectedDate.seats - bookedSeats.length
       : 0;
-    if (passengers.length >= maxAvailableSeats) {
-      toast.error(`Cannot add more passengers. Only ${maxAvailableSeats} seats available.`);
+
+    // If package or room is selected, limit to 4 passengers
+    const maxPassengers = (selectedPackage || selectedRoomChoice)
+      ? Math.min(maxAvailableSeats, 4)
+      : maxAvailableSeats;
+
+    if (passengers.length >= maxPassengers) {
+      toast.error(`Cannot add more passengers. Only ${maxPassengers} seats available.`);
       return;
     }
+
     setPassengers((prev) => [
       ...prev,
       {
@@ -194,12 +239,24 @@ const BookingPage = () => {
         address: "",
       },
     ]);
+
+    // If package or room is selected, add corresponding seat
+    if ((selectedPackage || selectedRoomChoice) && selectedDate?.seats === (20 || 32)) {
+      const availableSeats = Array.from(
+        { length: selectedDate?.seats || 0 },
+        (_, i) => (i + 1).toString()
+      ).filter(seat => !bookedSeats.includes(seat) && !selectedSeats.includes(seat));
+
+      if (availableSeats.length > 0) {
+        setSelectedSeats((prev) => [...prev, availableSeats[0]].sort());
+      }
+    }
   };
 
   const removePassenger = (index: number) => {
     if (isSubmitting) return;
     setPassengers((prev) => prev.filter((_, i) => i !== index));
-    if (selectedDate?.seats === 20 || selectedDate?.seats === 32) {
+    if ((selectedPackage || selectedRoomChoice) && (selectedDate?.seats === 20 || selectedDate?.seats === 32)) {
       setSelectedSeats((prev) => prev.filter((_, i) => i !== index));
     }
   };
@@ -222,7 +279,39 @@ const BookingPage = () => {
     }
   };
 
-  const handlePayment = async (paymentDetail: any, finalAmount: number) => {
+  const handlePackageSelect = (pkg: Package | null) => {
+    setSelectedPackage(pkg);
+    if (pkg && passengers.length === 0) {
+      setPassengers([
+        {
+          name: "",
+          age: "",
+          gender: "",
+          idProof: "",
+          idProofNumber: "",
+          address: "",
+        },
+      ]);
+    }
+  };
+
+  const handleRoomChoiceSelect = (room: RoomChoice | null) => {
+    setSelectedRoomChoice(room);
+    if (room && passengers.length === 0) {
+      setPassengers([
+        {
+          name: "",
+          age: "",
+          gender: "",
+          idProof: "",
+          idProofNumber: "",
+          address: "",
+        },
+      ]);
+    }
+  };
+
+  const handlePayment = async (paymentDetail: any, amountToPay: number, totalAmount: number) => {
     return new Promise<void>((resolve, reject) => {
       const options = {
         key: RAZORPAY_API_KEY,
@@ -233,15 +322,24 @@ const BookingPage = () => {
         order_id: paymentDetail.id,
         handler: async (response: any) => {
           try {
+            const advancePaid = paymentOption === "advance" ? amountToPay : totalAmount;
+            const remainingBalance = paymentOption === "advance" ? totalAmount - advancePaid : 0;
+            const paymentStatus = paymentOption === "advance" ? "advance" : "full";
+
             const resp = await createBooking({
               tripId,
+              selectedPackage: selectedPackage?._id || null,
+              selectedRoomChoice: selectedRoomChoice?._id || null,
+              price: totalAmount,
+              advancePaid,
+              remainingBalance,
+              paymentStatus,
               selectedSeats:
                 selectedDate?.seats !== 20 && selectedDate?.seats !== 32
                   ? Array(passengers.length).fill("N/A")
                   : selectedSeats,
               selectedDate: formatDateToString(selectedDate),
               passengers,
-              price: finalAmount,
             }).unwrap();
 
             toast.success("Trip booked successfully");
@@ -300,6 +398,13 @@ const BookingPage = () => {
         toast.error("Please select at least one seat.");
         return;
       }
+      // If package or room is selected, check if seat count matches passenger count
+      if (selectedPackage || selectedRoomChoice) {
+        if (selectedSeats.length !== passengers.length) {
+          toast.error("Number of selected seats must match number of passengers.");
+          return;
+        }
+      }
       setStep("passenger-details");
     } else {
       if (!validatePassengerDetails()) {
@@ -307,26 +412,33 @@ const BookingPage = () => {
         return;
       }
 
+      // Validate seat count matches passenger count when package or room is selected
+      if ((selectedPackage || selectedRoomChoice) && 
+          (selectedDate?.seats === 20 || selectedDate?.seats === 32) &&
+          selectedSeats.length !== passengers.length) {
+        toast.error("Number of selected seats must match number of passengers.");
+        return;
+      }
+
       setIsSubmitting(true);
       try {
-        if (typeof trip.price !== "string" || isNaN(Number(trip.price))) {
-          throw new Error("Invalid trip price");
-        }
-
-        const totalAmount = passengers.length * Number(trip.price);
+        const packagePrice = selectedPackage?.price || 0;
+        const roomPrice = selectedRoomChoice?.price || 0;
+        const totalAmount = passengers.length * (packagePrice + roomPrice);
         const gst = totalAmount * 0.05;
         const finalAmount = totalAmount + gst;
+        const amountToPay = paymentOption === "advance" ? finalAmount * 0.5 : finalAmount;
 
         if (isNaN(totalAmount) || isNaN(gst) || isNaN(finalAmount)) {
           throw new Error("Invalid amount calculation");
         }
 
         const respPayment = await createPayment({
-          amount: finalAmount,
+          amount: amountToPay,
         }).unwrap();
 
         if (respPayment.success) {
-          await handlePayment(respPayment.paymentDetail, finalAmount);
+          await handlePayment(respPayment.paymentDetail, amountToPay, finalAmount);
         }
       } catch (error: any) {
         console.error("Payment error:", error);
@@ -355,13 +467,17 @@ const BookingPage = () => {
     time: trip.duration || "N/A",
     busType: trip.busSize || "Standard",
     amenities: trip.amenities || [],
-    price: Number(trip.price) || 0,
+    packages: trip.packages || [],
+    roomChoices: trip.roomChoices || [],
     boardingPoints: trip.boardingPoints || [],
     busSize: trip.busSize || "20",
+    baseSeatPrice: parseInt(trip.price) || 0,
   };
 
   const totalSeats = selectedDate?.seats || Number(tripDetails.busSize);
-  const maxAvailableSeats = totalSeats - bookedSeats.length;
+  const maxAvailableSeats = (selectedPackage || selectedRoomChoice)
+    ? Math.min(totalSeats - bookedSeats.length, 4)
+    : totalSeats - bookedSeats.length;
 
   return (
     <div className="min-h-screen bg-gray-50 pt-24 pb-16 relative">
@@ -389,7 +505,7 @@ const BookingPage = () => {
           </h1>
           <p className="text-gray-600">
             {step === "select-seats"
-              ? "Choose your preferred seats for a comfortable journey"
+              ? `Choose ${selectedPackage || selectedRoomChoice ? "up to 4" : "your"} seats for your journey`
               : `Enter details for up to ${maxAvailableSeats} passenger(s)`}
           </p>
         </motion.div>
@@ -402,7 +518,7 @@ const BookingPage = () => {
                 selectedSeats={selectedSeats}
                 onSeatSelect={handleSeatSelect}
                 bookedSeats={bookedSeats}
-                seatPrice={tripDetails.price}
+                seatPrice={tripDetails.baseSeatPrice}
                 disabled={isSubmitting}
               />
             ) : (
@@ -454,12 +570,17 @@ const BookingPage = () => {
 
           <div className="md:col-span-1">
             <BookingSummary
-            step={step}
+              step={step}
               passengers={passengers}
               tripDetails={tripDetails}
               loading={isSubmitting}
               selectedSeats={selectedSeats}
-              seatPrice={tripDetails.price}
+              selectedPackage={selectedPackage}
+              setSelectedPackage={handlePackageSelect}
+              selectedRoomChoice={selectedRoomChoice}
+              setSelectedRoomChoice={handleRoomChoiceSelect}
+              paymentOption={paymentOption}
+              setPaymentOption={setPaymentOption}
               setSelectedData={changeDate}
               selectedDate={selectedDate}
               onProceed={handleProceed}
@@ -469,6 +590,696 @@ const BookingPage = () => {
         </div>
       </div>
     </div>
+  );
+};
+
+// SeatLayout Component
+const Seat = ({ id, isBooked, isSelected, onSelect, price, totalSeats }: any) => {
+  return (
+    <div className="items-center flex flex-col">
+      <motion.div
+        whileHover={{ scale: isBooked ? 1 : 1.1 }}
+        whileTap={{ scale: isBooked ? 1 : 0.95 }}
+      >
+        <Button
+          onClick={() => !isBooked && onSelect(id)}
+          disabled={isBooked}
+          className={`w-10 h-16 rounded-lg m-1 flex flex-col items-center justify-center transition-colors
+            ${
+              isBooked
+                ? "bg-gray-300 cursor-not-allowed"
+                :isSelected
+                ? "bg-blue-600 text-white hover:bg-blue-600"
+                : "bg-white hover:bg-blue-50 text-gray-600"
+            }`}
+        >
+          <Armchair
+            size={20}
+            className={`mt-1 ${
+              isBooked
+                ? "text-gray-400"
+                : isSelected
+                ? "text-white"
+                : "text-gray-600"
+            }`}
+          />
+        </Button>
+      </motion.div>
+      <span className="text-sm font-medium">{id}</span>
+    </div>
+  );
+};
+
+interface SeatLayoutProps {
+  selectedSeats: string[];
+  onSeatSelect: (id: string) => void;
+  bookedSeats: string[];
+  seatPrice: number;
+  totalSeats: number;
+  disabled?: boolean;
+}
+
+const SeatLayout = ({
+  selectedSeats,
+  onSeatSelect,
+  bookedSeats,
+  seatPrice,
+  totalSeats,
+  disabled = false,
+}: SeatLayoutProps) => {
+  const [isTwoSeaterLayout, setIsTwoSeaterLayout] = useState(
+    totalSeats !== 20 ? true : false
+  );
+  const [showLayoutModal, setShowLayoutModal] = useState(false);
+
+  const isBlockBooking = selectedSeats.includes("block");
+
+  if (totalSeats !== 20 && totalSeats !== 32) {
+    console.warn(`Invalid totalSeats value: ${totalSeats}. Expected 20 or 32.`);
+    return null;
+  }
+
+  const seats = isTwoSeaterLayout
+    ? [
+        ["", "", "", "1", "2"],
+        ["3", "4", "", "5", "6"],
+        ["7", "8", "", "9", "10"],
+        ["11", "12", "", "13", "14"],
+        ["15", "16", "", "17", "18"],
+        ["19", "20", "", "21", "22"],
+        ["23", "24", "", "25", "26"],
+        ["27", "28", "29", "30", "31"],
+      ]
+    : [
+        ["1", "", "2", "3"],
+        ["4", "", "5", "6"],
+        ["7", "", "8", "9"],
+        ["10", "", "11", "12"],
+        ["13", "", "14", "15"],
+        ["16", "17", "18", "19"],
+      ];
+
+  useEffect(() => {
+    if (
+      !isBlockBooking &&
+      bookedSeats.length === seats.flat().filter(Boolean).length
+    ) {
+      setShowLayoutModal(true);
+    }
+  }, [bookedSeats, seats, isBlockBooking]);
+
+  const handleLayoutChange = () => {
+    setIsTwoSeaterLayout(true);
+    setShowLayoutModal(false);
+  };
+
+  const handleIconClick = () => {
+    if (!isBlockBooking && selectedSeats.length > 11) {
+      setShowLayoutModal(true);
+    }
+  };
+
+  if (isBlockBooking) {
+    return (
+      <div className="bg-gray-100 p-6 rounded-xl text-center">
+        <h3 className="text-xl font-semibold mb-4">Block Booking (1 Seat)</h3>
+        <p className="text-gray-600 mb-4">
+          This is a full bus booking, treated as a single seat for pricing.
+        </p>
+        <div className="text-sm font-medium">
+          Total Price: ₹
+          {seatPrice.toLocaleString("en-IN", {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={`bg-gray-100 p-6 rounded-xl ${
+        disabled ? "opacity-50 pointer-events-none" : ""
+      }`}
+    >
+      <div className="mb-6 flex justify-between items-center">
+        <div className="flex gap-4">
+          <div className="flex items-center">
+            <div className="w-4 h-4 bg-white rounded mr-2"></div>
+            <span className="text-sm">Available</span>
+          </div>
+          <div className="flex items-center">
+            <div className="w-4 h-4 bg-blue-600 rounded mr-2"></div>
+            <span className="text-sm">Selected</span>
+          </div>
+          <div className="flex items-center">
+            <div className="w-4 h-4 bg-gray-300 rounded mr-2"></div>
+            <span className="text-sm">Booked</span>
+          </div>
+        </div>
+        <div className="text-sm font-medium">
+          Price per seat: ₹
+          {seatPrice.toLocaleString("en-IN", {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          })}
+        </div>
+      </div>
+
+      <div className="flex flex-col items-center">
+        <div className="my-3">
+          <p className="text-red-600">Your seats can be changed by admin</p>
+        </div>
+        <div className="flex flex-row gap-10 items-center">
+          <div className="w-20 h-20 bg-gray-300 rounded-lg flex items-center justify-center text-sm text-gray-600 mb-4">
+            {totalSeats}
+          </div>
+          <div className="w-20 h-20 bg-gray-300 rounded-lg flex items-center justify-center text-sm text-gray-600 mb-4">
+            Driver
+          </div>
+        </div>
+        <div
+          className={`grid ${
+            isTwoSeaterLayout ? "grid-cols-5" : "grid-cols-4"
+          } gap-2`}
+        >
+          {seats.flatMap((row, rowIndex) =>
+            row.map((seatId, colIndex) => (
+              <div
+                key={`${rowIndex}-${colIndex}`}
+                className="flex justify-center"
+              >
+                {seatId ? (
+                  <Seat
+                    id={seatId}
+                    isBooked={bookedSeats.includes(seatId)}
+                    isSelected={selectedSeats.includes(seatId)}
+                    onSelect={onSeatSelect}
+                    price={seatPrice}
+                    totalSeats={totalSeats}
+                  />
+                ) : (
+                  <div className="w-10 h-16"></div>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// PassengerForm Component
+interface PassengerFormProps {
+  seatNumber: string;
+  index: number;
+  tripDetails: {
+    boardingPoints: {
+      details: string;
+      location: string;
+      time: string;
+      _id: string;
+    }[];
+  };
+  onChange: (index: number, data: PassengerData) => void;
+  passengers: PassengerData[];
+}
+
+const PassengerForm = ({
+  seatNumber,
+  tripDetails,
+  index,
+  onChange,
+  passengers,
+}: PassengerFormProps) => {
+  const [errors, setErrors] = useState({
+    name: false,
+    age: false,
+    gender: false,
+    idProof: false,
+    idProofNumber: false,
+    address: false,
+  });
+
+  const [errorMessages, setErrorMessages] = useState({
+    name: "",
+    age: "",
+    gender: "",
+    idProof: "",
+    idProofNumber: "",
+    address: "",
+  });
+
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => {
+    const { name, value } = e.target;
+
+    const updatedData: PassengerData = {
+      ...passengers[index],
+      [name]: value,
+    };
+
+    onChange(index, updatedData);
+
+    setErrors((prevErrors) => ({
+      ...prevErrors,
+      [name]: value.trim() === "",
+    }));
+  };
+
+  return (
+    <motion.div
+      variants={fadeInUp}
+      className="bg-white p-6 rounded-lg shadow-sm mb-4"
+    >
+      <h3 className="font-medium mb-4">
+        Passenger {index + 1} - Seat {seatNumber}
+      </h3>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Full Name
+          </label>
+          <input
+            type="text"
+            name="name"
+            value={passengers[index]?.name || ""}
+            onChange={handleChange}
+            className={`w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${
+              errors.name ? "border-red-500" : ""
+            }`}
+            aria-invalid={errors.name ? "true" : "false"}
+            required
+          />
+          {errors.name && <p className="text-red-500 text-xs">{errorMessages.name}</p>}
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Age
+          </label>
+          <input
+            type="text"
+            name="age"
+            value={passengers[index]?.age || ""}
+            onChange={handleChange}
+            className={`w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${
+              errors.age ? "border-red-500" : ""
+            }`}
+            aria-invalid={errors.age ? "true" : "false"}
+            required
+          />
+          {errors.age && <p className="text-red-500 text-xs">{errorMessages.age}</p>}
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Gender
+          </label>
+          <select
+            name="gender"
+            value={passengers[index]?.gender || ""}
+            onChange={handleChange}
+            className={`w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${
+              errors.gender ? "border-red-500" : ""
+            }`}
+            aria-invalid={errors.gender ? "true" : "false"}
+            required
+          >
+            <option value="">Select Gender</option>
+            <option value="male">Male</option>
+            <option value="female">Female</option>
+            <option value="other">Other</option>
+          </select>
+          {errors.gender && <p className="text-red-500 text-xs">{errorMessages.gender}</p>}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            ID Proof Type
+          </label>
+          <select
+            name="idProof"
+            value={passengers[index]?.idProof || ""}
+            onChange={handleChange}
+            className={`w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${
+              errors.idProof ? "border-red-500" : ""
+            }`}
+            required
+          >
+            <option value="">Select ID Proof</option>
+            <option value="aadhar">Aadhar</option>
+            <option value="pan">PAN</option>
+          </select>
+          {errors.idProof && <p className="text-red-500 text-xs">{errorMessages.idProof}</p>}
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            ID Proof Number
+          </label>
+          <input
+            type="text"
+            name="idProofNumber"
+            value={passengers[index]?.idProofNumber || ""}
+            onChange={handleChange}
+            className={`w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${
+              errors.idProofNumber ? "border-red-500" : ""
+            }`}
+            aria-invalid={errors.idProofNumber ? "true" : "false"}
+            required
+          />
+          {errors.idProofNumber && <p className="text-red-500 text-xs">{errorMessages.idProofNumber}</p>}
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Pickup Location
+          </label>
+          <select
+            name="address"
+            value={passengers[index]?.address || ""}
+            onChange={handleChange}
+            className={`w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${
+              errors.address ? "border-red-500" : ""
+            }`}
+            aria-invalid={errors.address ? "true" : "false"}
+            required
+          >
+            <option value="">Select Pickup Location</option>
+            {tripDetails.boardingPoints.map((point) => (
+              <option key={point._id} value={point.location}>
+                {point.location} - {point.time}
+              </option>
+            ))}
+          </select>
+          {errors.address && <p className="text-red-500 text-xs">{errorMessages.address}</p>}
+        </div>
+      </div>
+    </motion.div>
+  );
+};
+
+// BookingSummary Component
+interface BookingSummaryProps {
+  tripDetails: {
+    from: string;
+    to: string;
+    date: StartDate[];
+    time: string;
+    busType: string;
+    packages: Package[];
+    roomChoices: RoomChoice[];
+    baseSeatPrice: number;
+  };
+  selectedDate: StartDate | null;
+  setSelectedData: (date: StartDate) => void;
+  selectedSeats: string[];
+  passengers: PassengerData[];
+  selectedPackage: Package | null;
+  setSelectedPackage: (pkg: Package | null) => void;
+  selectedRoomChoice: RoomChoice | null;
+  setSelectedRoomChoice: (room: RoomChoice | null) => void;
+  paymentOption: "full" | "advance";
+  setPaymentOption: (option: "full" | "advance") => void;
+  onProceed: () => void;
+  loading: boolean;
+  step: "select-seats" | "passenger-details";
+  disabled?: boolean;
+}
+
+const BookingSummary = ({
+  loading,
+  tripDetails,
+  selectedSeats,
+  passengers,
+  selectedPackage,
+  setSelectedPackage,
+  selectedRoomChoice,
+  setSelectedRoomChoice,
+  paymentOption,
+  setPaymentOption,
+  setSelectedData,
+  selectedDate,
+  step,
+  onProceed,
+  disabled = false,
+}: BookingSummaryProps) => {
+  const totalSeats = selectedDate?.seats || 0;
+  const isSeatSelection = totalSeats === 20 || totalSeats === 32;
+  const numPassengers = isSeatSelection ? selectedSeats.length : passengers.length;
+  const seatPrice = tripDetails.baseSeatPrice || 1000;
+  const packagePrice = selectedPackage?.price || 0;
+  const roomPrice = selectedRoomChoice?.price || 0;
+  const pricePerPerson = seatPrice + packagePrice + roomPrice;
+  const gstPerPerson = pricePerPerson * 0.05;
+  const totalPricePerPerson = pricePerPerson + gstPerPerson;
+  const totalAmount = numPassengers * pricePerPerson;
+  const totalGst = numPassengers * gstPerPerson;
+  const finalAmount = numPassengers * totalPricePerPerson;
+
+  const formatDateWithSeats = (startDate: StartDate): string => {
+    const date = parse(startDate.date, "dd-MM-yyyy", new Date());
+    if (!isValid(date)) {
+      console.error("Invalid date:", startDate.date);
+      return "Invalid Date";
+    }
+    return `${format(date, "dd-MM-yyyy")} (${startDate.seats} Seats)`;
+  };
+
+  const validDates = tripDetails.date.filter((startDate) => {
+    if (!startDate || typeof startDate !== "object" || !("date" in startDate)) {
+      return false;
+    }
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const checkDate = parse(startDate.date, "dd-MM-yyyy", new Date());
+    return isValid(checkDate) && checkDate >= today;
+  });
+
+  return (
+    <motion.div
+      variants={fadeInUp}
+      initial="initial"
+      animate="animate"
+      className={`bg-white rounded-xl shadow-lg p-6 ${disabled ? "opacity-50" : ""}`}
+    >
+      <h3 className="text-xl font-semibold mb-4">Booking Summary</h3>
+
+      <div className="space-y-4 mb-6">
+        <div className="flex items-center text-gray-600">
+          <MapPin className="w-5 h-5 mr-2" />
+          <span>
+            {tripDetails.from} → {tripDetails.to}
+          </span>
+        </div>
+        <div className="flex items-center text-gray-600">
+          <Calendar className="w-5 h-5 mr-2" />
+          <select
+            className="border p-2 rounded-md w-full disabled:bg-gray-100 disabled:cursor-not-allowed"
+            value={selectedDate ? formatDateWithSeats(selectedDate) : ""}
+            onChange={(e) => {
+              if (disabled) return;
+              const selected = validDates.find(
+                (date) => formatDateWithSeats(date) === e.target.value
+              );
+              if (selected) setSelectedData(selected);
+            }}
+            disabled={disabled || loading}
+          >
+            {validDates.length === 0 ? (
+              <option value="">No available dates</option>
+            ) : (
+              <>
+                <option value="">Select a date</option>
+                {validDates.map((date) => (
+                  <option key={date.date} value={formatDateWithSeats(date)}>
+                    {formatDateWithSeats(date)}
+                  </option>
+                ))}
+              </>
+            )}
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Select Package (Optional)
+          </label>
+          <div className="grid gap-4">
+            <div
+              className={`p-4 border rounded-lg cursor-pointer transition-colors ${
+                !selectedPackage
+                  ? "border-blue-500 bg-blue-50"
+                  : "border-gray-300 hover:bg-gray-50"
+              }`}
+              onClick={() => !disabled && setSelectedPackage(null)}
+            >
+              <h4 className="font-semibold">No Package</h4>
+              <p className="text-sm text-gray-600">Proceed with seat only</p>
+              <p className="text-sm font-medium mt-2">₹0</p>
+            </div>
+            {tripDetails.packages.map((pkg) => (
+              <div
+                key={pkg._id}
+                className={`p-4 border rounded-lg cursor-pointer transition-colors ${
+                  selectedPackage?._id === pkg._id
+                    ? "border-blue-500 bg-blue-50"
+                    : "border-gray-300 hover:bg-gray-50"
+                }`}
+                onClick={() => !disabled && setSelectedPackage(pkg)}
+              >
+                <h4 className="font-semibold">{pkg.name}</h4>
+                <p className="text-sm text-gray-600">{pkg.description}</p>
+                <p className="text-sm font-medium mt-2">
+                  ₹{pkg.price.toLocaleString("en-IN")}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Select Room Choice (Optional)
+          </label>
+          <div className="grid gap-4">
+            <div
+              className={`p-4 border rounded-lg cursor-pointer transition-colors ${
+                !selectedRoomChoice
+                  ? "border-blue-500 bg-blue-50"
+                  : "border-gray-300 hover:bg-gray-50"
+              }`}
+              onClick={() => !disabled && setSelectedRoomChoice(null)}
+            >
+              <h4 className="font-semibold">No Room</h4>
+              <p className="text-sm text-gray-600">Proceed without room selection</p>
+              <p className="text-sm font-medium mt-2">₹0</p>
+            </div>
+            {tripDetails.roomChoices.map((room) => (
+              <div
+                key={room._id}
+                className={`p-4 border rounded-lg cursor-pointer transition-colors ${
+                  selectedRoomChoice?._id === room._id
+                    ? "border-blue-500 bg-blue-50"
+                    : "border-gray-300 hover:bg-gray-50"
+                }`}
+                onClick={() => !disabled && setSelectedRoomChoice(room)}
+              >
+                <h4 className="font-semibold">{room.type}</h4>
+                <p className="text-sm text-gray-600">{room.description}</p>
+                <p className="text-sm font-medium mt-2">
+                  ₹{room.price.toLocaleString("en-IN")}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Payment Option
+          </label>
+          <div className="flex gap-4">
+            <label className="flex items-center">
+              <input
+                type="radio"
+                name="paymentOption"
+                value="full"
+                checked={paymentOption === "full"}
+                onChange={() => setPaymentOption("full")}
+                disabled={disabled || loading}
+                className="mr-2"
+              />
+              Full Payment
+            </label>
+            <label className="flex items-center">
+              <input
+                type="radio"
+                name="paymentOption"
+                value="advance"
+                checked={paymentOption === "advance"}
+                onChange={() => setPaymentOption("advance")}
+                disabled={disabled || loading}
+                className="mr-2"
+              />
+              Advance Payment (50%)
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div className="border-t border-gray-200 pt-4 mb-6">
+        {isSeatSelection && (
+          <div className="flex justify-between mb-2">
+            <span>Selected Seats</span>
+            <span>{selectedSeats.join(", ") || "None"}</span>
+          </div>
+        )}
+        <div className="flex justify-between mb-2">
+          <span>Number of Passengers</span>
+          <span>{numPassengers}</span>
+        </div>
+        <div className="flex justify-between mb-2">
+          <span>Seat Price per Person</span>
+          <span>₹{seatPrice.toLocaleString("en-IN")}</span>
+        </div>
+        <div className="flex justify-between mb-2">
+          <span>Package Price per Person</span>
+          <span>₹{packagePrice.toLocaleString("en-IN")}</span>
+        </div>
+        <div className="flex justify-between mb-2">
+          <span>Room Price per Person</span>
+          <span>₹{roomPrice.toLocaleString("en-IN")}</span>
+        </div>
+        <div className="flex justify-between mb-2">
+          <span>Total Price per Person</span>
+          <span>₹{pricePerPerson.toLocaleString("en-IN")}</span>
+        </div>
+        <div className="flex justify-between mb-2">
+          <span>GST per Person (5%)</span>
+          <span>₹{gstPerPerson.toLocaleString("en-IN")}</span>
+        </div>
+        <div className="flex justify-between mb-2">
+          <span>Total per Person</span>
+          <span>₹{totalPricePerPerson.toLocaleString("en-IN")}</span>
+        </div>
+        <div className="flex justify-between mb-2">
+          <span>Subtotal ({numPassengers} x ₹{pricePerPerson.toLocaleString("en-IN")})</span>
+          <span>₹{totalAmount.toLocaleString("en-IN")}</span>
+        </div>
+        <div className="flex justify-between mb-2">
+          <span>Total GST ({numPassengers} x ₹{gstPerPerson.toLocaleString("en-IN")})</span>
+          <span>₹{totalGst.toLocaleString("en-IN")}</span>
+        </div>
+        <div className="flex justify-between font-semibold text-lg mt-4">
+          <span>Final Amount</span>
+          <span>₹{finalAmount.toLocaleString("en-IN")}</span>
+        </div>
+        {paymentOption === "advance" && (
+          <div className="flex justify-between font-semibold text-lg mt-2">
+            <span>Advance Payment (50%)</span>
+            <span>₹{(finalAmount * 0.5).toLocaleString("en-IN")}</span>
+          </div>
+        )}
+      </div>
+
+      <Button
+        onClick={() => !disabled && onProceed()}
+        disabled={(isSeatSelection && selectedSeats.length === 0 && step === "select-seats") || !selectedDate || loading || disabled}
+        className={`w-full relative ${
+          (isSeatSelection && selectedSeats.length === 0 && step === "select-seats") || !selectedDate || loading || disabled
+            ? "bg-gray-300 cursor-not-allowed"
+            : "bg-blue-600 hover:bg-blue-700 text-white"
+        }`}
+      >
+        {loading && <FaSpinner className="animate-spin inline mr-2" />}
+        Proceed to {isSeatSelection && step === "select-seats" ? "Passenger Details" : "Payment"}
+      </Button>
+    </motion.div>
   );
 };
 

@@ -6,19 +6,74 @@ import "jspdf-autotable";
 import logo from "../../asserts/favicon.png";
 import { FaSpinner } from "react-icons/fa";
 
+interface Package {
+  _id: string;
+  title: string;
+  description: string;
+  personCount: number;
+  price: number;
+}
+
+interface RoomChoice {
+  _id: string;
+  description: string;
+  personCount: number;
+  roomCount: number;
+  price: number;
+}
+
+interface Booking {
+  _id: string;
+  trip: {
+    title: string;
+    location: string;
+    price: string;
+    boardingPoints: { location: string; time: string; details: string }[];
+    packages: Package[];
+    roomChoices: RoomChoice[];
+  };
+  user: { email: string; username: string; phone: string };
+  selectedDate: string;
+  selectedSeats: string[];
+  selectedPackage: string | null;
+  selectedRoomChoice: string | null;
+  paymentStatus: string;
+  advancePaid: number;
+  remainingBalance: number;
+  passengers: {
+    name: string;
+    age: string;
+    gender: string;
+    address: string;
+    idProof: string;
+    idProofNumber: string;
+  }[];
+}
+
 const BookingDetail = () => {
   const { id } = useParams();
   const { data, isLoading, isError, error } = useGetIDbookingQuery({ id });
-  const [booking, setBooking] = useState<any>(null);
+  const [booking, setBooking] = useState<Booking | null>(null);
 
   useEffect(() => {
     if (data && data.booking) {
-      const selectedBooking = data.booking;
-      setBooking(selectedBooking);
+      setBooking(data.booking);
+      console.log("Selected Booking:", data.booking);
     }
   }, [data, id]);
 
-  const totalAmount = booking?.selectedSeats?.length * (booking?.trip?.price || 0);
+  // Price calculations
+  const baseSeatPrice = booking?.trip?.price ? parseFloat(booking.trip.price) : 0;
+  const selectedPackage = booking?.selectedPackage
+    ? booking.trip.packages.find((pkg) => pkg._id === booking.selectedPackage)
+    : null;
+  const selectedRoomChoice = booking?.selectedRoomChoice
+    ? booking.trip.roomChoices.find((room) => room._id === booking.selectedRoomChoice)
+    : null;
+  const packagePrice = selectedPackage ? selectedPackage.price : 0;
+  const roomPrice = selectedRoomChoice ? selectedRoomChoice.price : 0;
+  const pricePerPerson = baseSeatPrice + packagePrice + roomPrice;
+  const totalAmount = (booking?.passengers?.length || 0) * pricePerPerson;
   const gst = totalAmount * 0.05; // 5% GST
   const finalAmount = totalAmount + gst;
 
@@ -41,11 +96,11 @@ const BookingDetail = () => {
         if (aspectRatio > 1) height = width / aspectRatio;
         else width = height * aspectRatio;
 
-        // Define cropping parameters (e.g., crop 20% from each side)
-        const cropX = imgWidth * 0.2; // Start 20% from the left
-        const cropY = imgHeight * 0.2; // Start 20% from the top
-        const cropWidth = imgWidth * 0.6; // Use 60% of the width
-        const cropHeight = imgHeight * 0.6; // Use 60% of the height
+        // Define cropping parameters (20% from each side)
+        const cropX = imgWidth * 0.2;
+        const cropY = imgHeight * 0.2;
+        const cropWidth = imgWidth * 0.6;
+        const cropHeight = imgHeight * 0.6;
 
         // Add cropped image to PDF
         doc.addImage(
@@ -97,16 +152,34 @@ const BookingDetail = () => {
             ["Booking ID", booking._id],
             ["Trip Title", booking.trip?.title || "N/A"],
             ["Location", booking.trip?.location || "N/A"],
+            ["Selected Date", booking.selectedDate || "N/A"],
+            ["Selected Seats", booking.selectedSeats?.join(", ") || "N/A"],
             [
-              "Price per seat",
-              `INR ${booking?.trip?.price || 0}*${booking?.selectedSeats?.length || 0}`,
+              "Package",
+              selectedPackage
+                ? `${selectedPackage.title} (inr ${selectedPackage.price.toLocaleString("en-IN")})`
+                : "None",
             ],
-            ["Subtotal", `INR ${totalAmount.toFixed(2)}`],
-            ["GST (5%)", `INR ${gst.toFixed(2)}`],
-            ["Total Amount", `INR ${finalAmount.toFixed(2)}`],
-            ["User Email", booking.user?.email || "N/A"],
-            ["Selected Date", booking?.selectedDate || "N/A"],
-            ["Selected Seats", booking?.selectedSeats?.join(", ") || "N/A"],
+            [
+              "Room Choice",
+              selectedRoomChoice
+                ? `${selectedRoomChoice.description} (inr ${selectedRoomChoice.price.toLocaleString("en-IN")})`
+                : "None",
+            ],
+            [
+              "Price per Person",
+              `inr ${baseSeatPrice.toLocaleString("en-IN")} (Seat) + inr ${packagePrice.toLocaleString("en-IN")} (Package) + inr ${roomPrice.toLocaleString("en-IN")} (Room)`,
+            ],
+            ["Number of Passengers", booking.passengers?.length.toString() || "0"],
+            ["Subtotal", `inr ${totalAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`],
+            ["GST (5%)", `inr ${gst.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`],
+            ["Total Amount", `inr ${finalAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`],
+            ["Payment Status", booking.paymentStatus || "N/A"],
+            ["Advance Paid", `inr ${booking.advancePaid.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`],
+            ["Remaining Balance", `inr ${booking.remainingBalance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`],
+            ["User", booking.user?.username || "N/A"],
+            ["Email", booking.user?.email || "N/A"],
+            ["Phone", booking.user?.phone || "N/A"],
           ],
           theme: "striped",
           styles: { fontSize: 10 },
@@ -191,8 +264,8 @@ const BookingDetail = () => {
           <div
             className="mx-auto relative"
             style={{
-              width: "100px", // Container width
-              height: "60px", // Container height
+              width: "100px",
+              height: "60px",
               overflow: "hidden",
             }}
           >
@@ -201,10 +274,10 @@ const BookingDetail = () => {
               alt="Sunshine Holiday Packages"
               className="absolute"
               style={{
-                width: "140px", // Larger than container to allow cropping
+                width: "140px",
                 height: "auto",
-                top: "-10px", // Adjust to crop top
-                left: "-20px", // Adjust to crop left
+                top: "-10px",
+                left: "-20px",
               }}
             />
           </div>
@@ -223,74 +296,32 @@ const BookingDetail = () => {
         <h2 className="text-3xl font-bold mb-6">Invoice</h2>
 
         <div className="mb-6">
-          <table className="w-full border-collapse border border-gray-300">
+          <table className="w-full border-collapse border border-gray-300 text-sm">
             <tbody>
               <tr>
-                <th className="border border-gray-300 px-4 py-2 text-left">
+                <th className="border border-gray-300 px-4 py-2 text-left font-semibold">
                   Booking ID
                 </th>
-                <td className="border border-gray-300 px-4 py-2">
-                  {booking._id}
-                </td>
+                <td className="border border-gray-300 px-4 py-2">{booking._id}</td>
               </tr>
               <tr>
-                <th className="border border-gray-300 px-4 py-2 text-left">
+                <th className="border border-gray-300 px-4 py-2 text-left font-semibold">
                   Trip Title
                 </th>
                 <td className="border border-gray-300 px-4 py-2">
-                  {booking.trip.title || "N/A"}
+                  {booking.trip?.title || "N/A"}
                 </td>
               </tr>
               <tr>
-                <th className="border border-gray-300 px-4 py-2 text-left">
+                <th className="border border-gray-300 px-4 py-2 text-left font-semibold">
                   Location
                 </th>
                 <td className="border border-gray-300 px-4 py-2">
-                  {booking.trip.location || "N/A"}
+                  {booking.trip?.location || "N/A"}
                 </td>
               </tr>
               <tr>
-                <th className="border border-gray-300 px-4 py-2 text-left">
-                  Price per seat
-                </th>
-                <td className="border border-gray-300 px-4 py-2">
-                  ₹{booking?.trip?.price || 0} * {booking?.selectedSeats?.length || 0}
-                </td>
-              </tr>
-              <tr>
-                <th className="border border-gray-300 px-4 py-2 text-left">
-                  Subtotal
-                </th>
-                <td className="border border-gray-300 px-4 py-2">
-                  ₹{totalAmount.toFixed(2)}
-                </td>
-              </tr>
-              <tr>
-                <th className="border border-gray-300 px-4 py-2 text-left">
-                  GST (5%)
-                </th>
-                <td className="border border-gray-300 px-4 py-2">
-                  ₹{gst.toFixed(2)}
-                </td>
-              </tr>
-              <tr className="bg-gray-100 font-semibold">
-                <th className="border border-gray-300 px-4 py-2 text-left">
-                  Total Amount
-                </th>
-                <td className="border border-gray-300 px-4 py-2">
-                  ₹{finalAmount.toFixed(2)}
-                </td>
-              </tr>
-              <tr>
-                <th className="border border-gray-300 px-4 py-2 text-left">
-                  User Email
-                </th>
-                <td className="border border-gray-300 px-4 py-2">
-                  {booking.user.email || "N/A"}
-                </td>
-              </tr>
-              <tr>
-                <th className="border border-gray-300 px-4 py-2 text-left">
+                <th className="border border-gray-300 px-4 py-2 text-left font-semibold">
                   Selected Date
                 </th>
                 <td className="border border-gray-300 px-4 py-2">
@@ -298,11 +329,119 @@ const BookingDetail = () => {
                 </td>
               </tr>
               <tr>
-                <th className="border border-gray-300 px-4 py-2 text-left">
+                <th className="border border-gray-300 px-4 py-2 text-left font-semibold">
                   Selected Seats
                 </th>
                 <td className="border border-gray-300 px-4 py-2">
                   {booking.selectedSeats?.join(", ") || "N/A"}
+                </td>
+              </tr>
+              <tr>
+                <th className="border border-gray-300 px-4 py-2 text-left font-semibold">
+                  Package
+                </th>
+                <td className="border border-gray-300 px-4 py-2">
+                  {selectedPackage
+                    ? `${selectedPackage.title} (inr ${selectedPackage.price.toLocaleString("en-IN")})`
+                    : "None"}
+                </td>
+              </tr>
+              <tr>
+                <th className="border border-gray-300 px-4 py-2 text-left font-semibold">
+                  Room Choice
+                </th>
+                <td className="border border-gray-300 px-4 py-2">
+                  {selectedRoomChoice
+                    ? `${selectedRoomChoice.description} (inr ${selectedRoomChoice.price.toLocaleString("en-IN")})`
+                    : "None"}
+                </td>
+              </tr>
+              <tr>
+                <th className="border border-gray-300 px-4 py-2 text-left font-semibold">
+                  Price per Person
+                </th>
+                <td className="border border-gray-300 px-4 py-2">
+                  inr {baseSeatPrice.toLocaleString("en-IN")} (Seat) + inr {packagePrice.toLocaleString("en-IN")} (Package) + inr {roomPrice.toLocaleString("en-IN")} (Room)
+                </td>
+              </tr>
+              <tr>
+                <th className="border border-gray-300 px-4 py-2 text-left font-semibold">
+                  Number of Passengers
+                </th>
+                <td className="border border-gray-300 px-4 py-2">
+                  {booking.passengers?.length || 0}
+                </td>
+              </tr>
+              <tr>
+                <th className="border border-gray-300 px-4 py-2 text-left font-semibold">
+                  Subtotal
+                </th>
+                <td className="border border-gray-300 px-4 py-2">
+                  inr {totalAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                </td>
+              </tr>
+              <tr>
+                <th className="border border-gray-300 px-4 py-2 text-left font-semibold">
+                  GST (5%)
+                </th>
+                <td className="border border-gray-300 px-4 py-2">
+                  inr {gst.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                </td>
+              </tr>
+              <tr className="bg-gray-100 font-semibold">
+                <th className="border border-gray-300 px-4 py-2 text-left font-semibold">
+                  Total Amount
+                </th>
+                <td className="border border-gray-300 px-4 py-2">
+                  inr {finalAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                </td>
+              </tr>
+              <tr>
+                <th className="border border-gray-300 px-4 py-2 text-left font-semibold">
+                  Payment Status
+                </th>
+                <td className="border border-gray-300 px-4 py-2">
+                  {booking.paymentStatus || "N/A"}
+                </td>
+              </tr>
+              <tr>
+                <th className="border border-gray-300 px-4 py-2 text-left font-semibold">
+                  Advance Paid
+                </th>
+                <td className="border border-gray-300 px-4 py-2">
+                  inr {booking.advancePaid.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                </td>
+              </tr>
+              <tr>
+                <th className="border border-gray-300 px-4 py-2 text-left font-semibold">
+                  Remaining Balance
+                </th>
+                <td className="border border-gray-300 px-4 py-2">
+                  inr {booking.remainingBalance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                </td>
+              </tr>
+              <tr>
+                <th className="border border-gray-300 px-4 py-2 text-left font-semibold">
+                  User
+                </th>
+                <td className="border border-gray-300 px-4 py-2">
+                  {booking.user?.username || "N/A"}
+                </td>
+              </tr>
+              <tr>
+                <th className="border border-gray-300 px-4 py-2 text-left font-semibold">
+                  Email
+                </th>
+                <td className="border border-gray-300 px-4 py-2">
+                  {booking.user?.email || "N/A"}
+                </td>
+              </tr>
+              <tr>
+                <th className="border border-gray-300 px-4 py-2 text-left font-semibold">
+                  Phone
+                </th>
+                <td className="border border-gray-300 px-4 py-2">
+                  {booking.user?.phone || "N/A"}
                 </td>
               </tr>
             </tbody>
@@ -355,9 +494,7 @@ const BookingDetail = () => {
                 <th className="border border-gray-300 px-4 py-2">Name</th>
                 <th className="border border-gray-300 px-4 py-2">Age</th>
                 <th className="border border-gray-300 px-4 py-2">Gender</th>
-                <th className="border border-gray-300 px-4 py-2">
-                  Boarding Point
-                </th>
+                <th className="border border-gray-300 px-4 py-2">Boarding Point</th>
                 <th className="border border-gray-300 px-4 py-2">ID Proof</th>
               </tr>
             </thead>

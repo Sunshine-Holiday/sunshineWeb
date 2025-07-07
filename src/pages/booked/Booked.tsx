@@ -1,4 +1,3 @@
-
 import {
   useGetuserAllbookingQuery,
   useRequestCancelBookingMutation,
@@ -20,27 +19,54 @@ import { toast } from "react-toastify";
 // Define TypeScript interfaces
 interface Passenger {
   name?: string;
-  age: number;
+  age: string;
   gender: string;
   address: string;
   idProof: string;
   idProofNumber: string;
+  _id: string;
+}
+
+interface Package {
+  _id: string;
+  title: string;
+  description: string;
+  personCount: number;
+  price: number;
+}
+
+interface RoomChoice {
+  _id: string;
+  description: string;
+  personCount: number;
+  roomCount: number;
+  price: number;
 }
 
 interface Booking {
   _id: string;
   trip: {
+    _id: string;
     title: string;
     location: string;
+    packages: Package[];
+    roomChoices: RoomChoice[];
   };
-  price: string;
+  price: number;
   user: {
     email: string;
     phone: string;
+    username: string;
   };
   selectedDate: string;
   status?: string;
   passengers: Passenger[];
+  selectedSeats: string[];
+  selectedPackage: string | null;
+  selectedRoomChoice: string | null;
+  paymentStatus: string;
+  advancePaid: number;
+  remainingBalance: number;
   isReview: boolean;
   isReviewActivate?: boolean;
 }
@@ -174,6 +200,7 @@ const Booked = () => {
   useEffect(() => {
     if (data?.bookings) {
       setBookings(data.bookings);
+      console.log("Bookings data:", data.bookings);
     }
   }, [data]);
 
@@ -244,17 +271,22 @@ const Booked = () => {
                         "Trip Title",
                         "Location",
                         "Price",
-                        "User Email",
-                        "User Phone",
-                        "Selected Date",
+                        "User",
+                        "Date",
+                        "Seats",
                         "Passengers",
+                        "Package",
+                        "Room",
+                        "Payment Status",
+                        "Advance Paid",
+                        "Remaining Balance",
                         "Details/Status",
                         "Refund",
                         "Review",
                       ].map((header) => (
                         <TableHead
                           key={header}
-                          className="px-4 py-3 text-left text-sm font-semibold text-gray-800"
+                          className="px-4 py-3 text-left text-sm font-semibold text-gray-800 whitespace-nowrap"
                         >
                           {header}
                         </TableHead>
@@ -279,6 +311,16 @@ const Booked = () => {
                         bookingDate,
                         booking.status
                       );
+                      const selectedPackage = booking.selectedPackage
+                        ? booking.trip.packages.find(
+                            (pkg) => pkg._id === booking.selectedPackage
+                          )
+                        : null;
+                      const selectedRoomChoice = booking.selectedRoomChoice
+                        ? booking.trip.roomChoices.find(
+                            (room) => room._id === booking.selectedRoomChoice
+                          )
+                        : null;
 
                       return (
                         <TableRow
@@ -292,16 +334,18 @@ const Booked = () => {
                             {booking?.trip?.location || "N/A"}
                           </TableCell>
                           <TableCell className="px-4 py-3 text-sm text-gray-600">
-                            {booking?.price || "N/A"}
+                            ₹{booking?.price.toLocaleString("en-IN") || "N/A"}
                           </TableCell>
                           <TableCell className="px-4 py-3 text-sm text-gray-600">
-                            {booking?.user?.email || "N/A"}
-                          </TableCell>
-                          <TableCell className="px-4 py-3 text-sm text-gray-600">
+                            {booking?.user?.username || "N/A"}<br />
+                            {booking?.user?.email || "N/A"}<br />
                             {booking?.user?.phone || "N/A"}
                           </TableCell>
                           <TableCell className="px-4 py-3 text-sm text-gray-600">
                             {booking.selectedDate}
+                          </TableCell>
+                          <TableCell className="px-4 py-3 text-sm text-gray-600">
+                            {booking.selectedSeats?.join(", ") || "N/A"}
                           </TableCell>
                           <TableCell className="px-4 py-3 text-sm text-gray-600">
                             {booking.passengers?.length > 0
@@ -312,6 +356,25 @@ const Booked = () => {
                                   />
                                 ))
                               : "No passengers"}
+                          </TableCell>
+                          <TableCell className="px-4 py-3 text-sm text-gray-600">
+                            {selectedPackage
+                              ? `${selectedPackage.title} (₹${selectedPackage.price.toLocaleString("en-IN")})`
+                              : "None"}
+                          </TableCell>
+                          <TableCell className="px-4 py-3 text-sm text-gray-600">
+                            {selectedRoomChoice
+                              ? `${selectedRoomChoice.description} (₹${selectedRoomChoice.price.toLocaleString("en-IN")})`
+                              : "None"}
+                          </TableCell>
+                          <TableCell className="px-4 py-3 text-sm text-gray-600">
+                            {booking.paymentStatus || "N/A"}
+                          </TableCell>
+                          <TableCell className="px-4 py-3 text-sm text-gray-600">
+                            ₹{booking.advancePaid.toLocaleString("en-IN") || "0"}
+                          </TableCell>
+                          <TableCell className="px-4 py-3 text-sm text-gray-600">
+                            ₹{booking.remainingBalance.toLocaleString("en-IN") || "0"}
                           </TableCell>
                           <TableCell className="px-4 py-3 text-sm text-gray-600">
                             <div className="flex flex-col items-start gap-2">
@@ -391,6 +454,16 @@ const Booked = () => {
                   bookingDate,
                   booking.status
                 );
+                const selectedPackage = booking.selectedPackage
+                  ? booking.trip.packages.find(
+                      (pkg) => pkg._id === booking.selectedPackage
+                    )
+                  : null;
+                const selectedRoomChoice = booking.selectedRoomChoice
+                  ? booking.trip.roomChoices.find(
+                      (room) => room._id === booking.selectedRoomChoice
+                    )
+                  : null;
 
                 return (
                   <div
@@ -408,19 +481,45 @@ const Booked = () => {
                       </div>
                       <div>
                         <strong className="text-gray-800">Price:</strong>{" "}
-                        {booking?.price || "N/A"}
+                        ₹{booking?.price.toLocaleString("en-IN") || "N/A"}
                       </div>
                       <div>
-                        <strong className="text-gray-800">User Email:</strong>{" "}
-                        {booking?.user?.email || "N/A"}
-                      </div>
-                      <div>
-                        <strong className="text-gray-800">User Phone:</strong>{" "}
+                        <strong className="text-gray-800">User:</strong>{" "}
+                        {booking?.user?.username || "N/A"}<br />
+                        {booking?.user?.email || "N/A"}<br />
                         {booking?.user?.phone || "N/A"}
                       </div>
                       <div>
                         <strong className="text-gray-800">Selected Date:</strong>{" "}
                         {booking.selectedDate}
+                      </div>
+                      <div>
+                        <strong className="text-gray-800">Selected Seats:</strong>{" "}
+                        {booking.selectedSeats?.join(", ") || "N/A"}
+                      </div>
+                      <div>
+                        <strong className="text-gray-800">Package:</strong>{" "}
+                        {selectedPackage
+                          ? `${selectedPackage.title} (₹${selectedPackage.price.toLocaleString("en-IN")})`
+                          : "None"}
+                      </div>
+                      <div>
+                        <strong className="text-gray-800">Room Choice:</strong>{" "}
+                        {selectedRoomChoice
+                          ? `${selectedRoomChoice.description} (₹${selectedRoomChoice.price.toLocaleString("en-IN")})`
+                          : "None"}
+                      </div>
+                      <div>
+                        <strong className="text-gray-800">Payment Status:</strong>{" "}
+                        {booking.paymentStatus || "N/A"}
+                      </div>
+                      <div>
+                        <strong className="text-gray-800">Advance Paid:</strong>{" "}
+                        ₹{booking.advancePaid.toLocaleString("en-IN") || "0"}
+                      </div>
+                      <div>
+                        <strong className="text-gray-800">Remaining Balance:</strong>{" "}
+                        ₹{booking.remainingBalance.toLocaleString("en-IN") || "0"}
                       </div>
                       <div>
                         <strong className="text-gray-800">Passengers:</strong>
@@ -506,6 +605,10 @@ const Booked = () => {
         <style jsx>{`
           h2, div, span, button, strong {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+          }
+          .table-container {
+            max-height: 600px;
+            overflow-y: auto;
           }
         `}</style>
       </div>
