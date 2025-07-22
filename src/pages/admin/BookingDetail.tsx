@@ -47,6 +47,7 @@ interface Booking {
     address: string;
     idProof: string;
     idProofNumber: string;
+    phoneNumber: string;
   }[];
 }
 
@@ -63,19 +64,19 @@ const BookingDetail = () => {
   }, [data, id]);
 
   // Price calculations
-  const baseSeatPrice = booking?.trip?.price ? parseFloat(booking.trip.price) : 0;
+  const baseSeatPrice = booking?.trip?.price ? parseInt(booking.trip.price) : 1000;
   const selectedPackage = booking?.selectedPackage
     ? booking.trip.packages.find((pkg) => pkg._id === booking.selectedPackage)
     : null;
   const selectedRoomChoice = booking?.selectedRoomChoice
     ? booking.trip.roomChoices.find((room) => room._id === booking.selectedRoomChoice)
     : null;
-  const packagePrice = selectedPackage ? selectedPackage.price : 0;
+  const numPassengers = booking?.passengers?.length || 0;
+  const basePrice = selectedPackage ? selectedPackage.price : baseSeatPrice * numPassengers;
   const roomPrice = selectedRoomChoice ? selectedRoomChoice.price : 0;
-  const pricePerPerson = baseSeatPrice + packagePrice + roomPrice;
-  const totalAmount = (booking?.passengers?.length || 0) * pricePerPerson;
-  const gst = totalAmount * 0.05; // 5% GST
-  const finalAmount = totalAmount + gst;
+  const totalPrice = basePrice + roomPrice;
+  const gst = totalPrice * 0.05; // 5% GST
+  const finalAmount = totalPrice + gst;
 
   const handleDownloadInvoice = () => {
     if (booking) {
@@ -157,26 +158,26 @@ const BookingDetail = () => {
             [
               "Package",
               selectedPackage
-                ? `${selectedPackage.title} (inr ${selectedPackage.price.toLocaleString("en-IN")})`
+                ? `${selectedPackage.title} (₹${selectedPackage.price.toLocaleString("en-IN")})`
                 : "None",
             ],
             [
               "Room Choice",
               selectedRoomChoice
-                ? `${selectedRoomChoice.description} (inr ${selectedRoomChoice.price.toLocaleString("en-IN")})`
+                ? `${selectedRoomChoice.description} (₹${selectedRoomChoice.price.toLocaleString("en-IN")})`
                 : "None",
             ],
             [
-              "Price per Person",
-              `inr ${baseSeatPrice.toLocaleString("en-IN")} (Seat) + inr ${packagePrice.toLocaleString("en-IN")} (Package) + inr ${roomPrice.toLocaleString("en-IN")} (Room)`,
+              selectedPackage ? "Package Price" : "Seat Price",
+              `₹${basePrice.toLocaleString("en-IN")}`,
             ],
-            ["Number of Passengers", booking.passengers?.length.toString() || "0"],
-            ["Subtotal", `inr ${totalAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`],
-            ["GST (5%)", `inr ${gst.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`],
-            ["Total Amount", `inr ${finalAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`],
+            ["Room Price", `₹${roomPrice.toLocaleString("en-IN")}`],
+            ["Subtotal", `₹${totalPrice.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`],
+            ["GST (5%)", `₹${gst.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`],
+            ["Total Amount", `₹${finalAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`],
             ["Payment Status", booking.paymentStatus || "N/A"],
-            ["Advance Paid", `inr ${booking.advancePaid.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`],
-            ["Remaining Balance", `inr ${booking.remainingBalance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`],
+            ["Advance Paid", `₹${booking.advancePaid.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`],
+            ["Remaining Balance", `₹${booking.remainingBalance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`],
             ["User", booking.user?.username || "N/A"],
             ["Email", booking.user?.email || "N/A"],
             ["Phone", booking.user?.phone || "N/A"],
@@ -219,13 +220,14 @@ const BookingDetail = () => {
         if (booking.passengers && booking.passengers.length > 0) {
           doc.autoTable({
             startY: passengersStartY + 5,
-            head: [["Name", "Age", "Gender", "Boarding Point", "ID Proof"]],
+            head: [["Name", "Age", "Gender", "Boarding Point", "ID Proof", "Phone Number"]],
             body: booking.passengers.map((passenger: any) => [
               passenger.name || "Unnamed",
               passenger.age || "N/A",
               passenger.gender || "N/A",
               passenger.address || "N/A",
               `${passenger.idProof || "N/A"} (${passenger.idProofNumber || "N/A"})`,
+              passenger.phoneNumber || "N/A",
             ]),
             theme: "grid",
             styles: { fontSize: 10 },
@@ -233,8 +235,8 @@ const BookingDetail = () => {
         } else {
           doc.autoTable({
             startY: passengersStartY + 5,
-            head: [["Name", "Age", "Gender", "Boarding Point", "ID Proof"]],
-            body: [["No passenger details available", "", "", "", ""]],
+            head: [["Name", "Age", "Gender", "Boarding Point", "ID Proof", "Phone Number"]],
+            body: [["No passenger details available", "", "", "", "", ""]],
             theme: "grid",
             styles: { fontSize: 10 },
           });
@@ -342,7 +344,7 @@ const BookingDetail = () => {
                 </th>
                 <td className="border border-gray-300 px-4 py-2">
                   {selectedPackage
-                    ? `${selectedPackage.title} (inr ${selectedPackage.price.toLocaleString("en-IN")})`
+                    ? `${selectedPackage.title} (₹${selectedPackage.price.toLocaleString("en-IN")})`
                     : "None"}
                 </td>
               </tr>
@@ -352,24 +354,24 @@ const BookingDetail = () => {
                 </th>
                 <td className="border border-gray-300 px-4 py-2">
                   {selectedRoomChoice
-                    ? `${selectedRoomChoice.description} (inr ${selectedRoomChoice.price.toLocaleString("en-IN")})`
+                    ? `${selectedRoomChoice.description} (₹${selectedRoomChoice.price.toLocaleString("en-IN")})`
                     : "None"}
                 </td>
               </tr>
               <tr>
                 <th className="border border-gray-300 px-4 py-2 text-left font-semibold">
-                  Price per Person
+                  {selectedPackage ? "Package Price" : "Seat Price"}
                 </th>
                 <td className="border border-gray-300 px-4 py-2">
-                  inr {baseSeatPrice.toLocaleString("en-IN")} (Seat) + inr {packagePrice.toLocaleString("en-IN")} (Package) + inr {roomPrice.toLocaleString("en-IN")} (Room)
+                  ₹{basePrice.toLocaleString("en-IN")}
                 </td>
               </tr>
               <tr>
                 <th className="border border-gray-300 px-4 py-2 text-left font-semibold">
-                  Number of Passengers
+                  Room Price
                 </th>
                 <td className="border border-gray-300 px-4 py-2">
-                  {booking.passengers?.length || 0}
+                  ₹{roomPrice.toLocaleString("en-IN")}
                 </td>
               </tr>
               <tr>
@@ -377,7 +379,7 @@ const BookingDetail = () => {
                   Subtotal
                 </th>
                 <td className="border border-gray-300 px-4 py-2">
-                  inr {totalAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                  ₹{totalPrice.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                 </td>
               </tr>
               <tr>
@@ -385,7 +387,7 @@ const BookingDetail = () => {
                   GST (5%)
                 </th>
                 <td className="border border-gray-300 px-4 py-2">
-                  inr {gst.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                  ₹{gst.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                 </td>
               </tr>
               <tr className="bg-gray-100 font-semibold">
@@ -393,7 +395,7 @@ const BookingDetail = () => {
                   Total Amount
                 </th>
                 <td className="border border-gray-300 px-4 py-2">
-                  inr {finalAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                  ₹{finalAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                 </td>
               </tr>
               <tr>
@@ -409,7 +411,7 @@ const BookingDetail = () => {
                   Advance Paid
                 </th>
                 <td className="border border-gray-300 px-4 py-2">
-                  inr {booking.advancePaid.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                  ₹{booking.advancePaid.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                 </td>
               </tr>
               <tr>
@@ -417,7 +419,7 @@ const BookingDetail = () => {
                   Remaining Balance
                 </th>
                 <td className="border border-gray-300 px-4 py-2">
-                  inr {booking.remainingBalance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                  ₹{booking.remainingBalance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                 </td>
               </tr>
               <tr>
@@ -496,6 +498,7 @@ const BookingDetail = () => {
                 <th className="border border-gray-300 px-4 py-2">Gender</th>
                 <th className="border border-gray-300 px-4 py-2">Boarding Point</th>
                 <th className="border border-gray-300 px-4 py-2">ID Proof</th>
+                <th className="border border-gray-300 px-4 py-2">Phone Number</th>
               </tr>
             </thead>
             <tbody>
@@ -517,11 +520,14 @@ const BookingDetail = () => {
                     <td className="border border-gray-300 px-4 py-2">
                       {passenger.idProof || "N/A"} - {passenger.idProofNumber || "N/A"}
                     </td>
+                    <td className="border border-gray-300 px-4 py-2">
+                      {passenger.phoneNumber || "N/A"}
+                    </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={5} className="border border-gray-300 px-4 py-2 text-center">
+                  <td colSpan={6} className="border border-gray-300 px-4 py-2 text-center">
                     No passenger details available
                   </td>
                 </tr>

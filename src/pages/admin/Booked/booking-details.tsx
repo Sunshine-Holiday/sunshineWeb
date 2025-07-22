@@ -92,7 +92,7 @@ const BookingDetails = () => {
     trip: tripId,
     date: date,
   });
-console.log("hello",bookingData)
+  console.log("hello", bookingData);
   const {
     data: reviewData,
     isLoading: isReviewLoading,
@@ -319,13 +319,14 @@ console.log("hello",bookingData)
                         <TableHead className="w-1/7">User Email</TableHead>
                         <TableHead className="w-1/7 text-center">Passengers</TableHead>
                         <TableHead className="w-1/7 text-center">Selected Seats</TableHead>
-                        <TableHead className="w-1/7 text-right">Price</TableHead>
+                        <TableHead className="w-1/7 text-right">Price Details</TableHead>
                         <TableHead className="w-1/7 text-center">Review Status</TableHead>
                         <TableHead className="w-1/7 text-center">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {purchaseHistory.map((booking) => (
+                      {purchaseHistory.map((booking) => {console.log({"wew":booking})
+                      return(
                         <TableRow key={booking.bookingId} className="hover:bg-gray-50">
                           <TableCell
                             className="font-medium truncate"
@@ -356,7 +357,11 @@ console.log("hello",bookingData)
                             </div>
                           </TableCell>
                           <TableCell className="text-right font-medium">
-                            ₹{booking.price}
+                            <div className="flex flex-col items-end">
+                              <span>Total: ₹{booking.price.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+                              <span>Paid: ₹{(booking.advancePaid || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+                              <span>Remaining: ₹{(booking.remainingBalance || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+                            </div>
                           </TableCell>
                           <TableCell className="text-center">
                             <TooltipProvider>
@@ -471,7 +476,7 @@ console.log("hello",bookingData)
                             </div>
                           </TableCell>
                         </TableRow>
-                      ))}
+                      )})}
                     </TableBody>
                   </Table>
                 </div>
@@ -790,7 +795,7 @@ console.log("hello",bookingData)
                   xmlns="http://www.w3.org/2000/svg"
                   className="h-5 w-5 text-blue-600"
                   fill="none"
-                  viewBox="0 0 24 24"
+                  viewBox="0 24"
                   stroke="currentColor"
                 >
                   <path

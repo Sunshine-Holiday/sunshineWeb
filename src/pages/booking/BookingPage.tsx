@@ -30,6 +30,7 @@ interface Package {
   name: string;
   price: number;
   description: string;
+  personCount?: number;
 }
 
 interface RoomChoice {
@@ -37,6 +38,7 @@ interface RoomChoice {
   type: string;
   price: number;
   description: string;
+  personCount?: number;
 }
 
 const BookingPage = () => {
@@ -138,6 +140,7 @@ const BookingPage = () => {
             idProof: "",
             idProofNumber: "",
             address: "",
+            phoneNumber: "",
           },
         ]);
       } else {
@@ -167,11 +170,14 @@ const BookingPage = () => {
       return;
     }
 
-    // Calculate maxSeats: Use 4 as the limit when package or room is selected
+    // Calculate maxSeats: Use personCount for package/room, otherwise use all available seats
     const maxSeats = (selectedPackage || selectedRoomChoice)
-      ? Math.min(selectedDate?.seats - bookedSeats.length, selectedPackage?selectedPackage.personCount || 0 : selectedRoomChoice?.personCount || 0)
-      : (selectedDate?.seats || 0) - bookedSeats.length;
-console.log(selectedDate?.seats, bookedSeats.length, maxSeats, selectedPackage, selectedRoomChoice.personCount);
+      ? Math.min(
+          selectedDate?.seats - bookedSeats.length,
+          selectedPackage?.personCount || selectedRoomChoice?.personCount || 0
+        )
+      : selectedDate?.seats - bookedSeats.length;
+
     if (selectedSeats.length >= maxSeats && !selectedSeats.includes(seatId)) {
       toast.error(`You can select up to ${maxSeats} seats only.`);
       return;
@@ -193,6 +199,7 @@ console.log(selectedDate?.seats, bookedSeats.length, maxSeats, selectedPackage, 
               idProof: "",
               idProofNumber: "",
               address: "",
+              phoneNumber: "",
             }
           );
           return newPassengers;
@@ -218,9 +225,9 @@ console.log(selectedDate?.seats, bookedSeats.length, maxSeats, selectedPackage, 
       ? selectedDate.seats - bookedSeats.length
       : 0;
 
-    // If package or room is selected, limit to 4 passengers
+    // Limit to personCount if package or room is selected, otherwise allow all available seats
     const maxPassengers = (selectedPackage || selectedRoomChoice)
-      ? Math.min(maxAvailableSeats, 4)
+      ? Math.min(maxAvailableSeats, selectedPackage?.personCount || selectedRoomChoice?.personCount || 0)
       : maxAvailableSeats;
 
     if (passengers.length >= maxPassengers) {
@@ -237,11 +244,12 @@ console.log(selectedDate?.seats, bookedSeats.length, maxSeats, selectedPackage, 
         idProof: "",
         idProofNumber: "",
         address: "",
+        phoneNumber: "",
       },
     ]);
 
     // If package or room is selected, add corresponding seat
-    if ((selectedPackage || selectedRoomChoice) && selectedDate?.seats === (20 || 32)) {
+    if ((selectedPackage || selectedRoomChoice) && (selectedDate?.seats === 20 || selectedDate?.seats === 32)) {
       const availableSeats = Array.from(
         { length: selectedDate?.seats || 0 },
         (_, i) => (i + 1).toString()
@@ -269,7 +277,8 @@ console.log(selectedDate?.seats, bookedSeats.length, maxSeats, selectedPackage, 
         passenger.gender &&
         passenger.idProof &&
         passenger.idProofNumber &&
-        passenger.address
+        passenger.address &&
+        passenger.phoneNumber
     );
   };
 
@@ -290,6 +299,7 @@ console.log(selectedDate?.seats, bookedSeats.length, maxSeats, selectedPackage, 
           idProof: "",
           idProofNumber: "",
           address: "",
+          phoneNumber: "",
         },
       ]);
     }
@@ -306,6 +316,7 @@ console.log(selectedDate?.seats, bookedSeats.length, maxSeats, selectedPackage, 
           idProof: "",
           idProofNumber: "",
           address: "",
+          phoneNumber: "",
         },
       ]);
     }
@@ -360,7 +371,7 @@ console.log(selectedDate?.seats, bookedSeats.length, maxSeats, selectedPackage, 
         prefill: {
           name: `${userDetails?.username}`,
           email: userDetails?.email,
-          contact: "",
+          contact: passengers[0]?.phoneNumber || "",
         },
         theme: {
           color: "#3399cc",
@@ -408,7 +419,7 @@ console.log(selectedDate?.seats, bookedSeats.length, maxSeats, selectedPackage, 
       setStep("passenger-details");
     } else {
       if (!validatePassengerDetails()) {
-        toast.error("Please fill in all the passenger details.");
+        toast.error("Please fill in all passenger details, including phone number.");
         return;
       }
 
@@ -422,14 +433,15 @@ console.log(selectedDate?.seats, bookedSeats.length, maxSeats, selectedPackage, 
 
       setIsSubmitting(true);
       try {
-        const packagePrice = selectedPackage?.price || 0;
+        const numPassengers = (selectedDate?.seats === 20 || selectedDate?.seats === 32) ? selectedSeats.length : passengers.length;
+        const basePrice = selectedPackage ? selectedPackage.price : (trip?.price ? parseInt(trip.price) : 1000) * numPassengers;
         const roomPrice = selectedRoomChoice?.price || 0;
-        const totalAmount = passengers.length * (packagePrice + roomPrice);
-        const gst = totalAmount * 0.05;
-        const finalAmount = totalAmount + gst;
+        const totalPrice = basePrice + roomPrice;
+        const totalGst = totalPrice * 0.05;
+        const finalAmount = totalPrice + totalGst;
         const amountToPay = paymentOption === "advance" ? finalAmount * 0.5 : finalAmount;
 
-        if (isNaN(totalAmount) || isNaN(gst) || isNaN(finalAmount)) {
+        if (isNaN(totalPrice) || isNaN(totalGst) || isNaN(finalAmount)) {
           throw new Error("Invalid amount calculation");
         }
 
@@ -471,12 +483,12 @@ console.log(selectedDate?.seats, bookedSeats.length, maxSeats, selectedPackage, 
     roomChoices: trip.roomChoices || [],
     boardingPoints: trip.boardingPoints || [],
     busSize: trip.busSize || "20",
-    baseSeatPrice: parseInt(trip.price) || 0,
+    baseSeatPrice: parseInt(trip.price) || 1000,
   };
 
   const totalSeats = selectedDate?.seats || Number(tripDetails.busSize);
   const maxAvailableSeats = (selectedPackage || selectedRoomChoice)
-    ? Math.min(totalSeats - bookedSeats.length, 4)
+    ? Math.min(totalSeats - bookedSeats.length, selectedPackage?.personCount || selectedRoomChoice?.personCount || 0)
     : totalSeats - bookedSeats.length;
 
   return (
@@ -505,7 +517,7 @@ console.log(selectedDate?.seats, bookedSeats.length, maxSeats, selectedPackage, 
           </h1>
           <p className="text-gray-600">
             {step === "select-seats"
-              ? `Choose ${selectedPackage || selectedRoomChoice ? "up to 4" : "your"} seats for your journey`
+              ? `Choose ${selectedPackage || selectedRoomChoice ? `up to ${selectedPackage?.personCount || selectedRoomChoice?.personCount || 0}` : "your"} seats for your journey`
               : `Enter details for up to ${maxAvailableSeats} passenger(s)`}
           </p>
         </motion.div>
@@ -608,7 +620,7 @@ const Seat = ({ id, isBooked, isSelected, onSelect, price, totalSeats }: any) =>
             ${
               isBooked
                 ? "bg-gray-300 cursor-not-allowed"
-                :isSelected
+                : isSelected
                 ? "bg-blue-600 text-white hover:bg-blue-600"
                 : "bg-white hover:bg-blue-50 text-gray-600"
             }`}
@@ -821,6 +833,7 @@ const PassengerForm = ({
     idProof: false,
     idProofNumber: false,
     address: false,
+    phoneNumber: false,
   });
 
   const [errorMessages, setErrorMessages] = useState({
@@ -830,6 +843,7 @@ const PassengerForm = ({
     idProof: "",
     idProofNumber: "",
     address: "",
+    phoneNumber: "",
   });
 
   const handleChange = (
@@ -847,6 +861,11 @@ const PassengerForm = ({
     setErrors((prevErrors) => ({
       ...prevErrors,
       [name]: value.trim() === "",
+    }));
+
+    setErrorMessages((prevMessages) => ({
+      ...prevMessages,
+      [name]: value.trim() === "" ? `Please enter ${name}` : "",
     }));
   };
 
@@ -982,6 +1001,26 @@ const PassengerForm = ({
           {errors.address && <p className="text-red-500 text-xs">{errorMessages.address}</p>}
         </div>
       </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Phone Number
+          </label>
+          <input
+            type="text"
+            name="phoneNumber"
+            value={passengers[index]?.phoneNumber || ""}
+            onChange={handleChange}
+            className={`w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${
+              errors.phoneNumber ? "border-red-500" : ""
+            }`}
+            aria-invalid={errors.phoneNumber ? "true" : "false"}
+            required
+          />
+          {errors.phoneNumber && <p className="text-red-500 text-xs">{errorMessages.phoneNumber}</p>}
+        </div>
+      </div>
     </motion.div>
   );
 };
@@ -1034,15 +1073,12 @@ const BookingSummary = ({
   const totalSeats = selectedDate?.seats || 0;
   const isSeatSelection = totalSeats === 20 || totalSeats === 32;
   const numPassengers = isSeatSelection ? selectedSeats.length : passengers.length;
-  const seatPrice = tripDetails.baseSeatPrice || 1000;
-  const packagePrice = selectedPackage?.price || 0;
+  // Use package price if selected, otherwise use base seat price * number of passengers
+  const basePrice = selectedPackage ? selectedPackage.price : (tripDetails.baseSeatPrice || 1000) * numPassengers;
   const roomPrice = selectedRoomChoice?.price || 0;
-  const pricePerPerson = seatPrice + packagePrice + roomPrice;
-  const gstPerPerson = pricePerPerson * 0.05;
-  const totalPricePerPerson = pricePerPerson + gstPerPerson;
-  const totalAmount = numPassengers * pricePerPerson;
-  const totalGst = numPassengers * gstPerPerson;
-  const finalAmount = numPassengers * totalPricePerPerson;
+  const totalPrice = basePrice + roomPrice;
+  const totalGst = totalPrice * 0.05;
+  const finalAmount = totalPrice + totalGst;
 
   const formatDateWithSeats = (startDate: StartDate): string => {
     const date = parse(startDate.date, "dd-MM-yyyy", new Date());
@@ -1122,7 +1158,9 @@ const BookingSummary = ({
             >
               <h4 className="font-semibold">No Package</h4>
               <p className="text-sm text-gray-600">Proceed with seat only</p>
-              <p className="text-sm font-medium mt-2">₹0</p>
+              <p className="text-sm font-medium mt-2">
+                ₹{(tripDetails.baseSeatPrice * numPassengers).toLocaleString("en-IN")}
+              </p>
             </div>
             {tripDetails.packages.map((pkg) => (
               <div
@@ -1224,35 +1262,19 @@ const BookingSummary = ({
           <span>{numPassengers}</span>
         </div>
         <div className="flex justify-between mb-2">
-          <span>Seat Price per Person</span>
-          <span>₹{seatPrice.toLocaleString("en-IN")}</span>
+          <span>{selectedPackage ? "Package Price" : "Seat Price"}</span>
+          <span>₹{basePrice.toLocaleString("en-IN")}</span>
         </div>
         <div className="flex justify-between mb-2">
-          <span>Package Price per Person</span>
-          <span>₹{packagePrice.toLocaleString("en-IN")}</span>
-        </div>
-        <div className="flex justify-between mb-2">
-          <span>Room Price per Person</span>
+          <span>Room Price</span>
           <span>₹{roomPrice.toLocaleString("en-IN")}</span>
         </div>
         <div className="flex justify-between mb-2">
-          <span>Total Price per Person</span>
-          <span>₹{pricePerPerson.toLocaleString("en-IN")}</span>
+          <span>Total Price</span>
+          <span>₹{totalPrice.toLocaleString("en-IN")}</span>
         </div>
         <div className="flex justify-between mb-2">
-          <span>GST per Person (5%)</span>
-          <span>₹{gstPerPerson.toLocaleString("en-IN")}</span>
-        </div>
-        <div className="flex justify-between mb-2">
-          <span>Total per Person</span>
-          <span>₹{totalPricePerPerson.toLocaleString("en-IN")}</span>
-        </div>
-        <div className="flex justify-between mb-2">
-          <span>Subtotal ({numPassengers} x ₹{pricePerPerson.toLocaleString("en-IN")})</span>
-          <span>₹{totalAmount.toLocaleString("en-IN")}</span>
-        </div>
-        <div className="flex justify-between mb-2">
-          <span>Total GST ({numPassengers} x ₹{gstPerPerson.toLocaleString("en-IN")})</span>
+          <span>GST (5%)</span>
           <span>₹{totalGst.toLocaleString("en-IN")}</span>
         </div>
         <div className="flex justify-between font-semibold text-lg mt-4">
