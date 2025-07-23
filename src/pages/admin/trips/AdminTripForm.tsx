@@ -373,10 +373,10 @@ const AdminTripForm: React.FC = () => {
       isValid = false;
     }
 
-    if (tripDetails.boardingPoints.length === 0) {
-      newErrors.boardingPoints = "Boarding points must have at least one entry";
-      isValid = false;
-    }
+    // if (tripDetails.boardingPoints.length === 0) {
+    //   newErrors.boardingPoints = "Boarding points must have at least one entry";
+    //   isValid = false;
+    // }
 
     if (tripDetails.packages.length === 0 && (!tripDetails.price || tripDetails.price <= 0)) {
       newErrors.price = "Price is required when no packages are provided";

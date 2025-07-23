@@ -573,19 +573,19 @@ const EditTrips: React.FC = () => {
       isValid = false;
     }
 
-    if (tripDetails.boardingPoints.length === 0) {
-      newErrors.boardingPoints = "Boarding points must have at least one entry";
-      isValid = false;
-    } else {
-      tripDetails.boardingPoints.forEach((point, index) => {
-        if (!point.location || !point.time) {
-          newErrors[`boardingPoint_${index}`] = `Boarding point ${
-            index + 1
-          }: Location and time are required`;
-          isValid = false;
-        }
-      });
-    }
+    // if (tripDetails.boardingPoints.length === 0) {
+    //   newErrors.boardingPoints = "Boarding points must have at least one entry";
+    //   isValid = false;
+    // } else {
+    //   tripDetails.boardingPoints.forEach((point, index) => {
+    //     if (!point.location || !point.time) {
+    //       newErrors[`boardingPoint_${index}`] = `Boarding point ${
+    //         index + 1
+    //       }: Location and time are required`;
+    //       isValid = false;
+    //     }
+    //   });
+    // }
 
     if (
       tripDetails.packages.length === 0 &&

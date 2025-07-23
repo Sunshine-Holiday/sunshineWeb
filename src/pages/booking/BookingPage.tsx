@@ -277,7 +277,6 @@ const BookingPage = () => {
         passenger.gender &&
         passenger.idProof &&
         passenger.idProofNumber &&
-        passenger.address &&
         passenger.phoneNumber
     );
   };
@@ -846,7 +845,6 @@ const PassengerForm = ({
     gender: false,
     idProof: false,
     idProofNumber: false,
-    address: false,
     phoneNumber: false,
   });
 
@@ -856,7 +854,6 @@ const PassengerForm = ({
     gender: "",
     idProof: "",
     idProofNumber: "",
-    address: "",
     phoneNumber: "",
   });
 
@@ -882,6 +879,8 @@ const PassengerForm = ({
       [name]: value.trim() === "" ? `Please enter ${name}` : "",
     }));
   };
+
+  const hasBoardingPoints = tripDetails.boardingPoints && tripDetails.boardingPoints.length > 0;
 
   return (
     <motion.div
@@ -991,29 +990,26 @@ const PassengerForm = ({
           {errors.idProofNumber && <p className="text-red-500 text-xs">{errorMessages.idProofNumber}</p>}
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Pickup Location
-          </label>
-          <select
-            name="address"
-            value={passengers[index]?.address || ""}
-            onChange={handleChange}
-            className={`w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${
-              errors.address ? "border-red-500" : ""
-            }`}
-            aria-invalid={errors.address ? "true" : "false"}
-            required
-          >
-            <option value="">Select Pickup Location</option>
-            {tripDetails.boardingPoints.map((point) => (
-              <option key={point._id} value={point.location}>
-                {point.location} - {point.time}
-              </option>
-            ))}
-          </select>
-          {errors.address && <p className="text-red-500 text-xs">{errorMessages.address}</p>}
-        </div>
+        {hasBoardingPoints && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Pickup Location
+            </label>
+            <select
+              name="address"
+              value={passengers[index]?.address || ""}
+              onChange={handleChange}
+              className={`w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500`}
+            >
+              <option value="">Select Pickup Location</option>
+              {tripDetails.boardingPoints.map((point) => (
+                <option key={point._id} value={point.location}>
+                  {point.location} - {point.time}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
