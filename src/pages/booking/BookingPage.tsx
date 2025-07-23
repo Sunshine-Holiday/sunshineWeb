@@ -415,6 +415,19 @@ const BookingPage = () => {
           toast.error("Number of selected seats must match number of passengers.");
           return;
         }
+      } else {
+        // Initialize passengers array based on selected seats if no package or room choice
+        setPassengers(
+          selectedSeats.map(() => ({
+            name: "",
+            age: "",
+            gender: "",
+            idProof: "",
+            idProofNumber: "",
+            address: "",
+            phoneNumber: "",
+          }))
+        );
       }
       setStep("passenger-details");
     } else {
@@ -555,7 +568,8 @@ const BookingPage = () => {
                     )}
                   </div>
                 ))}
-                {maxAvailableSeats > passengers.length && (
+                {/* Show "Add Passenger" button only for non-20/32 seat counts */}
+                {!(totalSeats === 20 || totalSeats === 32) && maxAvailableSeats > passengers.length && (
                   <Button
                     onClick={addPassenger}
                     className="bg-green-500 hover:bg-green-600 text-white"
