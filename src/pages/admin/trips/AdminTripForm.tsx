@@ -78,6 +78,8 @@ interface TripDetails {
   packages: Package[];
   roomChoices: RoomChoice[];
   file?: File | null;
+  advancePaymentPercentage?: number;
+  discountPercentage?: number;
 }
 
 interface FormErrors {
@@ -113,6 +115,8 @@ const AdminTripForm: React.FC = () => {
     packages: [],
     roomChoices: [],
     file: null,
+    advancePaymentPercentage: undefined,
+    discountPercentage: undefined,
   });
 
   const [errors, setErrors] = useState<FormErrors>({});
@@ -216,6 +220,22 @@ const AdminTripForm: React.FC = () => {
             newErrors[`room-price-${index}`] = "Valid price is required";
         });
         break;
+      case "advancePaymentPercentage":
+        if (
+          tripDetails.advancePaymentPercentage !== undefined &&
+          (tripDetails.advancePaymentPercentage < 0 || tripDetails.advancePaymentPercentage > 100)
+        ) {
+          newErrors.advancePaymentPercentage = "Advance payment must be between 0 and 100";
+        }
+        break;
+      case "discountPercentage":
+        if (
+          tripDetails.discountPercentage !== undefined &&
+          (tripDetails.discountPercentage < 0 || tripDetails.discountPercentage > 100)
+        ) {
+          newErrors.discountPercentage = "Discount must be between 0 and 100";
+        }
+        break;
     }
     setErrors(newErrors);
   };
@@ -292,7 +312,7 @@ const AdminTripForm: React.FC = () => {
     const updatedRoomChoices = tripDetails.roomChoices.map((room, i) =>
       i === index ? { ...room, [field]: value } : room
     );
-égard:     setTripDetails({ ...tripDetails, roomChoices: updatedRoomChoices });
+    setTripDetails({ ...tripDetails, roomChoices: updatedRoomChoices });
     validateField("roomChoices");
   };
 
@@ -357,7 +377,7 @@ const AdminTripForm: React.FC = () => {
   };
 
   const validateForm = () => {
-    const requiredFields = ["title", "location", "description", "category", "file"];
+    const requiredFields = ["title", "location", "description", "category", "file","price"];
     let newErrors: FormErrors = {};
     let isValid = true;
 
@@ -372,11 +392,6 @@ const AdminTripForm: React.FC = () => {
       newErrors.startDates = "At least one date with seats must be selected";
       isValid = false;
     }
-
-    // if (tripDetails.boardingPoints.length === 0) {
-    //   newErrors.boardingPoints = "Boarding points must have at least one entry";
-    //   isValid = false;
-    // }
 
     if (tripDetails.packages.length === 0 && (!tripDetails.price || tripDetails.price <= 0)) {
       newErrors.price = "Price is required when no packages are provided";
@@ -398,16 +413,30 @@ const AdminTripForm: React.FC = () => {
         newErrors[`room-price-${index}`] = "Valid price is required";
     });
 
-    setErrors(newErrors);
+    if (
+      tripDetails.advancePaymentPercentage !== undefined &&
+      (tripDetails.advancePaymentPercentage < 0 || tripDetails.advancePaymentPercentage > 100)
+    ) {
+      newErrors.advancePaymentPercentage = "Advance payment must be between 0 and 100";
+      isValid = false;
+    }
 
-    console.log("Form validation result:", newErrors);
+    if (
+      tripDetails.discountPercentage !== undefined &&
+      (tripDetails.discountPercentage < 0 || tripDetails.discountPercentage > 100)
+    ) {
+      newErrors.discountPercentage = "Discount must be between 0 and 100";
+      isValid = false;
+    }
+
+    setErrors(newErrors);
+    console.log(newErrors)
     return isValid && Object.keys(newErrors).length === 0;
   };
 
   const handleSave = async () => {
-
-    console.log(validateForm());
     if (!validateForm()) {
+      console.log(validateForm())
       toast.error("Please fill in all required fields.");
       return;
     }
@@ -427,13 +456,19 @@ const AdminTripForm: React.FC = () => {
           }))
         )
       );
-      formData.append("price", tripDetails.price.toString());
+      formData.append("price", tripDetails.price);
       formData.append("category", tripDetails.category);
       formData.append("amenities", JSON.stringify(tripDetails.amenities));
       formData.append("boardingPoints", JSON.stringify(tripDetails.boardingPoints));
       formData.append("packages", JSON.stringify(tripDetails.packages));
       formData.append("roomChoices", JSON.stringify(tripDetails.roomChoices));
       if (tripDetails.file) formData.append("file", tripDetails.file);
+      if (tripDetails.advancePaymentPercentage !== undefined) {
+        formData.append("advancePaymentPercentage", tripDetails.advancePaymentPercentage.toString());
+      }
+      if (tripDetails.discountPercentage !== undefined) {
+        formData.append("discountPercentage", tripDetails.discountPercentage.toString());
+      }
 
       await createTrips(formData).unwrap();
       toast.success("Trip created successfully!");
@@ -535,21 +570,59 @@ const AdminTripForm: React.FC = () => {
                 </Select>
                 {touched.category && errors.category && <p className="mt-1 text-sm text-red-500">{errors.category}</p>}
               </div>
-               
-                <div>
-                  <Label htmlFor="price">Price *</Label>
-                  <Input
-                    id="price"
-                    type="number"
-                    placeholder="Price"
-                    value={tripDetails.price || ""}
-                    onChange={(e) => handleChange("price", parseInt(e.target.value) || 0)}
-                    onBlur={() => handleBlur("price")}
-                    className={inputClassName("price")}
-                  />
-                  {touched.price && errors.price && <p className="mt-1 text-sm text-red-500">{errors.price}</p>}
-                </div>
-          
+              <div>
+                <Label htmlFor="price">Price *</Label>
+                <Input
+                  id="price"
+                  type="number"
+                  placeholder="Price"
+                  value={tripDetails.price || ""}
+                  onChange={(e) => handleChange("price", parseInt(e.target.value) || 0)}
+                  onBlur={() => handleBlur("price")}
+                  className={inputClassName("price")}
+                />
+                {touched.price && errors.price && <p className="mt-1 text-sm text-red-500">{errors.price}</p>}
+              </div>
+              <div>
+                <Label htmlFor="advancePaymentPercentage">Advance Payment Percentage</Label>
+                <Input
+                  id="advancePaymentPercentage"
+                  type="number"
+                  placeholder="e.g., 20"
+                  value={tripDetails.advancePaymentPercentage ?? ""}
+                  onChange={(e) =>
+                    handleChange(
+                      "advancePaymentPercentage",
+                      e.target.value === "" ? undefined : parseFloat(e.target.value)
+                    )
+                  }
+                  onBlur={() => handleBlur("advancePaymentPercentage")}
+                  className={inputClassName("advancePaymentPercentage")}
+                />
+                {touched.advancePaymentPercentage && errors.advancePaymentPercentage && (
+                  <p className="mt-1 text-sm text-red-500">{errors.advancePaymentPercentage}</p>
+                )}
+              </div>
+              <div>
+                <Label htmlFor="discountPercentage">Discount Percentage</Label>
+                <Input
+                  id="discountPercentage"
+                  type="number"
+                  placeholder="e.g., 10"
+                  value={tripDetails.discountPercentage ?? ""}
+                  onChange={(e) =>
+                    handleChange(
+                      "discountPercentage",
+                      e.target.value === "" ? undefined : parseFloat(e.target.value)
+                    )
+                  }
+                  onBlur={() => handleBlur("discountPercentage")}
+                  className={inputClassName("discountPercentage")}
+                />
+                {touched.discountPercentage && errors.discountPercentage && (
+                  <p className="mt-1 text-sm text-red-500">{errors.discountPercentage}</p>
+                )}
+              </div>
             </div>
 
             <div>
@@ -896,7 +969,6 @@ const AdminTripForm: React.FC = () => {
           </DialogContent>
         </Dialog>
       </div>
-      {/* hello */}
     </div>
   );
 };

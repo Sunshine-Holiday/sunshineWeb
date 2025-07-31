@@ -86,6 +86,8 @@ interface TripDetails {
   packages: Package[];
   roomChoices: RoomChoice[];
   file?: File | null;
+  advancePaymentPercentage?: number;
+  discountPercentage?: number;
 }
 
 interface FormErrors {
@@ -133,6 +135,8 @@ const EditTrips: React.FC = () => {
     packages: [],
     roomChoices: [],
     file: null,
+    advancePaymentPercentage: undefined,
+    discountPercentage: undefined,
   });
 
   const [errors, setErrors] = useState<FormErrors>({});
@@ -213,6 +217,8 @@ const EditTrips: React.FC = () => {
               }))
             : [],
         file: null,
+        advancePaymentPercentage: data?.trip.advancePaymentPercentage ?? undefined,
+        discountPercentage: data?.trip.discountPercentage ?? undefined,
       };
       setTripDetails(updatedDetails);
       if (data?.trip.banner) {
@@ -351,6 +357,25 @@ const EditTrips: React.FC = () => {
               newErrors[`room-price-${index}`] = "Valid price is required";
           });
           break;
+        case "advancePaymentPercentage":
+          if (
+            tripDetails.advancePaymentPercentage !== undefined &&
+            (tripDetails.advancePaymentPercentage < 0 ||
+              tripDetails.advancePaymentPercentage > 100)
+          ) {
+            newErrors.advancePaymentPercentage =
+              "Advance payment must be between 0 and 100";
+          }
+          break;
+        case "discountPercentage":
+          if (
+            tripDetails.discountPercentage !== undefined &&
+            (tripDetails.discountPercentage < 0 ||
+              tripDetails.discountPercentage > 100)
+          ) {
+            newErrors.discountPercentage = "Discount must be between 0 and 100";
+          }
+          break;
       }
       setErrors(newErrors);
     },
@@ -401,7 +426,7 @@ const EditTrips: React.FC = () => {
         ...prev.packages,
         { title: "", description: "", personCount: 0, price: 0 },
       ],
-      price: 0, // Reset single price when adding a package
+      price: 0,
     }));
     setErrors((prev) => ({ ...prev, packages: "", price: "" }));
   }, []);
@@ -573,20 +598,6 @@ const EditTrips: React.FC = () => {
       isValid = false;
     }
 
-    // if (tripDetails.boardingPoints.length === 0) {
-    //   newErrors.boardingPoints = "Boarding points must have at least one entry";
-    //   isValid = false;
-    // } else {
-    //   tripDetails.boardingPoints.forEach((point, index) => {
-    //     if (!point.location || !point.time) {
-    //       newErrors[`boardingPoint_${index}`] = `Boarding point ${
-    //         index + 1
-    //       }: Location and time are required`;
-    //       isValid = false;
-    //     }
-    //   });
-    // }
-
     if (
       tripDetails.packages.length === 0 &&
       (!tripDetails.price || tripDetails.price <= 0)
@@ -614,6 +625,24 @@ const EditTrips: React.FC = () => {
       if (room.description && (!room.price || room.price <= 0))
         newErrors[`room-price-${index}`] = "Valid price is required";
     });
+
+    if (
+      tripDetails.advancePaymentPercentage !== undefined &&
+      (tripDetails.advancePaymentPercentage < 0 ||
+        tripDetails.advancePaymentPercentage > 100)
+    ) {
+      newErrors.advancePaymentPercentage =
+        "Advance payment must be between 0 and 100";
+      isValid = false;
+    }
+
+    if (
+      tripDetails.discountPercentage !== undefined &&
+      (tripDetails.discountPercentage < 0 || tripDetails.discountPercentage > 100)
+    ) {
+      newErrors.discountPercentage = "Discount must be between 0 and 100";
+      isValid = false;
+    }
 
     setErrors(newErrors);
     return isValid;
@@ -652,6 +681,18 @@ const EditTrips: React.FC = () => {
       formData.append("roomChoices", JSON.stringify(tripDetails.roomChoices));
       if (tripDetails.file) {
         formData.append("file", tripDetails.file);
+      }
+      if (tripDetails.advancePaymentPercentage !== undefined) {
+        formData.append(
+          "advancePaymentPercentage",
+          tripDetails.advancePaymentPercentage.toString()
+        );
+      }
+      if (tripDetails.discountPercentage !== undefined) {
+        formData.append(
+          "discountPercentage",
+          tripDetails.discountPercentage.toString()
+        );
       }
 
       await editTrips(formData).unwrap();
@@ -763,7 +804,6 @@ const EditTrips: React.FC = () => {
                   <p className="mt-1 text-sm text-red-500">{errors.title}</p>
                 )}
               </div>
-
               <div>
                 <Label htmlFor="price">Price *</Label>
                 <Input
@@ -781,7 +821,6 @@ const EditTrips: React.FC = () => {
                   <p className="mt-1 text-sm text-red-500">{errors.price}</p>
                 )}
               </div>
-
               <div>
                 <Label htmlFor="location">Location *</Label>
                 <Input
@@ -816,6 +855,53 @@ const EditTrips: React.FC = () => {
                 </Select>
                 {touched.category && errors.category && (
                   <p className="mt-1 text-sm text-red-500">{errors.category}</p>
+                )}
+              </div>
+              <div>
+                <Label htmlFor="advancePaymentPercentage">
+                  Advance Payment Percentage
+                </Label>
+                <Input
+                  id="advancePaymentPercentage"
+                  type="number"
+                  placeholder="e.g., 20"
+                  value={tripDetails.advancePaymentPercentage ?? ""}
+                  onChange={(e) =>
+                    handleChange(
+                      "advancePaymentPercentage",
+                      e.target.value === "" ? undefined : parseFloat(e.target.value)
+                    )
+                  }
+                  onBlur={() => handleBlur("advancePaymentPercentage")}
+                  className={inputClassName("advancePaymentPercentage")}
+                />
+                {touched.advancePaymentPercentage &&
+                  errors.advancePaymentPercentage && (
+                    <p className="mt-1 text-sm text-red-500">
+                      {errors.advancePaymentPercentage}
+                    </p>
+                  )}
+              </div>
+              <div>
+                <Label htmlFor="discountPercentage">Discount Percentage</Label>
+                <Input
+                  id="discountPercentage"
+                  type="number"
+                  placeholder="e.g., 10"
+                  value={tripDetails.discountPercentage ?? ""}
+                  onChange={(e) =>
+                    handleChange(
+                      "discountPercentage",
+                      e.target.value === "" ? undefined : parseFloat(e.target.value)
+                    )
+                  }
+                  onBlur={() => handleBlur("discountPercentage")}
+                  className={inputClassName("discountPercentage")}
+                />
+                {touched.discountPercentage && errors.discountPercentage && (
+                  <p className="mt-1 text-sm text-red-500">
+                    {errors.discountPercentage}
+                  </p>
                 )}
               </div>
             </div>

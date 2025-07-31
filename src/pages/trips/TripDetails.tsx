@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import {
@@ -29,6 +28,7 @@ interface Amenity {
 interface StartDate {
   date: string;
   seats: number | "block";
+  _id?: string;
 }
 
 interface Review {
@@ -38,6 +38,21 @@ interface Review {
   bookingDate: string;
   isAdminApproved: boolean;
   isAdminDisApproved: boolean;
+}
+
+interface Trip {
+  _id: string;
+  title: string;
+  location: string;
+  duration: string;
+  busSize: string;
+  startDates: (StartDate | null | undefined)[];
+  price: number;
+  banner: string;
+  description: string;
+  amenities: string[];
+  boardingPoints: { _id: string; location: string; time: string; details: string; maplink: string }[];
+  discountPercentage?: number;
 }
 
 const amenitiesList: Amenity[] = [
@@ -71,11 +86,13 @@ const formatReviewDate = (dateString: string): string => {
 const TripDetails = () => {
   const navigate = useNavigate();
   const { id } = useParams();
-  const [trip, setTrips] = useState<any>({});
+  const [trip, setTrips] = useState<Trip | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [selectedDate, setSelectedDate] = useState<StartDate | null>(null);
-  const { data, isLoading, isError } = useGettripsIDQuery({ id: id });
-  const bannerURL = trip.banner ? IMAGE_URL + trip.banner : "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b";
+  const { data, isLoading, isError } = useGettripsIDQuery({ id: id! });
+  const bannerURL = trip?.banner
+    ? IMAGE_URL + trip.banner
+    : "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b";
 
   // Check if a StartDate is valid and in the future
   const isDateValid = (startDate: StartDate): boolean => {
@@ -88,8 +105,8 @@ const TripDetails = () => {
   };
 
   const getAvailableDates = (): StartDate[] => {
-    if (!trip.startDates) return [];
-    return trip.startDates.filter((date: StartDate) => isDateValid(date));
+    if (!trip?.startDates) return [];
+    return trip.startDates.filter((date): date is StartDate => isDateValid(date));
   };
 
   useEffect(() => {
@@ -106,7 +123,7 @@ const TripDetails = () => {
   }, [data]);
 
   const handleDateChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
-    const selected = trip.startDates.find(
+    const selected = trip?.startDates.find(
       (date: StartDate) => formatDateWithSeats(date) === event.target.value
     );
     setSelectedDate(selected || null);
@@ -117,7 +134,7 @@ const TripDetails = () => {
       alert("Please select a valid travel date");
       return;
     }
-    navigate("/booking", { state: { tripId: trip._id, selectedDate } });
+    navigate("/booking", { state: { tripId: trip?._id, selectedDate } });
   };
 
   const getAmenityIcon = (amenityName: string) => {
@@ -126,6 +143,16 @@ const TripDetails = () => {
     );
     return amenity ? amenity.icon : HelpCircle;
   };
+
+  // Calculate discounted price if discountPercentage is valid
+  const hasDiscount =
+    trip?.discountPercentage !== undefined &&
+    trip.discountPercentage > 0 &&
+    trip.discountPercentage <= 100 &&
+    trip.price > 0;
+  const discountedPrice = hasDiscount
+    ? trip.price * (1 - trip.discountPercentage / 100)
+    : null;
 
   // Slick carousel settings
   const settings = {
@@ -204,7 +231,23 @@ const TripDetails = () => {
                   className="w-full h-full object-cover"
                 />
                 <div className="absolute top-4 right-4 bg-orange-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-orange-600 transition-colors duration-200">
-                  ₹{trip.price ? trip.price.toLocaleString("en-IN") : "N/A"}
+                  {hasDiscount ? (
+                    <div className="flex flex-col items-end">
+                      <span className="text-sm line-through text-gray-200">
+                        Before: ₹{trip.price.toLocaleString("en-IN")}
+                      </span>
+                      <span className="text-lg font-semibold">
+                        After: ₹{Math.round(discountedPrice!).toLocaleString("en-IN")}
+                      </span>
+                      <span className="text-xs font-medium text-green-200">
+                        {trip.discountPercentage}% off
+                      </span>
+                    </div>
+                  ) : (
+                    <span className="text-lg font-semibold">
+                      ₹{trip.price.toLocaleString("en-IN")}
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -345,15 +388,37 @@ const TripDetails = () => {
               <div className="space-y-3 mb-6">
                 <div className="flex justify-between">
                   <span className="text-gray-600">Base Fare</span>
-                  <span className="text-gray-800">
-                    ₹{trip.price ? trip.price.toLocaleString("en-IN") : "N/A"}
-                  </span>
+                  {hasDiscount ? (
+                    <div className="flex flex-col items-end">
+                      <span className="text-sm line-through text-gray-500">
+                        ₹{trip.price.toLocaleString("en-IN")}
+                      </span>
+                      <span className="text-gray-800">
+                        ₹{Math.round(discountedPrice!).toLocaleString("en-IN")}
+                      </span>
+                    </div>
+                  ) : (
+                    <span className="text-gray-800">
+                      ₹{trip.price.toLocaleString("en-IN")}
+                    </span>
+                  )}
                 </div>
+
+                {hasDiscount && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Discount</span>
+                    <span className="text-green-600">
+                      {trip.discountPercentage}% off
+                    </span>
+                  </div>
+                )}
 
                 <div className="flex justify-between font-semibold text-lg pt-3 border-t border-gray-200">
                   <span>Total</span>
                   <span className="text-orange-500">
-                    ₹{trip.price ? trip.price.toLocaleString("en-IN") : "N/A"}
+                    ₹{hasDiscount
+                      ? Math.round(discountedPrice!).toLocaleString("en-IN")
+                      : trip.price.toLocaleString("en-IN")}
                   </span>
                 </div>
               </div>

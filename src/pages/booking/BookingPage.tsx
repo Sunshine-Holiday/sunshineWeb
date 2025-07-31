@@ -23,6 +23,7 @@ const INITIAL_STEP = "select-seats";
 interface StartDate {
   date: string;
   seats: number;
+  _id?: string;
 }
 
 interface Package {
@@ -39,6 +40,49 @@ interface RoomChoice {
   price: number;
   description: string;
   personCount?: number;
+}
+
+interface Trip {
+  _id: string;
+  location: string;
+  category: string;
+  startDates: StartDate[];
+  duration: string;
+  busSize: string;
+  amenities: string[];
+  packages: Package[];
+  roomChoices: RoomChoice[];
+  boardingPoints: { _id: string; location: string; time: string; details: string }[];
+  price: string;
+  discountPercentage?: number;
+}
+
+interface BookingSummaryProps {
+  tripDetails: {
+    from: string;
+    to: string;
+    date: StartDate[];
+    time: string;
+    busType: string;
+    packages: Package[];
+    roomChoices: RoomChoice[];
+    baseSeatPrice: number;
+    discountPercentage?: number;
+  };
+  selectedDate: StartDate | null;
+  setSelectedData: (date: StartDate) => void;
+  selectedSeats: string[];
+  passengers: PassengerData[];
+  selectedPackage: Package | null;
+  setSelectedPackage: (pkg: Package | null) => void;
+  selectedRoomChoice: RoomChoice | null;
+  setSelectedRoomChoice: (room: RoomChoice | null) => void;
+  paymentOption: "full" | "advance";
+  setPaymentOption: (option: "full" | "advance") => void;
+  onProceed: () => void;
+  loading: boolean;
+  step: "select-seats" | "passenger-details";
+  disabled?: boolean;
 }
 
 const BookingPage = () => {
@@ -58,7 +102,7 @@ const BookingPage = () => {
     INITIAL_STEP
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [trip, setTrip] = useState<any>(null);
+  const [trip, setTrip] = useState<Trip | null>(null);
   const [selectedPackage, setSelectedPackage] = useState<Package | null>(null);
   const [selectedRoomChoice, setSelectedRoomChoice] = useState<RoomChoice | null>(null);
   const [paymentOption, setPaymentOption] = useState<"full" | "advance">("full");
@@ -446,7 +490,15 @@ const BookingPage = () => {
       setIsSubmitting(true);
       try {
         const numPassengers = (selectedDate?.seats === 20 || selectedDate?.seats === 32) ? selectedSeats.length : passengers.length;
-        const basePrice = selectedPackage ? selectedPackage.price : (trip?.price ? parseInt(trip.price) : 1000) * numPassengers;
+        const baseSeatPrice = parseInt(trip?.price) || 1000;
+        let basePrice = selectedPackage ? selectedPackage.price : baseSeatPrice * numPassengers;
+        
+        // Apply discount if available
+        const hasDiscount = trip?.discountPercentage !== undefined && trip.discountPercentage > 0 && trip.discountPercentage <= 100;
+        if (hasDiscount) {
+          basePrice = basePrice * (1 - trip.discountPercentage / 100);
+        }
+        
         const roomPrice = selectedRoomChoice?.price || 0;
         const totalPrice = basePrice + roomPrice;
         const totalGst = totalPrice * 0.05;
@@ -496,6 +548,7 @@ const BookingPage = () => {
     boardingPoints: trip.boardingPoints || [],
     busSize: trip.busSize || "20",
     baseSeatPrice: parseInt(trip.price) || 1000,
+    discountPercentage: trip.discountPercentage,
   };
 
   const totalSeats = selectedDate?.seats || Number(tripDetails.busSize);
@@ -1036,33 +1089,6 @@ const PassengerForm = ({
 };
 
 // BookingSummary Component
-interface BookingSummaryProps {
-  tripDetails: {
-    from: string;
-    to: string;
-    date: StartDate[];
-    time: string;
-    busType: string;
-    packages: Package[];
-    roomChoices: RoomChoice[];
-    baseSeatPrice: number;
-  };
-  selectedDate: StartDate | null;
-  setSelectedData: (date: StartDate) => void;
-  selectedSeats: string[];
-  passengers: PassengerData[];
-  selectedPackage: Package | null;
-  setSelectedPackage: (pkg: Package | null) => void;
-  selectedRoomChoice: RoomChoice | null;
-  setSelectedRoomChoice: (room: RoomChoice | null) => void;
-  paymentOption: "full" | "advance";
-  setPaymentOption: (option: "full" | "advance") => void;
-  onProceed: () => void;
-  loading: boolean;
-  step: "select-seats" | "passenger-details";
-  disabled?: boolean;
-}
-
 const BookingSummary = ({
   loading,
   tripDetails,
@@ -1084,7 +1110,12 @@ const BookingSummary = ({
   const isSeatSelection = totalSeats === 20 || totalSeats === 32;
   const numPassengers = isSeatSelection ? selectedSeats.length : passengers.length;
   // Use package price if selected, otherwise use base seat price * number of passengers
-  const basePrice = selectedPackage ? selectedPackage.price : (tripDetails.baseSeatPrice || 1000) * numPassengers;
+  let basePrice = selectedPackage ? selectedPackage.price : (tripDetails.baseSeatPrice || 1000) * numPassengers;
+  const hasDiscount = tripDetails.discountPercentage !== undefined && tripDetails.discountPercentage > 0 && tripDetails.discountPercentage <= 100;
+  const originalBasePrice = basePrice;
+  if (hasDiscount) {
+    basePrice = basePrice * (1 - tripDetails.discountPercentage / 100);
+  }
   const roomPrice = selectedRoomChoice?.price || 0;
   const totalPrice = basePrice + roomPrice;
   const totalGst = totalPrice * 0.05;
@@ -1169,7 +1200,21 @@ const BookingSummary = ({
               <h4 className="font-semibold">No Package</h4>
               <p className="text-sm text-gray-600">Proceed with seat only</p>
               <p className="text-sm font-medium mt-2">
-                ₹{(tripDetails.baseSeatPrice * numPassengers).toLocaleString("en-IN")}
+                {hasDiscount ? (
+                  <>
+                    <span className="line-through text-gray-500">
+                      Before: ₹{(tripDetails.baseSeatPrice * numPassengers).toLocaleString("en-IN")}
+                    </span>
+                    <br />
+                    <span>
+                      After: ₹{Math.round((tripDetails.baseSeatPrice * numPassengers) * (1 - tripDetails.discountPercentage / 100)).toLocaleString("en-IN")}
+                    </span>
+                    <br />
+                    <span className="text-green-600">{tripDetails.discountPercentage}% off</span>
+                  </>
+                ) : (
+                  <span>₹{(tripDetails.baseSeatPrice * numPassengers).toLocaleString("en-IN")}</span>
+                )}
               </p>
             </div>
             {tripDetails.packages.map((pkg) => (
@@ -1185,7 +1230,21 @@ const BookingSummary = ({
                 <h4 className="font-semibold">{pkg.name}</h4>
                 <p className="text-sm text-gray-600">{pkg.description}</p>
                 <p className="text-sm font-medium mt-2">
-                  ₹{pkg.price.toLocaleString("en-IN")}
+                  {hasDiscount ? (
+                    <>
+                      <span className="line-through text-gray-500">
+                        Before: ₹{pkg.price.toLocaleString("en-IN")}
+                      </span>
+                      <br />
+                      <span>
+                        After: ₹{Math.round(pkg.price * (1 - tripDetails.discountPercentage / 100)).toLocaleString("en-IN")}
+                      </span>
+                      <br />
+                      <span className="text-green-600">{tripDetails.discountPercentage}% off</span>
+                    </>
+                  ) : (
+                    <span>₹{pkg.price.toLocaleString("en-IN")}</span>
+                  )}
                 </p>
               </div>
             ))}
@@ -1273,7 +1332,21 @@ const BookingSummary = ({
         </div>
         <div className="flex justify-between mb-2">
           <span>{selectedPackage ? "Package Price" : "Seat Price"}</span>
-          <span>₹{basePrice.toLocaleString("en-IN")}</span>
+          {hasDiscount ? (
+            <div className="flex flex-col items-end">
+              <span className="text-sm line-through text-gray-500">
+                Before: ₹{originalBasePrice.toLocaleString("en-IN")}
+              </span>
+              <span>
+                After: ₹{Math.round(basePrice).toLocaleString("en-IN")}
+              </span>
+              <span className="text-sm text-green-600">
+                {tripDetails.discountPercentage}% off
+              </span>
+            </div>
+          ) : (
+            <span>₹{basePrice.toLocaleString("en-IN")}</span>
+          )}
         </div>
         <div className="flex justify-between mb-2">
           <span>Room Price</span>

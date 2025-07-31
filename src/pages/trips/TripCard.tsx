@@ -1,4 +1,3 @@
-
 import React from "react";
 import { motion } from "framer-motion";
 import { MapPin, Users, Calendar } from "lucide-react";
@@ -24,6 +23,7 @@ interface TripCardProps {
     startDates: (StartDate | null | undefined)[];
     price: number;
     banner: string;
+    discountPercentage?: number;
   };
 }
 
@@ -82,6 +82,16 @@ export const TripCard = ({ trip }: TripCardProps) => {
     (item) => item.date >= today
   );
 
+  // Calculate discounted price if discountPercentage is valid
+  const hasDiscount =
+    trip.discountPercentage !== undefined &&
+    trip.discountPercentage > 0 &&
+    trip.discountPercentage <= 100 &&
+    trip.price > 0;
+  const discountedPrice = hasDiscount
+    ? trip.price * (1 - trip.discountPercentage / 100)
+    : null;
+
   const handleClick = () => {
     navigate(`/trips/${trip._id}`, { state: { trip } });
   };
@@ -125,9 +135,25 @@ export const TripCard = ({ trip }: TripCardProps) => {
           </div>
         </div>
         <div className="flex items-center justify-between mt-4">
-          <span className="text-2xl font-semibold text-orange-500">
-            ₹{trip.price.toLocaleString("en-IN")}
-          </span>
+          <div className="flex flex-col">
+            {hasDiscount ? (
+              <>
+                <span className="text-lg line-through text-gray-500">
+               ₹{trip.price.toLocaleString("en-IN")}
+                </span>
+                <span className="text-2xl font-semibold text-orange-500">
+             ₹{Math.round(discountedPrice!).toLocaleString("en-IN")}
+                </span>
+                <span className="text-sm font-medium text-green-600">
+                  {trip.discountPercentage}% off
+                </span>
+              </>
+            ) : (
+              <span className="text-2xl font-semibold text-orange-500">
+                ₹{trip.price.toLocaleString("en-IN")}
+              </span>
+            )}
+          </div>
           <Button
             onClick={(e) => {
               e.stopPropagation();

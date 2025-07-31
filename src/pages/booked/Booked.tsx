@@ -43,15 +43,19 @@ interface RoomChoice {
   price: number;
 }
 
+interface Trip {
+  _id: string;
+  title: string;
+  location: string;
+  packages: Package[];
+  roomChoices: RoomChoice[];
+  price: string;
+  discountPercentage?: number;
+}
+
 interface Booking {
   _id: string;
-  trip: {
-    _id: string;
-    title: string;
-    location: string;
-    packages: Package[];
-    roomChoices: RoomChoice[];
-  };
+  trip: Trip;
   price: number;
   user: {
     email: string;
@@ -67,6 +71,7 @@ interface Booking {
   paymentStatus: string;
   advancePaid: number;
   remainingBalance: number;
+  advancePaymentPercentage: number;
   isReview: boolean;
   isReviewActivate?: boolean;
 }
@@ -271,6 +276,7 @@ const Booked = () => {
                         "Trip Title",
                         "Location",
                         "Price",
+                        "Advance Percentage",
                         "User",
                         "Date",
                         "Seats",
@@ -321,6 +327,25 @@ const Booked = () => {
                             (room) => room._id === booking.selectedRoomChoice
                           )
                         : null;
+                      const hasDiscount =
+                        booking.trip.discountPercentage !== undefined &&
+                        booking.trip.discountPercentage > 0 &&
+                        booking.trip.discountPercentage <= 100 &&
+                        parseFloat(booking.trip.price) > 0;
+                      const originalBasePrice = selectedPackage
+                        ? selectedPackage.price
+                        : parseFloat(booking.trip.price) * booking.passengers.length;
+                      const discountedBasePrice = hasDiscount && !selectedPackage
+                        ? originalBasePrice * (1 - booking.trip.discountPercentage / 100)
+                        : originalBasePrice;
+                      const roomPrice = selectedRoomChoice ? selectedRoomChoice.price : 0;
+                      const totalPrice = discountedBasePrice + roomPrice;
+                      const advancePercentage =
+                        booking.advancePaymentPercentage !== undefined
+                          ? booking.advancePaymentPercentage
+                          : booking.paymentStatus === "advance"
+                          ? 50
+                          : 100;
 
                       return (
                         <TableRow
@@ -334,7 +359,22 @@ const Booked = () => {
                             {booking?.trip?.location || "N/A"}
                           </TableCell>
                           <TableCell className="px-4 py-3 text-sm text-gray-600">
-                            ₹{booking?.price.toLocaleString("en-IN") || "N/A"}
+                            {hasDiscount && !selectedPackage ? (
+                              <div className="flex flex-col">
+                                <span className="text-sm line-through text-gray-500">
+                                  Before: Rs{originalBasePrice.toLocaleString("en-IN")}
+                                </span>
+                                <span>After: Rs{totalPrice.toLocaleString("en-IN")}</span>
+                                <span className="text-xs font-medium text-green-600">
+                                  {booking.trip.discountPercentage}% off
+                                </span>
+                              </div>
+                            ) : (
+                              <span>Rs{booking.price.toLocaleString("en-IN")}</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="px-4 py-3 text-sm text-gray-600">
+                            {advancePercentage}% 
                           </TableCell>
                           <TableCell className="px-4 py-3 text-sm text-gray-600">
                             {booking?.user?.username || "N/A"}<br />
@@ -359,22 +399,22 @@ const Booked = () => {
                           </TableCell>
                           <TableCell className="px-4 py-3 text-sm text-gray-600">
                             {selectedPackage
-                              ? `${selectedPackage.title} (₹${selectedPackage.price.toLocaleString("en-IN")})`
+                              ? `${selectedPackage.title} (Rs${selectedPackage.price.toLocaleString("en-IN")})`
                               : "None"}
                           </TableCell>
                           <TableCell className="px-4 py-3 text-sm text-gray-600">
                             {selectedRoomChoice
-                              ? `${selectedRoomChoice.description} (₹${selectedRoomChoice.price.toLocaleString("en-IN")})`
+                              ? `${selectedRoomChoice.description} (Rs${selectedRoomChoice.price.toLocaleString("en-IN")})`
                               : "None"}
                           </TableCell>
                           <TableCell className="px-4 py-3 text-sm text-gray-600">
                             {booking.paymentStatus || "N/A"}
                           </TableCell>
                           <TableCell className="px-4 py-3 text-sm text-gray-600">
-                            ₹{booking.advancePaid.toLocaleString("en-IN") || "0"}
+                            Rs{booking.advancePaid.toLocaleString("en-IN") || "0"}
                           </TableCell>
                           <TableCell className="px-4 py-3 text-sm text-gray-600">
-                            ₹{booking.remainingBalance.toLocaleString("en-IN") || "0"}
+                            Rs{booking.remainingBalance.toLocaleString("en-IN") || "0"}
                           </TableCell>
                           <TableCell className="px-4 py-3 text-sm text-gray-600">
                             <div className="flex flex-col items-start gap-2">
@@ -464,6 +504,25 @@ const Booked = () => {
                       (room) => room._id === booking.selectedRoomChoice
                     )
                   : null;
+                const hasDiscount =
+                  booking.trip.discountPercentage !== undefined &&
+                  booking.trip.discountPercentage > 0 &&
+                  booking.trip.discountPercentage <= 100 &&
+                  parseFloat(booking.trip.price) > 0;
+                const originalBasePrice = selectedPackage
+                  ? selectedPackage.price
+                  : parseFloat(booking.trip.price) * booking.passengers.length;
+                const discountedBasePrice = hasDiscount && !selectedPackage
+                  ? originalBasePrice * (1 - booking.trip.discountPercentage / 100)
+                  : originalBasePrice;
+                const roomPrice = selectedRoomChoice ? selectedRoomChoice.price : 0;
+                const totalPrice = discountedBasePrice + roomPrice;
+                const advancePercentage =
+                  booking.advancePaymentPercentage !== undefined
+                    ? booking.advancePaymentPercentage
+                    : booking.paymentStatus === "advance"
+                    ? 50
+                    : 100;
 
                 return (
                   <div
@@ -481,7 +540,23 @@ const Booked = () => {
                       </div>
                       <div>
                         <strong className="text-gray-800">Price:</strong>{" "}
-                        ₹{booking?.price.toLocaleString("en-IN") || "N/A"}
+                        {hasDiscount && !selectedPackage ? (
+                          <div className="flex flex-col">
+                            <span className="text-sm line-through text-gray-500">
+                              Before: Rs{originalBasePrice.toLocaleString("en-IN")}
+                            </span>
+                            <span>After: Rs{totalPrice.toLocaleString("en-IN")}</span>
+                            <span className="text-xs font-medium text-green-600">
+                              {booking.trip.discountPercentage}% off
+                            </span>
+                          </div>
+                        ) : (
+                          <span>Rs{booking.price.toLocaleString("en-IN")}</span>
+                        )}
+                      </div>
+                      <div>
+                        <strong className="text-gray-800">Advance Payment Percentage:</strong>{" "}
+                        {advancePercentage}%
                       </div>
                       <div>
                         <strong className="text-gray-800">User:</strong>{" "}
@@ -500,13 +575,13 @@ const Booked = () => {
                       <div>
                         <strong className="text-gray-800">Package:</strong>{" "}
                         {selectedPackage
-                          ? `${selectedPackage.title} (₹${selectedPackage.price.toLocaleString("en-IN")})`
+                          ? `${selectedPackage.title} (Rs${selectedPackage.price.toLocaleString("en-IN")})`
                           : "None"}
                       </div>
                       <div>
                         <strong className="text-gray-800">Room Choice:</strong>{" "}
                         {selectedRoomChoice
-                          ? `${selectedRoomChoice.description} (₹${selectedRoomChoice.price.toLocaleString("en-IN")})`
+                          ? `${selectedRoomChoice.description} (Rs${selectedRoomChoice.price.toLocaleString("en-IN")})`
                           : "None"}
                       </div>
                       <div>
@@ -515,11 +590,11 @@ const Booked = () => {
                       </div>
                       <div>
                         <strong className="text-gray-800">Advance Paid:</strong>{" "}
-                        ₹{booking.advancePaid.toLocaleString("en-IN") || "0"}
+                        Rs{booking.advancePaid.toLocaleString("en-IN") || "0"}
                       </div>
                       <div>
                         <strong className="text-gray-800">Remaining Balance:</strong>{" "}
-                        ₹{booking.remainingBalance.toLocaleString("en-IN") || "0"}
+                        Rs{booking.remainingBalance.toLocaleString("en-IN") || "0"}
                       </div>
                       <div>
                         <strong className="text-gray-800">Passengers:</strong>
