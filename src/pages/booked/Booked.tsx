@@ -1,3 +1,4 @@
+
 import {
   useGetuserAllbookingQuery,
   useRequestCancelBookingMutation,
@@ -19,25 +20,26 @@ import { toast } from "react-toastify";
 // Define TypeScript interfaces
 interface Passenger {
   name?: string;
-  age: string;
+  age: number; // Updated to number per bookingSchema
   gender: string;
-  address: string;
+  address?: string;
   idProof: string;
   idProofNumber: string;
+  phoneNumber: string;
   _id: string;
 }
 
 interface Package {
   _id: string;
   title: string;
-  description: string;
+  description?: string;
   personCount: number;
   price: number;
 }
 
 interface RoomChoice {
   _id: string;
-  description: string;
+  description: string; // Removed type, aligned with roomChoiceSchema
   personCount: number;
   roomCount: number;
   price: number;
@@ -49,8 +51,9 @@ interface Trip {
   location: string;
   packages: Package[];
   roomChoices: RoomChoice[];
-  price: string;
+  price: number; // Updated to number per suggested tripSchema
   discountPercentage?: number;
+  advancePaymentPercentage?: number;
 }
 
 interface Booking {
@@ -62,18 +65,18 @@ interface Booking {
     phone: string;
     username: string;
   };
-  selectedDate: string;
+  selectedDate: string; // Kept as string for display, parsed from Date
   status?: string;
   passengers: Passenger[];
   selectedSeats: string[];
-  selectedPackage: string | null;
-  selectedRoomChoice: string | null;
+  selectedPackage: Package | null;
+  selectedRoomChoice: RoomChoice | null;
+  roomCount: number;
   paymentStatus: string;
   advancePaid: number;
   remainingBalance: number;
-  advancePaymentPercentage: number;
-  isReview: boolean;
-  isReviewActivate?: boolean;
+  hasReview: boolean; // Updated per bookingSchema
+  reviewEnabled?: boolean; // Updated per bookingSchema
 }
 
 const PassengerDetails = ({ passenger }: { passenger: Passenger }) => (
@@ -88,7 +91,10 @@ const PassengerDetails = ({ passenger }: { passenger: Passenger }) => (
       <strong>Gender:</strong> {passenger.gender}
     </div>
     <div>
-      <strong>Boarding Point:</strong> {passenger.address}
+      <strong>Boarding Point:</strong> {passenger.address || "N/A"}
+    </div>
+    <div>
+      <strong>Phone:</strong> {passenger.phoneNumber || "N/A"}
     </div>
     <div>
       <strong>ID Proof:</strong> {passenger.idProof} ({passenger.idProofNumber})
@@ -111,18 +117,18 @@ const RefundModal = ({
   isOpen,
   onClose,
   onConfirm,
-  bookingDate,
+  booking,
 }: {
   isOpen: boolean;
   onClose: () => void;
-  onConfirm: (refundPercentage: number) => void;
-  bookingDate: string;
+  onConfirm: (refundPercentage: number, bookingId: string) => void;
+  booking: Booking | null;
 }) => {
-  if (!isOpen) return null;
+  if (!isOpen || !booking) return null;
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const eventDate = new Date(bookingDate.split("-").reverse().join("-"));
+  const eventDate = new Date(booking.selectedDate.split("-").reverse().join("-"));
   eventDate.setHours(0, 0, 0, 0);
   const daysDifference = Math.ceil(
     (eventDate.getTime() - today.getTime()) / (1000 * 3600 * 24)
@@ -134,17 +140,18 @@ const RefundModal = ({
   else if (daysDifference >= 0) refundPercentage = 0;
 
   const isRefundable = today <= eventDate;
+  const refundAmount = (booking.advancePaid * refundPercentage) / 100;
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
       <div className="bg-white/90 backdrop-blur-md p-6 rounded-lg max-w-md w-full shadow-md border border-gray-200">
         <h3 className="text-lg font-semibold text-gray-800 mb-4">Refund Confirmation</h3>
-        <p className="mb-4 text-gray-600">Do you really want to request a refund?</p>
+        <p className="mb-4 text-gray-600">Do you really want to request a refund for this booking?</p>
         <div className="mb-4 text-sm text-gray-600">
           <p className="font-medium">Updated Refund Policy:</p>
           <ul className="list-disc pl-4">
-            <li>75% refund if cancelled 8+ days before selected date</li>
-            <li>50% refund if cancelled 4-7 days before selected date</li>
+            <li>75% refund of advance paid if cancelled 8+ days before selected date</li>
+            <li>50% refund of advance paid if cancelled 4-7 days before selected date</li>
             <li>0% refund if cancelled less than 4 days before or on selected date</li>
             <li>No refund after the selected date</li>
             <li>No show, No Refund</li>
@@ -155,7 +162,7 @@ const RefundModal = ({
         {isRefundable ? (
           refundPercentage > 0 ? (
             <p className="mb-4 text-orange-600">
-              Eligible for {refundPercentage}% refund within 5-7 working days
+              Eligible for {refundPercentage}% refund (₹{refundAmount}) within 5-7 working days
             </p>
           ) : (
             <p className="mb-4 text-gray-600">
@@ -180,7 +187,7 @@ const RefundModal = ({
                 ? "bg-gradient-to-r from-orange-500 to-orange-600 text-white hover:from-orange-600 hover:to-orange-700"
                 : "bg-gray-400 text-gray-700 cursor-not-allowed"
             }`}
-            onClick={() => isRefundable && onConfirm(refundPercentage)}
+            onClick={() => isRefundable && onConfirm(refundPercentage, booking._id)}
             disabled={!isRefundable}
           >
             Confirm Refund
@@ -204,8 +211,17 @@ const Booked = () => {
 
   useEffect(() => {
     if (data?.bookings) {
-      setBookings(data.bookings);
-      console.log("Bookings data:", data.bookings);
+      // Transform selectedDate from Date to DD-MM-YYYY string
+      const transformedBookings = data.bookings.map((booking: Booking) => ({
+        ...booking,
+        selectedDate: new Date(booking.selectedDate).toLocaleDateString("en-GB", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+        }).split("/").join("-"),
+      }));
+      setBookings(transformedBookings);
+      console.log("Bookings data:", transformedBookings);
     }
   }, [data]);
 
@@ -213,17 +229,14 @@ const Booked = () => {
     setSelectedBooking(bookingId);
   };
 
-  const handleRefundConfirm = async (refundPercentage: number) => {
-    if (!selectedBooking) {
-      toast.error("No booking selected for refund");
-      return;
-    }
+  const handleRefundConfirm = async (refundPercentage: number, bookingId: string) => {
     try {
       const response = await sendRequest({
-        bookingId: selectedBooking,
+        bookingId,
+        refundPercentage,
       }).unwrap();
       setSelectedBooking(null);
-      toast.success(`Successfully processed refund`);
+      toast.success(`Successfully requested refund`);
       return response;
     } catch (error) {
       toast.error("Unable to process refund");
@@ -283,6 +296,7 @@ const Booked = () => {
                         "Passengers",
                         "Package",
                         "Room",
+                        "Room Count",
                         "Payment Status",
                         "Advance Paid",
                         "Remaining Balance",
@@ -301,48 +315,31 @@ const Booked = () => {
                   </TableHeader>
                   <TableBody>
                     {bookings.map((booking) => {
-                      const bookingDate = booking.selectedDate
-                        ? new Date(booking.selectedDate)
-                            .toLocaleDateString("en-GB", {
-                              day: "2-digit",
-                              month: "2-digit",
-                              year: "numeric",
-                            })
-                            .split("/")
-                            .join("-")
-                        : "N/A";
+                      const bookingDate = booking.selectedDate || "N/A";
                       const isToday = bookingDate === todayFormatted;
                       const canRequestRefund = isRefundableDate(bookingDate);
                       const reviewEligible = canWriteReview(
                         bookingDate,
                         booking.status
                       );
-                      const selectedPackage = booking.selectedPackage
-                        ? booking.trip.packages.find(
-                            (pkg) => pkg._id === booking.selectedPackage
-                          )
-                        : null;
-                      const selectedRoomChoice = booking.selectedRoomChoice
-                        ? booking.trip.roomChoices.find(
-                            (room) => room._id === booking.selectedRoomChoice
-                          )
-                        : null;
                       const hasDiscount =
                         booking.trip.discountPercentage !== undefined &&
                         booking.trip.discountPercentage > 0 &&
                         booking.trip.discountPercentage <= 100 &&
-                        parseFloat(booking.trip.price) > 0;
-                      const originalBasePrice = selectedPackage
-                        ? selectedPackage.price
-                        : parseFloat(booking.trip.price) * booking.passengers.length;
-                      const discountedBasePrice = hasDiscount && !selectedPackage
+                        booking.trip.price > 0;
+                      const originalBasePrice = booking.selectedPackage
+                        ? booking.selectedPackage.price
+                        : booking.trip.price * (booking.passengers.length || 1);
+                      const discountedBasePrice = hasDiscount && !booking.selectedPackage
                         ? originalBasePrice * (1 - booking.trip.discountPercentage / 100)
                         : originalBasePrice;
-                      const roomPrice = selectedRoomChoice ? selectedRoomChoice.price : 0;
+                      const roomPrice = booking.selectedRoomChoice
+                        ? booking.selectedRoomChoice.price * (booking.roomCount || 0)
+                        : 0;
                       const totalPrice = discountedBasePrice + roomPrice;
                       const advancePercentage =
-                        booking.advancePaymentPercentage !== undefined
-                          ? booking.advancePaymentPercentage
+                        booking.trip.advancePaymentPercentage !== undefined
+                          ? booking.trip.advancePaymentPercentage
                           : booking.paymentStatus === "advance"
                           ? 50
                           : 100;
@@ -359,22 +356,22 @@ const Booked = () => {
                             {booking?.trip?.location || "N/A"}
                           </TableCell>
                           <TableCell className="px-4 py-3 text-sm text-gray-600">
-                            {hasDiscount && !selectedPackage ? (
+                            {hasDiscount && !booking.selectedPackage ? (
                               <div className="flex flex-col">
                                 <span className="text-sm line-through text-gray-500">
-                                  Before: Rs{originalBasePrice.toLocaleString("en-IN")}
+                                  Before: ₹{originalBasePrice}
                                 </span>
-                                <span>After: Rs{totalPrice.toLocaleString("en-IN")}</span>
+                                <span>After: ₹{totalPrice}</span>
                                 <span className="text-xs font-medium text-green-600">
                                   {booking.trip.discountPercentage}% off
                                 </span>
                               </div>
                             ) : (
-                              <span>Rs{booking.price.toLocaleString("en-IN")}</span>
+                              <span>₹{booking.price}</span>
                             )}
                           </TableCell>
                           <TableCell className="px-4 py-3 text-sm text-gray-600">
-                            {advancePercentage}% 
+                            {advancePercentage}%
                           </TableCell>
                           <TableCell className="px-4 py-3 text-sm text-gray-600">
                             {booking?.user?.username || "N/A"}<br />
@@ -398,23 +395,26 @@ const Booked = () => {
                               : "No passengers"}
                           </TableCell>
                           <TableCell className="px-4 py-3 text-sm text-gray-600">
-                            {selectedPackage
-                              ? `${selectedPackage.title} (Rs${selectedPackage.price.toLocaleString("en-IN")})`
+                            {booking.selectedPackage
+                              ? `${booking.selectedPackage.title} (₹${booking.selectedPackage.price})`
                               : "None"}
                           </TableCell>
                           <TableCell className="px-4 py-3 text-sm text-gray-600">
-                            {selectedRoomChoice
-                              ? `${selectedRoomChoice.description} (Rs${selectedRoomChoice.price.toLocaleString("en-IN")})`
+                            {booking.selectedRoomChoice
+                              ? `${booking.selectedRoomChoice.description} (₹${booking.selectedRoomChoice.price})`
                               : "None"}
+                          </TableCell>
+                          <TableCell className="px-4 py-3 text-sm text-gray-600">
+                            {booking.roomCount || "N/A"}
                           </TableCell>
                           <TableCell className="px-4 py-3 text-sm text-gray-600">
                             {booking.paymentStatus || "N/A"}
                           </TableCell>
                           <TableCell className="px-4 py-3 text-sm text-gray-600">
-                            Rs{booking.advancePaid.toLocaleString("en-IN") || "0"}
+                            ₹{booking.advancePaid || "0.00"}
                           </TableCell>
                           <TableCell className="px-4 py-3 text-sm text-gray-600">
-                            Rs{booking.remainingBalance.toLocaleString("en-IN") || "0"}
+                            ₹{booking.remainingBalance || "0.00"}
                           </TableCell>
                           <TableCell className="px-4 py-3 text-sm text-gray-600">
                             <div className="flex flex-col items-start gap-2">
@@ -458,7 +458,7 @@ const Booked = () => {
                               )}
                           </TableCell>
                           <TableCell className="px-4 py-3 text-sm text-gray-600">
-                            {!booking.isReview && booking?.isReviewActivate && (
+                            {!booking.hasReview && booking?.reviewEnabled && (
                               <button
                                 className="text-orange-500 hover:text-orange-600 font-medium transition-colors duration-200"
                                 onClick={() => navigate(`/review/${booking._id}`)}
@@ -478,52 +478,35 @@ const Booked = () => {
             {/* Mobile/Tablet View: Card Layout */}
             <div className="block md:hidden space-y-4">
               {bookings.map((booking) => {
-                const bookingDate = booking.selectedDate
-                  ? new Date(booking.selectedDate)
-                      .toLocaleDateString("en-GB", {
-                        day: "2-digit",
-                        month: "2-digit",
-                        year: "numeric",
-                      })
-                      .split("/")
-                      .join("-")
-                  : "N/A";
+                const bookingDate = booking.selectedDate || "N/A";
                 const isToday = bookingDate === todayFormatted;
                 const canRequestRefund = isRefundableDate(bookingDate);
                 const reviewEligible = canWriteReview(
                   bookingDate,
                   booking.status
                 );
-                const selectedPackage = booking.selectedPackage
-                  ? booking.trip.packages.find(
-                      (pkg) => pkg._id === booking.selectedPackage
-                    )
-                  : null;
-                const selectedRoomChoice = booking.selectedRoomChoice
-                  ? booking.trip.roomChoices.find(
-                      (room) => room._id === booking.selectedRoomChoice
-                    )
-                  : null;
                 const hasDiscount =
                   booking.trip.discountPercentage !== undefined &&
                   booking.trip.discountPercentage > 0 &&
                   booking.trip.discountPercentage <= 100 &&
-                  parseFloat(booking.trip.price) > 0;
-                const originalBasePrice = selectedPackage
-                  ? selectedPackage.price
-                  : parseFloat(booking.trip.price) * booking.passengers.length;
-                const discountedBasePrice = hasDiscount && !selectedPackage
+                  booking.trip.price > 0;
+                const originalBasePrice = booking.selectedPackage
+                  ? booking.selectedPackage.price
+                  : booking.trip.price * (booking.passengers.length || 1);
+                const discountedBasePrice = hasDiscount && !booking.selectedPackage
                   ? originalBasePrice * (1 - booking.trip.discountPercentage / 100)
                   : originalBasePrice;
-                const roomPrice = selectedRoomChoice ? selectedRoomChoice.price : 0;
+                const roomPrice = booking.selectedRoomChoice
+                  ? booking.selectedRoomChoice.price * (booking.roomCount || 0)
+                  : 0;
                 const totalPrice = discountedBasePrice + roomPrice;
                 const advancePercentage =
-                  booking.advancePaymentPercentage !== undefined
-                    ? booking.advancePaymentPercentage
+                  booking.trip.advancePaymentPercentage !== undefined
+                    ? booking.trip.advancePaymentPercentage
                     : booking.paymentStatus === "advance"
                     ? 50
                     : 100;
-
+console.log("Booking:", booking);
                 return (
                   <div
                     key={booking._id}
@@ -540,18 +523,20 @@ const Booked = () => {
                       </div>
                       <div>
                         <strong className="text-gray-800">Price:</strong>{" "}
-                        {hasDiscount && !selectedPackage ? (
-                          <div className="flex flex-col">
+                        {hasDiscount && !booking.selectedPackage ? (
+                          <div>
                             <span className="text-sm line-through text-gray-500">
-                              Before: Rs{originalBasePrice.toLocaleString("en-IN")}
+                              Before: ₹{originalBasePrice}
                             </span>
-                            <span>After: Rs{totalPrice.toLocaleString("en-IN")}</span>
+                            <br />
+                            <span>After: ₹{totalPrice}</span>
+                            <br />
                             <span className="text-xs font-medium text-green-600">
                               {booking.trip.discountPercentage}% off
                             </span>
                           </div>
                         ) : (
-                          <span>Rs{booking.price.toLocaleString("en-IN")}</span>
+                          <span>₹{booking.price}</span>
                         )}
                       </div>
                       <div>
@@ -574,15 +559,19 @@ const Booked = () => {
                       </div>
                       <div>
                         <strong className="text-gray-800">Package:</strong>{" "}
-                        {selectedPackage
-                          ? `${selectedPackage.title} (Rs${selectedPackage.price.toLocaleString("en-IN")})`
+                        {booking.selectedPackage
+                          ? `${booking.selectedPackage.title} (₹${booking.selectedPackage.price})`
                           : "None"}
                       </div>
                       <div>
                         <strong className="text-gray-800">Room Choice:</strong>{" "}
-                        {selectedRoomChoice
-                          ? `${selectedRoomChoice.description} (Rs${selectedRoomChoice.price.toLocaleString("en-IN")})`
+                        {booking.selectedRoomChoice
+                          ? `${booking.selectedRoomChoice.description} (₹${booking.selectedRoomChoice.price})`
                           : "None"}
+                      </div>
+                      <div>
+                        <strong className="text-gray-800">Room Count:</strong>{" "}
+                        {booking.roomCount || "N/A"}
                       </div>
                       <div>
                         <strong className="text-gray-800">Payment Status:</strong>{" "}
@@ -590,11 +579,11 @@ const Booked = () => {
                       </div>
                       <div>
                         <strong className="text-gray-800">Advance Paid:</strong>{" "}
-                        Rs{booking.advancePaid.toLocaleString("en-IN") || "0"}
+                        ₹{booking.advancePaid || "0.00"}
                       </div>
                       <div>
                         <strong className="text-gray-800">Remaining Balance:</strong>{" "}
-                        Rs{booking.remainingBalance.toLocaleString("en-IN") || "0"}
+                        ₹{booking.remainingBalance || "0.00"}
                       </div>
                       <div>
                         <strong className="text-gray-800">Passengers:</strong>
@@ -643,7 +632,7 @@ const Booked = () => {
                               Request Refund
                             </button>
                           )}
-                        {!booking.isReview && booking?.isReviewActivate && (
+                        {!booking.hasReview && booking?.reviewEnabled && (
                           <button
                             className="text-orange-500 hover:text-orange-600 font-medium transition-colors duration-200"
                             onClick={() => navigate(`/review/${booking._id}`)}
@@ -671,9 +660,7 @@ const Booked = () => {
             isOpen={!!selectedBooking}
             onClose={() => setSelectedBooking(null)}
             onConfirm={handleRefundConfirm}
-            bookingDate={
-              bookings.find((b) => b._id === selectedBooking)?.selectedDate || ""
-            }
+            booking={bookings.find((b) => b._id === selectedBooking) || null}
           />
         )}
 

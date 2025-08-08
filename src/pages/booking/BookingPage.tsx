@@ -13,7 +13,7 @@ import { useCreatePaymentIntentMutation } from "@/store/api/terms";
 import { RAZORPAY_API_KEY } from "@/store/store";
 import { useSelector } from "react-redux";
 import { selectCurrentUser } from "@/store/reducer/auth";
-import { FaSpinner } from "react-icons/fa";
+import { FaSpinner, FaPlus } from "react-icons/fa";
 import { format, parse, isValid } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Armchair, Calendar, MapPin } from "lucide-react";
@@ -58,6 +58,7 @@ interface Trip {
 }
 
 interface BookingSummaryProps {
+  addRoom: () => void;
   tripDetails: {
     from: string;
     to: string;
@@ -77,6 +78,8 @@ interface BookingSummaryProps {
   setSelectedPackage: (pkg: Package | null) => void;
   selectedRoomChoice: RoomChoice | null;
   setSelectedRoomChoice: (room: RoomChoice | null) => void;
+  selectedRoomCount: number;
+  setSelectedRoomCount: (count: number) => void;
   paymentOption: "full" | "advance";
   setPaymentOption: (option: "full" | "advance") => void;
   onProceed: () => void;
@@ -105,6 +108,7 @@ const BookingPage = () => {
   const [trip, setTrip] = useState<Trip | null>(null);
   const [selectedPackage, setSelectedPackage] = useState<Package | null>(null);
   const [selectedRoomChoice, setSelectedRoomChoice] = useState<RoomChoice | null>(null);
+  const [selectedRoomCount, setSelectedRoomCount] = useState<number>(0);
   const [paymentOption, setPaymentOption] = useState<"full" | "advance">("full");
 
   // Date formatting functions
@@ -159,6 +163,11 @@ const BookingPage = () => {
   useEffect(() => {
     if (tripData) {
       setTrip(tripData.trip);
+      // Auto-select first room choice if available
+      if (tripData.trip.roomChoices && tripData.trip.roomChoices.length > 0) {
+        setSelectedRoomChoice(tripData.trip.roomChoices[0]);
+        setSelectedRoomCount(1);
+      }
     }
   }, [tripData]);
 
@@ -175,7 +184,7 @@ const BookingPage = () => {
       const totalSeats = selectedDate.seats;
       if (totalSeats !== 20 && totalSeats !== 32) {
         setStep("passenger-details");
-        setSelectedSeats([]); // No specific seats for non-20/32
+        setSelectedSeats([]);
         setPassengers([
           {
             name: "",
@@ -190,7 +199,6 @@ const BookingPage = () => {
       } else {
         setStep(INITIAL_STEP);
         setSelectedSeats([]);
-        // Only reset passengers if no package or room choice is selected
         if (!selectedPackage && !selectedRoomChoice) {
           setPassengers([]);
         }
@@ -214,16 +222,15 @@ const BookingPage = () => {
       return;
     }
 
-    // Calculate maxSeats: Use personCount for package/room, otherwise use all available seats
     const maxSeats = (selectedPackage || selectedRoomChoice)
       ? Math.min(
           selectedDate?.seats - bookedSeats.length,
-          selectedPackage?.personCount || selectedRoomChoice?.personCount || 0
+          selectedPackage?.personCount  || 0
         )
       : selectedDate?.seats - bookedSeats.length;
 
     if (selectedSeats.length >= maxSeats && !selectedSeats.includes(seatId)) {
-      toast.error(`You can select up to ${maxSeats} seats only.`);
+      toast.error(`Cannot select more than ${maxSeats} seats`);
       return;
     }
 
@@ -232,23 +239,21 @@ const BookingPage = () => {
         ? prev.filter((id) => id !== seatId)
         : [...prev, seatId].sort();
 
-      // Update passengers array to match selected seats when package or room is selected
-      if (selectedPackage || selectedRoomChoice) {
-        setPassengers((prevPassengers) => {
-          const newPassengers = newSeats.map((seat, index) =>
-            prevPassengers[index] || {
-              name: "",
-              age: "",
-              gender: "",
-              idProof: "",
-              idProofNumber: "",
-              address: "",
-              phoneNumber: "",
-            }
-          );
-          return newPassengers;
-        });
-      }
+      setPassengers((prevPassengers) => {
+        const newPassengers = newSeats.map((seat, index) =>
+          prevPassengers[index] || {
+            name: "",
+            age: "",
+            gender: "",
+            idProof: "",
+            idProofNumber: "",
+            address: "",
+            phoneNumber: "",
+          }
+        );
+        setSelectedRoomCount(Math.ceil(newSeats.length / 2));
+        return newPassengers;
+      });
 
       return newSeats;
     });
@@ -269,7 +274,6 @@ const BookingPage = () => {
       ? selectedDate.seats - bookedSeats.length
       : 0;
 
-    // Limit to personCount if package or room is selected, otherwise allow all available seats
     const maxPassengers = (selectedPackage || selectedRoomChoice)
       ? Math.min(maxAvailableSeats, selectedPackage?.personCount || selectedRoomChoice?.personCount || 0)
       : maxAvailableSeats;
@@ -292,7 +296,8 @@ const BookingPage = () => {
       },
     ]);
 
-    // If package or room is selected, add corresponding seat
+    setSelectedRoomCount(Math.ceil((passengers.length + 1) / 2));
+
     if ((selectedPackage || selectedRoomChoice) && (selectedDate?.seats === 20 || selectedDate?.seats === 32)) {
       const availableSeats = Array.from(
         { length: selectedDate?.seats || 0 },
@@ -311,17 +316,18 @@ const BookingPage = () => {
     if ((selectedPackage || selectedRoomChoice) && (selectedDate?.seats === 20 || selectedDate?.seats === 32)) {
       setSelectedSeats((prev) => prev.filter((_, i) => i !== index));
     }
+    setSelectedRoomCount(Math.ceil((passengers.length - 1) / 2));
   };
 
   const validatePassengerDetails = () => {
     return passengers.every(
       (passenger) =>
-        passenger.name &&
+        passenger.name.trim() &&
         passenger.age &&
-        passenger.gender &&
-        passenger.idProof &&
-        passenger.idProofNumber &&
-        passenger.phoneNumber
+        ["male", "female", "other"].includes(passenger.gender) &&
+        ["aadhar", "pan"].includes(passenger.idProof) &&
+        passenger.idProofNumber.trim() &&
+        passenger.phoneNumber.trim()
     );
   };
 
@@ -333,7 +339,10 @@ const BookingPage = () => {
 
   const handlePackageSelect = (pkg: Package | null) => {
     setSelectedPackage(pkg);
-    if (pkg && passengers.length === 0) {
+    setSelectedSeats([]);
+    setPassengers([]);
+    setSelectedRoomCount(1);
+    if (pkg) {
       setPassengers([
         {
           name: "",
@@ -350,7 +359,8 @@ const BookingPage = () => {
 
   const handleRoomChoiceSelect = (room: RoomChoice | null) => {
     setSelectedRoomChoice(room);
-    if (room && passengers.length === 0) {
+    setSelectedRoomCount(1);
+    if (room) {
       setPassengers([
         {
           name: "",
@@ -363,6 +373,11 @@ const BookingPage = () => {
         },
       ]);
     }
+  };
+
+  const addRoom = () => {
+    if (isSubmitting) return;
+    setSelectedRoomCount((prev) => prev + 1);
   };
 
   const handlePayment = async (paymentDetail: any, amountToPay: number, totalAmount: number) => {
@@ -380,10 +395,11 @@ const BookingPage = () => {
             const remainingBalance = paymentOption === "advance" ? totalAmount - advancePaid : 0;
             const paymentStatus = paymentOption === "advance" ? "advance" : "full";
 
-            const resp = await createBooking({
+            const bookingData = {
               tripId,
               selectedPackage: selectedPackage?._id || null,
               selectedRoomChoice: selectedRoomChoice?._id || null,
+              roomCount: selectedRoomCount,
               price: totalAmount,
               advancePaid,
               remainingBalance,
@@ -394,7 +410,21 @@ const BookingPage = () => {
                   : selectedSeats,
               selectedDate: formatDateToString(selectedDate),
               passengers,
-            }).unwrap();
+            };
+
+            // Client-side validation before sending to backend
+          
+            if (bookingData.selectedRoomChoice && bookingData.roomCount < Math.ceil(bookingData.passengers.length / 2)) {
+              throw new Error(`Room count must be at least ${Math.ceil(bookingData.passengers.length / 2)}`);
+            }
+            if (!bookingData.passengers.length) {
+              throw new Error("At least one passenger is required");
+            }
+            if (!/^\d{2}-\d{2}-\d{4}$/.test(bookingData.selectedDate)) {
+              throw new Error("Invalid date format");
+            }
+
+            const resp = await createBooking(bookingData).unwrap();
 
             toast.success("Trip booked successfully");
             navigate("/booked", {
@@ -406,14 +436,14 @@ const BookingPage = () => {
             resolve();
           } catch (error) {
             console.error("Booking error:", error);
-            toast.error("Booking failed!");
+            toast.error(error.message || "Booking failed!");
             reject(error);
             setIsSubmitting(false);
           }
         },
         prefill: {
-          name: `${userDetails?.username}`,
-          email: userDetails?.email,
+          name: userDetails?.username || "",
+          email: userDetails?.email || "",
           contact: passengers[0]?.phoneNumber || "",
         },
         theme: {
@@ -452,14 +482,12 @@ const BookingPage = () => {
         toast.error("Please select at least one seat.");
         return;
       }
-      // If package or room is selected, check if seat count matches passenger count
       if (selectedPackage || selectedRoomChoice) {
         if (selectedSeats.length !== passengers.length) {
           toast.error("Number of selected seats must match number of passengers.");
           return;
         }
       } else {
-        // Initialize passengers array based on selected seats if no package or room choice
         setPassengers(
           selectedSeats.map(() => ({
             name: "",
@@ -475,15 +503,19 @@ const BookingPage = () => {
       setStep("passenger-details");
     } else {
       if (!validatePassengerDetails()) {
-        toast.error("Please fill in all passenger details, including phone number.");
+        toast.error("Please fill in all passenger details with valid values.");
         return;
       }
 
-      // Validate seat count matches passenger count when package or room is selected
-      if ((selectedPackage || selectedRoomChoice) && 
+      if ((selectedPackage || selectedRoomChoice) &&
           (selectedDate?.seats === 20 || selectedDate?.seats === 32) &&
           selectedSeats.length !== passengers.length) {
         toast.error("Number of selected seats must match number of passengers.");
+        return;
+      }
+
+      if (selectedRoomChoice && selectedRoomCount < Math.ceil(passengers.length / 2)) {
+        toast.error(`Room count must be at least ${Math.ceil(passengers.length / 2)} for ${passengers.length} passengers.`);
         return;
       }
 
@@ -492,14 +524,13 @@ const BookingPage = () => {
         const numPassengers = (selectedDate?.seats === 20 || selectedDate?.seats === 32) ? selectedSeats.length : passengers.length;
         const baseSeatPrice = parseInt(trip?.price) || 1000;
         let basePrice = selectedPackage ? selectedPackage.price : baseSeatPrice * numPassengers;
-        
-        // Apply discount if available
+
         const hasDiscount = trip?.discountPercentage !== undefined && trip.discountPercentage > 0 && trip.discountPercentage <= 100;
         if (hasDiscount) {
           basePrice = basePrice * (1 - trip.discountPercentage / 100);
         }
-        
-        const roomPrice = selectedRoomChoice?.price || 0;
+
+        const roomPrice = selectedRoomChoice ? selectedRoomChoice.price * selectedRoomCount : 0;
         const totalPrice = basePrice + roomPrice;
         const totalGst = totalPrice * 0.05;
         const finalAmount = totalPrice + totalGst;
@@ -620,7 +651,6 @@ const BookingPage = () => {
                     )}
                   </div>
                 ))}
-                {/* Show "Add Passenger" button only for non-20/32 seat counts */}
                 {!(totalSeats === 20 || totalSeats === 32) && maxAvailableSeats > passengers.length && (
                   <Button
                     onClick={addPassenger}
@@ -649,6 +679,7 @@ const BookingPage = () => {
           <div className="md:col-span-1">
             <BookingSummary
               step={step}
+              addRoom={addRoom}
               passengers={passengers}
               tripDetails={tripDetails}
               loading={isSubmitting}
@@ -657,6 +688,8 @@ const BookingPage = () => {
               setSelectedPackage={handlePackageSelect}
               selectedRoomChoice={selectedRoomChoice}
               setSelectedRoomChoice={handleRoomChoiceSelect}
+              selectedRoomCount={selectedRoomCount}
+              setSelectedRoomCount={setSelectedRoomCount}
               paymentOption={paymentOption}
               setPaymentOption={setPaymentOption}
               setSelectedData={changeDate}
@@ -917,19 +950,27 @@ const PassengerForm = ({
 
     const updatedData: PassengerData = {
       ...passengers[index],
-      [name]: value,
+      [name]: value.trim(),
     };
 
     onChange(index, updatedData);
 
+    const isEmpty = value.trim() === "";
     setErrors((prevErrors) => ({
       ...prevErrors,
-      [name]: value.trim() === "",
+      [name]: isEmpty || (name === "gender" && !["male", "female", "other"].includes(value)) ||
+        (name === "idProof" && !["aadhar", "pan"].includes(value)),
     }));
 
     setErrorMessages((prevMessages) => ({
       ...prevMessages,
-      [name]: value.trim() === "" ? `Please enter ${name}` : "",
+      [name]: isEmpty
+        ? `Please enter ${name}`
+        : (name === "gender" && !["male", "female", "other"].includes(value))
+        ? "Please select a valid gender"
+        : (name === "idProof" && !["aadhar", "pan"].includes(value))
+        ? "Please select a valid ID proof type"
+        : "",
     }));
   };
 
@@ -1090,6 +1131,7 @@ const PassengerForm = ({
 
 // BookingSummary Component
 const BookingSummary = ({
+  addRoom,
   loading,
   tripDetails,
   selectedSeats,
@@ -1098,6 +1140,8 @@ const BookingSummary = ({
   setSelectedPackage,
   selectedRoomChoice,
   setSelectedRoomChoice,
+  selectedRoomCount,
+  setSelectedRoomCount,
   paymentOption,
   setPaymentOption,
   setSelectedData,
@@ -1109,14 +1153,22 @@ const BookingSummary = ({
   const totalSeats = selectedDate?.seats || 0;
   const isSeatSelection = totalSeats === 20 || totalSeats === 32;
   const numPassengers = isSeatSelection ? selectedSeats.length : passengers.length;
-  // Use package price if selected, otherwise use base seat price * number of passengers
+  const minRooms = Math.ceil(numPassengers / 2);
+
+  useEffect(() => {
+    if (selectedRoomChoice && selectedRoomCount < minRooms) {
+      setSelectedRoomCount(minRooms);
+    }
+  }, [numPassengers, selectedRoomChoice, selectedRoomCount, setSelectedRoomCount]);
+
   let basePrice = selectedPackage ? selectedPackage.price : (tripDetails.baseSeatPrice || 1000) * numPassengers;
   const hasDiscount = tripDetails.discountPercentage !== undefined && tripDetails.discountPercentage > 0 && tripDetails.discountPercentage <= 100;
   const originalBasePrice = basePrice;
   if (hasDiscount) {
     basePrice = basePrice * (1 - tripDetails.discountPercentage / 100);
   }
-  const roomPrice = selectedRoomChoice?.price || 0;
+
+  const roomPrice = selectedRoomChoice ? selectedRoomChoice.price * selectedRoomCount : 0;
   const totalPrice = basePrice + roomPrice;
   const totalGst = totalPrice * 0.05;
   const finalAmount = totalPrice + totalGst;
@@ -1184,108 +1236,81 @@ const BookingSummary = ({
             )}
           </select>
         </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Select Package (Optional)
-          </label>
-          <div className="grid gap-4">
-            <div
-              className={`p-4 border rounded-lg cursor-pointer transition-colors ${
-                !selectedPackage
-                  ? "border-blue-500 bg-blue-50"
-                  : "border-gray-300 hover:bg-gray-50"
-              }`}
-              onClick={() => !disabled && setSelectedPackage(null)}
-            >
-              <h4 className="font-semibold">No Package</h4>
-              <p className="text-sm text-gray-600">Proceed with seat only</p>
-              <p className="text-sm font-medium mt-2">
-                {hasDiscount ? (
-                  <>
-                    <span className="line-through text-gray-500">
-                      Before: ₹{(tripDetails.baseSeatPrice * numPassengers).toLocaleString("en-IN")}
-                    </span>
-                    <br />
-                    <span>
-                      After: ₹{Math.round((tripDetails.baseSeatPrice * numPassengers) * (1 - tripDetails.discountPercentage / 100)).toLocaleString("en-IN")}
-                    </span>
-                    <br />
-                    <span className="text-green-600">{tripDetails.discountPercentage}% off</span>
-                  </>
-                ) : (
-                  <span>₹{(tripDetails.baseSeatPrice * numPassengers).toLocaleString("en-IN")}</span>
-                )}
-              </p>
+        {tripDetails.packages.length > 0 && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Select Package
+            </label>
+            <div className="grid gap-4">
+              {tripDetails.packages.map((pkg) => (
+                <div
+                  key={pkg._id}
+                  className={`p-4 border rounded-lg cursor-pointer transition-colors ${
+                    selectedPackage?._id === pkg._id
+                      ? "border-blue-500 bg-blue-50"
+                      : "border-gray-300 hover:bg-gray-50"
+                  }`}
+                  onClick={() => !disabled && setSelectedPackage(pkg)}
+                >
+                  <h4 className="font-semibold">{pkg.name}</h4>
+                  <p className="text-sm text-gray-600">{pkg.description}</p>
+                  <p className="text-sm font-medium mt-2">
+                    {hasDiscount ? (
+                      <>
+                        <span className="line-through text-gray-500">
+                          Before: ₹{pkg.price.toLocaleString("en-IN")}
+                        </span>
+                        <br />
+                        <span>
+                          After: ₹{Math.round(pkg.price * (1 - tripDetails.discountPercentage / 100)).toLocaleString("en-IN")}
+                        </span>
+                        <br />
+                        <span className="text-green-600">{tripDetails.discountPercentage}% off</span>
+                      </>
+                    ) : (
+                      <span>₹{pkg.price.toLocaleString("en-IN")}</span>
+                    )}
+                  </p>
+                </div>
+              ))}
             </div>
-            {tripDetails.packages.map((pkg) => (
-              <div
-                key={pkg._id}
-                className={`p-4 border rounded-lg cursor-pointer transition-colors ${
-                  selectedPackage?._id === pkg._id
-                    ? "border-blue-500 bg-blue-50"
-                    : "border-gray-300 hover:bg-gray-50"
-                }`}
-                onClick={() => !disabled && setSelectedPackage(pkg)}
-              >
-                <h4 className="font-semibold">{pkg.name}</h4>
-                <p className="text-sm text-gray-600">{pkg.description}</p>
-                <p className="text-sm font-medium mt-2">
-                  {hasDiscount ? (
-                    <>
-                      <span className="line-through text-gray-500">
-                        Before: ₹{pkg.price.toLocaleString("en-IN")}
-                      </span>
-                      <br />
-                      <span>
-                        After: ₹{Math.round(pkg.price * (1 - tripDetails.discountPercentage / 100)).toLocaleString("en-IN")}
-                      </span>
-                      <br />
-                      <span className="text-green-600">{tripDetails.discountPercentage}% off</span>
-                    </>
-                  ) : (
-                    <span>₹{pkg.price.toLocaleString("en-IN")}</span>
+          </div>
+        )}
+        {tripDetails.roomChoices.length > 0 && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Select Room Choice
+            </label>
+            <div className="grid gap-4">
+              {tripDetails.roomChoices.map((room, index) => (
+                <div
+                  key={room._id}
+                  className={`p-4 border rounded-lg transition-colors relative ${
+                    selectedRoomChoice?._id === room._id
+                      ? "border-blue-500 bg-blue-50"
+                      : "border-gray-300 hover:bg-gray-50"
+                  } ${index === 0 ? "cursor-not-allowed opacity-75" : "cursor-pointer"}`}
+                  onClick={() => !disabled && index !== 0 && setSelectedRoomChoice(room)}
+                >
+                  <h4 className="font-semibold">{room.type}</h4>
+                  <p className="text-sm text-gray-600">{room.description}</p>
+                  <p className="text-sm font-medium mt-2">
+                    ₹{room.price.toLocaleString("en-IN")} x {selectedRoomCount} {selectedRoomCount > 1 ? "rooms" : "room"}
+                  </p>
+                  {selectedRoomChoice?._id === room._id && (
+                    <Button
+                      onClick={addRoom}
+                      className="absolute top-2 right-2 bg-green-500 hover:bg-green-600 text-white rounded-full p-2"
+                      disabled={disabled}
+                    >
+                      <FaPlus size={16} />
+                    </Button>
                   )}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Select Room Choice (Optional)
-          </label>
-          <div className="grid gap-4">
-            <div
-              className={`p-4 border rounded-lg cursor-pointer transition-colors ${
-                !selectedRoomChoice
-                  ? "border-blue-500 bg-blue-50"
-                  : "border-gray-300 hover:bg-gray-50"
-              }`}
-              onClick={() => !disabled && setSelectedRoomChoice(null)}
-            >
-              <h4 className="font-semibold">No Room</h4>
-              <p className="text-sm text-gray-600">Proceed without room selection</p>
-              <p className="text-sm font-medium mt-2">₹0</p>
+                </div>
+              ))}
             </div>
-            {tripDetails.roomChoices.map((room) => (
-              <div
-                key={room._id}
-                className={`p-4 border rounded-lg cursor-pointer transition-colors ${
-                  selectedRoomChoice?._id === room._id
-                    ? "border-blue-500 bg-blue-50"
-                    : "border-gray-300 hover:bg-gray-50"
-                }`}
-                onClick={() => !disabled && setSelectedRoomChoice(room)}
-              >
-                <h4 className="font-semibold">{room.type}</h4>
-                <p className="text-sm text-gray-600">{room.description}</p>
-                <p className="text-sm font-medium mt-2">
-                  ₹{room.price.toLocaleString("en-IN")}
-                </p>
-              </div>
-            ))}
           </div>
-        </div>
+        )}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Payment Option
@@ -1348,10 +1373,12 @@ const BookingSummary = ({
             <span>₹{basePrice.toLocaleString("en-IN")}</span>
           )}
         </div>
-        <div className="flex justify-between mb-2">
-          <span>Room Price</span>
-          <span>₹{roomPrice.toLocaleString("en-IN")}</span>
-        </div>
+        {selectedRoomChoice && (
+          <div className="flex justify-between mb-2">
+            <span>Room Price ({selectedRoomCount} {selectedRoomCount > 1 ? "rooms" : "room"})</span>
+            <span>₹{roomPrice.toLocaleString("en-IN")}</span>
+          </div>
+        )}
         <div className="flex justify-between mb-2">
           <span>Total Price</span>
           <span>₹{totalPrice.toLocaleString("en-IN")}</span>

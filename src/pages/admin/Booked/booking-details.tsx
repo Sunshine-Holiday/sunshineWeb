@@ -69,6 +69,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "react-toastify";
 import { Skeleton } from "@/components/ui/skeleton";
+import { error } from "console";
 
 const BookingDetails = () => {
   const { state } = useLocation();
@@ -92,7 +93,8 @@ const BookingDetails = () => {
     trip: tripId,
     date: date,
   });
-  console.log("hello", bookingData);
+  console.log("hello", bookingError);
+  console.log("Booking Data:", bookingData);
   const {
     data: reviewData,
     isLoading: isReviewLoading,
