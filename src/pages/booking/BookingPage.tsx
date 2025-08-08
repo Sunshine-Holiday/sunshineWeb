@@ -13,7 +13,7 @@ import { useCreatePaymentIntentMutation } from "@/store/api/terms";
 import { RAZORPAY_API_KEY } from "@/store/store";
 import { useSelector } from "react-redux";
 import { selectCurrentUser } from "@/store/reducer/auth";
-import { FaSpinner, FaPlus } from "react-icons/fa";
+import { FaSpinner, FaPlus, FaMinus } from "react-icons/fa";
 import { format, parse, isValid } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Armchair, Calendar, MapPin } from "lucide-react";
@@ -39,7 +39,7 @@ interface RoomChoice {
   type: string;
   price: number;
   description: string;
-  personCount?: number;
+  personCount: number; // Dynamic number of people per room
 }
 
 interface Trip {
@@ -55,10 +55,12 @@ interface Trip {
   boardingPoints: { _id: string; location: string; time: string; details: string }[];
   price: string;
   discountPercentage?: number;
+  advancePaymentPercentage?: number;
 }
 
 interface BookingSummaryProps {
   addRoom: () => void;
+  removeRoom: () => void; // Added removeRoom prop
   tripDetails: {
     from: string;
     to: string;
@@ -69,6 +71,7 @@ interface BookingSummaryProps {
     roomChoices: RoomChoice[];
     baseSeatPrice: number;
     discountPercentage?: number;
+    advancePaymentPercentage?: number;
   };
   selectedDate: StartDate | null;
   setSelectedData: (date: StartDate) => void;
@@ -222,10 +225,10 @@ const BookingPage = () => {
       return;
     }
 
-    const maxSeats = (selectedPackage || selectedRoomChoice)
+    const maxSeats = (selectedPackage)
       ? Math.min(
           selectedDate?.seats - bookedSeats.length,
-          selectedPackage?.personCount  || 0
+          selectedPackage?.personCount || 0
         )
       : selectedDate?.seats - bookedSeats.length;
 
@@ -251,7 +254,10 @@ const BookingPage = () => {
             phoneNumber: "",
           }
         );
-        setSelectedRoomCount(Math.ceil(newSeats.length / 2));
+        // Update room count based on dynamic personCount
+        if (selectedRoomChoice) {
+          setSelectedRoomCount(Math.ceil(newSeats.length / selectedRoomChoice.personCount));
+        }
         return newPassengers;
       });
 
@@ -296,7 +302,10 @@ const BookingPage = () => {
       },
     ]);
 
-    setSelectedRoomCount(Math.ceil((passengers.length + 1) / 2));
+    // Update room count based on dynamic personCount
+    if (selectedRoomChoice) {
+      setSelectedRoomCount(Math.ceil((passengers.length + 1) / selectedRoomChoice.personCount));
+    }
 
     if ((selectedPackage || selectedRoomChoice) && (selectedDate?.seats === 20 || selectedDate?.seats === 32)) {
       const availableSeats = Array.from(
@@ -316,7 +325,10 @@ const BookingPage = () => {
     if ((selectedPackage || selectedRoomChoice) && (selectedDate?.seats === 20 || selectedDate?.seats === 32)) {
       setSelectedSeats((prev) => prev.filter((_, i) => i !== index));
     }
-    setSelectedRoomCount(Math.ceil((passengers.length - 1) / 2));
+    // Update room count based on dynamic personCount
+    if (selectedRoomChoice) {
+      setSelectedRoomCount(Math.ceil((passengers.length - 1) / selectedRoomChoice.personCount));
+    }
   };
 
   const validatePassengerDetails = () => {
@@ -380,6 +392,11 @@ const BookingPage = () => {
     setSelectedRoomCount((prev) => prev + 1);
   };
 
+  const removeRoom = () => {
+    if (isSubmitting) return;
+    setSelectedRoomCount((prev) => Math.max(minRooms, prev - 1));
+  };
+
   const handlePayment = async (paymentDetail: any, amountToPay: number, totalAmount: number) => {
     return new Promise<void>((resolve, reject) => {
       const options = {
@@ -391,6 +408,7 @@ const BookingPage = () => {
         order_id: paymentDetail.id,
         handler: async (response: any) => {
           try {
+            const advancePaymentPercentage = trip?.advancePaymentPercentage || 50;
             const advancePaid = paymentOption === "advance" ? amountToPay : totalAmount;
             const remainingBalance = paymentOption === "advance" ? totalAmount - advancePaid : 0;
             const paymentStatus = paymentOption === "advance" ? "advance" : "full";
@@ -413,9 +431,8 @@ const BookingPage = () => {
             };
 
             // Client-side validation before sending to backend
-          
-            if (bookingData.selectedRoomChoice && bookingData.roomCount < Math.ceil(bookingData.passengers.length / 2)) {
-              throw new Error(`Room count must be at least ${Math.ceil(bookingData.passengers.length / 2)}`);
+            if (bookingData.selectedRoomChoice && bookingData.roomCount < Math.ceil(bookingData.passengers.length / (selectedRoomChoice?.personCount || 2))) {
+              throw new Error(`Room count must be at least ${Math.ceil(bookingData.passengers.length / (selectedRoomChoice?.personCount || 2))}`);
             }
             if (!bookingData.passengers.length) {
               throw new Error("At least one passenger is required");
@@ -514,8 +531,8 @@ const BookingPage = () => {
         return;
       }
 
-      if (selectedRoomChoice && selectedRoomCount < Math.ceil(passengers.length / 2)) {
-        toast.error(`Room count must be at least ${Math.ceil(passengers.length / 2)} for ${passengers.length} passengers.`);
+      if (selectedRoomChoice && selectedRoomCount < Math.ceil(passengers.length / selectedRoomChoice.personCount)) {
+        toast.error(`Room count must be at least ${Math.ceil(passengers.length / selectedRoomChoice.personCount)} for ${passengers.length} passengers.`);
         return;
       }
 
@@ -534,7 +551,8 @@ const BookingPage = () => {
         const totalPrice = basePrice + roomPrice;
         const totalGst = totalPrice * 0.05;
         const finalAmount = totalPrice + totalGst;
-        const amountToPay = paymentOption === "advance" ? finalAmount * 0.5 : finalAmount;
+        const advancePaymentPercentage = trip?.advancePaymentPercentage || 50;
+        const amountToPay = paymentOption === "advance" ? finalAmount * (advancePaymentPercentage / 100) : finalAmount;
 
         if (isNaN(totalPrice) || isNaN(totalGst) || isNaN(finalAmount)) {
           throw new Error("Invalid amount calculation");
@@ -580,12 +598,15 @@ const BookingPage = () => {
     busSize: trip.busSize || "20",
     baseSeatPrice: parseInt(trip.price) || 1000,
     discountPercentage: trip.discountPercentage,
+    advancePaymentPercentage: trip.advancePaymentPercentage,
   };
 
   const totalSeats = selectedDate?.seats || Number(tripDetails.busSize);
   const maxAvailableSeats = (selectedPackage || selectedRoomChoice)
     ? Math.min(totalSeats - bookedSeats.length, selectedPackage?.personCount || selectedRoomChoice?.personCount || 0)
     : totalSeats - bookedSeats.length;
+
+  const minRooms = selectedRoomChoice ? Math.ceil(passengers.length / selectedRoomChoice.personCount) : 0;
 
   return (
     <div className="min-h-screen bg-gray-50 pt-24 pb-16 relative">
@@ -680,6 +701,7 @@ const BookingPage = () => {
             <BookingSummary
               step={step}
               addRoom={addRoom}
+              removeRoom={removeRoom}
               passengers={passengers}
               tripDetails={tripDetails}
               loading={isSubmitting}
@@ -1132,6 +1154,7 @@ const PassengerForm = ({
 // BookingSummary Component
 const BookingSummary = ({
   addRoom,
+  removeRoom,
   loading,
   tripDetails,
   selectedSeats,
@@ -1153,13 +1176,13 @@ const BookingSummary = ({
   const totalSeats = selectedDate?.seats || 0;
   const isSeatSelection = totalSeats === 20 || totalSeats === 32;
   const numPassengers = isSeatSelection ? selectedSeats.length : passengers.length;
-  const minRooms = Math.ceil(numPassengers / 2);
+  const minRooms = selectedRoomChoice ? Math.ceil(numPassengers / selectedRoomChoice.personCount) : 0;
 
   useEffect(() => {
     if (selectedRoomChoice && selectedRoomCount < minRooms) {
       setSelectedRoomCount(minRooms);
     }
-  }, [numPassengers, selectedRoomChoice, selectedRoomCount, setSelectedRoomCount]);
+  }, [numPassengers, selectedRoomChoice, selectedRoomCount, setSelectedRoomCount, minRooms]);
 
   let basePrice = selectedPackage ? selectedPackage.price : (tripDetails.baseSeatPrice || 1000) * numPassengers;
   const hasDiscount = tripDetails.discountPercentage !== undefined && tripDetails.discountPercentage > 0 && tripDetails.discountPercentage <= 100;
@@ -1172,6 +1195,7 @@ const BookingSummary = ({
   const totalPrice = basePrice + roomPrice;
   const totalGst = totalPrice * 0.05;
   const finalAmount = totalPrice + totalGst;
+  const advancePaymentPercentage = tripDetails.advancePaymentPercentage || 50;
 
   const formatDateWithSeats = (startDate: StartDate): string => {
     const date = parse(startDate.date, "dd-MM-yyyy", new Date());
@@ -1289,22 +1313,34 @@ const BookingSummary = ({
                     selectedRoomChoice?._id === room._id
                       ? "border-blue-500 bg-blue-50"
                       : "border-gray-300 hover:bg-gray-50"
-                  } ${index === 0 ? "cursor-not-allowed opacity-75" : "cursor-pointer"}`}
-                  onClick={() => !disabled && index !== 0 && setSelectedRoomChoice(room)}
+                  } ${index === 0 ? "cursor-pointer opacity-75" : "cursor-pointer"}`}
+                  onClick={() => !disabled && setSelectedRoomChoice(room)}
                 >
                   <h4 className="font-semibold">{room.type}</h4>
                   <p className="text-sm text-gray-600">{room.description}</p>
+                  <p className="text-sm text-gray-600">
+                    Accommodates: {room.personCount} person{room.personCount > 1 ? "s" : ""}
+                  </p>
                   <p className="text-sm font-medium mt-2">
-                    ₹{room.price.toLocaleString("en-IN")} x {selectedRoomCount} {selectedRoomCount > 1 ? "rooms" : "room"}
+                    ₹{room.price.toLocaleString("en-IN")} x {selectedRoomChoice?._id === room._id ? selectedRoomCount : 1} {selectedRoomChoice?._id === room._id && selectedRoomCount > 1 ? "rooms" : "room"}
                   </p>
                   {selectedRoomChoice?._id === room._id && (
-                    <Button
-                      onClick={addRoom}
-                      className="absolute top-2 right-2 bg-green-500 hover:bg-green-600 text-white rounded-full p-2"
-                      disabled={disabled}
-                    >
-                      <FaPlus size={16} />
-                    </Button>
+                    <div className="absolute top-2 right-2 flex space-x-2">
+                      <Button
+                        onClick={addRoom}
+                        className="bg-green-500 hover:bg-green-600 text-white rounded-full p-2"
+                        disabled={disabled}
+                      >
+                        <FaPlus size={16} />
+                      </Button>
+                      <Button
+                        onClick={removeRoom}
+                        className="bg-red-500 hover:bg-red-600 text-white rounded-full p-2"
+                        disabled={disabled || selectedRoomCount <= minRooms}
+                      >
+                        <FaMinus size={16} />
+                      </Button>
+                    </div>
                   )}
                 </div>
               ))}
@@ -1338,7 +1374,7 @@ const BookingSummary = ({
                 disabled={disabled || loading}
                 className="mr-2"
               />
-              Advance Payment (50%)
+              Advance Payment ({advancePaymentPercentage}%)
             </label>
           </div>
         </div>
@@ -1393,8 +1429,8 @@ const BookingSummary = ({
         </div>
         {paymentOption === "advance" && (
           <div className="flex justify-between font-semibold text-lg mt-2">
-            <span>Advance Payment (50%)</span>
-            <span>₹{(finalAmount * 0.5).toLocaleString("en-IN")}</span>
+            <span>Advance Payment ({advancePaymentPercentage}%)</span>
+            <span>₹{(finalAmount * (advancePaymentPercentage / 100)).toLocaleString("en-IN")}</span>
           </div>
         )}
       </div>
