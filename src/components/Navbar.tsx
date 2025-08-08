@@ -34,13 +34,14 @@ export const Navbar: React.FC = () => {
       >
         <div className=" px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            <Link to="/" className="flex items-center">
-              <img
-                src={logo1}
-                alt="Sunshine Holiday Packages Logo"
-                className="h-12 w-12 object-contain"
-              />
-            </Link>
+          <Link to="/" className="flex items-center">
+  <img
+    src={logo1}
+    alt="Sunshine Holiday Packages Logo"
+    className="h-21 w-24 object-contain"
+  />
+</Link>
+
 
             <div className="hidden md:flex items-center space-x-6">
               {user?.role === "admin" && <NavLink to="/admin">Admin</NavLink>}

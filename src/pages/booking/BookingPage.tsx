@@ -39,7 +39,7 @@ interface RoomChoice {
   type: string;
   price: number;
   description: string;
-  personCount: number; // Dynamic number of people per room
+  personCount: number;
 }
 
 interface Trip {
@@ -60,7 +60,7 @@ interface Trip {
 
 interface BookingSummaryProps {
   addRoom: () => void;
-  removeRoom: () => void; // Added removeRoom prop
+  removeRoom: () => void;
   tripDetails: {
     from: string;
     to: string;
@@ -113,6 +113,7 @@ const BookingPage = () => {
   const [selectedRoomChoice, setSelectedRoomChoice] = useState<RoomChoice | null>(null);
   const [selectedRoomCount, setSelectedRoomCount] = useState<number>(0);
   const [paymentOption, setPaymentOption] = useState<"full" | "advance">("full");
+  const [hasManuallyAdjustedRooms, setHasManuallyAdjustedRooms] = useState(false);
 
   // Date formatting functions
   const formatDateToString = (dateInput: StartDate | string | Date): string => {
@@ -166,7 +167,6 @@ const BookingPage = () => {
   useEffect(() => {
     if (tripData) {
       setTrip(tripData.trip);
-      // Auto-select first room choice if available
       if (tripData.trip.roomChoices && tripData.trip.roomChoices.length > 0) {
         setSelectedRoomChoice(tripData.trip.roomChoices[0]);
         setSelectedRoomCount(1);
@@ -225,7 +225,7 @@ const BookingPage = () => {
       return;
     }
 
-    const maxSeats = (selectedPackage)
+    const maxSeats = selectedPackage
       ? Math.min(
           selectedDate?.seats - bookedSeats.length,
           selectedPackage?.personCount || 0
@@ -254,8 +254,7 @@ const BookingPage = () => {
             phoneNumber: "",
           }
         );
-        // Update room count based on dynamic personCount
-        if (selectedRoomChoice) {
+        if (selectedRoomChoice && !hasManuallyAdjustedRooms) {
           setSelectedRoomCount(Math.ceil(newSeats.length / selectedRoomChoice.personCount));
         }
         return newPassengers;
@@ -280,7 +279,7 @@ const BookingPage = () => {
       ? selectedDate.seats - bookedSeats.length
       : 0;
 
-    const maxPassengers = (selectedPackage || selectedRoomChoice)
+    const maxPassengers = selectedPackage || selectedRoomChoice
       ? Math.min(maxAvailableSeats, selectedPackage?.personCount || selectedRoomChoice?.personCount || 0)
       : maxAvailableSeats;
 
@@ -302,8 +301,7 @@ const BookingPage = () => {
       },
     ]);
 
-    // Update room count based on dynamic personCount
-    if (selectedRoomChoice) {
+    if (selectedRoomChoice && !hasManuallyAdjustedRooms) {
       setSelectedRoomCount(Math.ceil((passengers.length + 1) / selectedRoomChoice.personCount));
     }
 
@@ -325,8 +323,7 @@ const BookingPage = () => {
     if ((selectedPackage || selectedRoomChoice) && (selectedDate?.seats === 20 || selectedDate?.seats === 32)) {
       setSelectedSeats((prev) => prev.filter((_, i) => i !== index));
     }
-    // Update room count based on dynamic personCount
-    if (selectedRoomChoice) {
+    if (selectedRoomChoice && !hasManuallyAdjustedRooms) {
       setSelectedRoomCount(Math.ceil((passengers.length - 1) / selectedRoomChoice.personCount));
     }
   };
@@ -354,6 +351,7 @@ const BookingPage = () => {
     setSelectedSeats([]);
     setPassengers([]);
     setSelectedRoomCount(1);
+    setHasManuallyAdjustedRooms(false);
     if (pkg) {
       setPassengers([
         {
@@ -372,6 +370,7 @@ const BookingPage = () => {
   const handleRoomChoiceSelect = (room: RoomChoice | null) => {
     setSelectedRoomChoice(room);
     setSelectedRoomCount(1);
+    setHasManuallyAdjustedRooms(false);
     if (room) {
       setPassengers([
         {
@@ -389,12 +388,25 @@ const BookingPage = () => {
 
   const addRoom = () => {
     if (isSubmitting) return;
-    setSelectedRoomCount((prev) => prev + 1);
+    setSelectedRoomCount((prev) => {
+      const newCount = prev + 1;
+      // toast.info(`Added room. Total rooms: ${newCount}`);
+      return newCount;
+    });
+    setHasManuallyAdjustedRooms(true);
   };
 
   const removeRoom = () => {
     if (isSubmitting) return;
-    setSelectedRoomCount((prev) => Math.max(minRooms, prev - 1));
+    setSelectedRoomCount((prev) => {
+      const minRooms = selectedRoomChoice ? Math.ceil(passengers.length / selectedRoomChoice.personCount) : 0;
+      const newCount = Math.max(1, prev - 1);
+      if (newCount < minRooms) {
+        toast.warn(`Minimum ${minRooms} room${minRooms > 1 ? "s" : ""} required for ${passengers.length} passenger${passengers.length > 1 ? "s" : ""}.`);
+      }
+      setHasManuallyAdjustedRooms(true);
+      return newCount;
+    });
   };
 
   const handlePayment = async (paymentDetail: any, amountToPay: number, totalAmount: number) => {
@@ -430,7 +442,6 @@ const BookingPage = () => {
               passengers,
             };
 
-            // Client-side validation before sending to backend
             if (bookingData.selectedRoomChoice && bookingData.roomCount < Math.ceil(bookingData.passengers.length / (selectedRoomChoice?.personCount || 2))) {
               throw new Error(`Room count must be at least ${Math.ceil(bookingData.passengers.length / (selectedRoomChoice?.personCount || 2))}`);
             }
@@ -1178,11 +1189,8 @@ const BookingSummary = ({
   const numPassengers = isSeatSelection ? selectedSeats.length : passengers.length;
   const minRooms = selectedRoomChoice ? Math.ceil(numPassengers / selectedRoomChoice.personCount) : 0;
 
-  useEffect(() => {
-    if (selectedRoomChoice && selectedRoomCount < minRooms) {
-      setSelectedRoomCount(minRooms);
-    }
-  }, [numPassengers, selectedRoomChoice, selectedRoomCount, setSelectedRoomCount, minRooms]);
+  // Debugging log
+  console.log("BookingSummary props:", { disabled, selectedRoomCount, minRooms, numPassengers, personCount: selectedRoomChoice?.personCount });
 
   let basePrice = selectedPackage ? selectedPackage.price : (tripDetails.baseSeatPrice || 1000) * numPassengers;
   const hasDiscount = tripDetails.discountPercentage !== undefined && tripDetails.discountPercentage > 0 && tripDetails.discountPercentage <= 100;
@@ -1308,7 +1316,7 @@ const BookingSummary = ({
             <div className="grid gap-4">
               {tripDetails.roomChoices.map((room, index) => (
                 <div
-                  key={room._id}
+                  key={`${room._id}-${selectedRoomCount}`}
                   className={`p-4 border rounded-lg transition-colors relative ${
                     selectedRoomChoice?._id === room._id
                       ? "border-blue-500 bg-blue-50"
@@ -1327,16 +1335,22 @@ const BookingSummary = ({
                   {selectedRoomChoice?._id === room._id && (
                     <div className="absolute top-2 right-2 flex space-x-2">
                       <Button
-                        onClick={addRoom}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          addRoom();
+                        }}
                         className="bg-green-500 hover:bg-green-600 text-white rounded-full p-2"
                         disabled={disabled}
                       >
                         <FaPlus size={16} />
                       </Button>
                       <Button
-                        onClick={removeRoom}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removeRoom();
+                        }}
                         className="bg-red-500 hover:bg-red-600 text-white rounded-full p-2"
-                        disabled={disabled || selectedRoomCount <= minRooms}
+                        disabled={disabled || selectedRoomCount <= 1}
                       >
                         <FaMinus size={16} />
                       </Button>

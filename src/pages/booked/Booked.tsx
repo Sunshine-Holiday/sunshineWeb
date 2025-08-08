@@ -16,6 +16,7 @@ import Skeleton from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
+import { File } from "lucide-react";
 
 // Define TypeScript interfaces
 interface Passenger {
@@ -303,6 +304,7 @@ const Booked = () => {
                         "Details/Status",
                         "Refund",
                         "Review",
+                        "Preview"
                       ].map((header) => (
                         <TableHead
                           key={header}
@@ -466,6 +468,9 @@ const Booked = () => {
                                 Write Review
                               </button>
                             )}
+                          </TableCell>
+                             <TableCell className="px-4 py-3 text-sm text-gray-600">
+                              <File onClick={() => navigate(booking._id)} />
                           </TableCell>
                         </TableRow>
                       );

@@ -158,26 +158,26 @@ const BookingDetail = () => {
             [
               "Package",
               selectedPackage
-                ? `${selectedPackage.title} (₹${selectedPackage.price.toLocaleString("en-IN")})`
+                ? `${selectedPackage.title} (Rs ${selectedPackage.price.toLocaleString("en-IN")})`
                 : "None",
             ],
             [
               "Room Choice",
               selectedRoomChoice
-                ? `${selectedRoomChoice.description} (₹${selectedRoomChoice.price.toLocaleString("en-IN")})`
+                ? `${selectedRoomChoice.description} (Rs ${selectedRoomChoice.price.toLocaleString("en-IN")})`
                 : "None",
             ],
             [
               selectedPackage ? "Package Price" : "Seat Price",
-              `₹${basePrice.toLocaleString("en-IN")}`,
+              `Rs ${basePrice.toLocaleString("en-IN")}`,
             ],
-            ["Room Price", `₹${roomPrice.toLocaleString("en-IN")}`],
-            ["Subtotal", `₹${totalPrice.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`],
-            ["GST (5%)", `₹${gst.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`],
-            ["Total Amount", `₹${finalAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`],
+            ["Room Price", `Rs ${roomPrice.toLocaleString("en-IN")}`],
+            // ["Subtotal", `Rs ${totalPrice.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`],
+            // ["GST (5%)", `Rs ${gst.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`],
+            ["Total Amount", `Rs ${booking.price.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`],
             ["Payment Status", booking.paymentStatus || "N/A"],
-            ["Advance Paid", `₹${booking.advancePaid.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`],
-            ["Remaining Balance", `₹${booking.remainingBalance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`],
+            ["Advance Paid", `Rs ${booking.advancePaid.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`],
+            ["Remaining Balance", `Rs ${booking.remainingBalance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`],
             ["User", booking.user?.username || "N/A"],
             ["Email", booking.user?.email || "N/A"],
             ["Phone", booking.user?.phone || "N/A"],
@@ -344,7 +344,7 @@ const BookingDetail = () => {
                 </th>
                 <td className="border border-gray-300 px-4 py-2">
                   {selectedPackage
-                    ? `${selectedPackage.title} (₹${selectedPackage.price.toLocaleString("en-IN")})`
+                    ? `${selectedPackage.title} (Rs ${selectedPackage.price.toLocaleString("en-IN")})`
                     : "None"}
                 </td>
               </tr>
@@ -354,48 +354,34 @@ const BookingDetail = () => {
                 </th>
                 <td className="border border-gray-300 px-4 py-2">
                   {selectedRoomChoice
-                    ? `${selectedRoomChoice.description} (₹${selectedRoomChoice.price.toLocaleString("en-IN")})`
+                    ? `${selectedRoomChoice.description} (Rs ${selectedRoomChoice.price.toLocaleString("en-IN")})`
                     : "None"}
                 </td>
               </tr>
-              <tr>
+              {/* <tr>
                 <th className="border border-gray-300 px-4 py-2 text-left font-semibold">
                   {selectedPackage ? "Package Price" : "Seat Price"}
                 </th>
                 <td className="border border-gray-300 px-4 py-2">
-                  ₹{basePrice.toLocaleString("en-IN")}
+                  Rs {basePrice.toLocaleString("en-IN")}
                 </td>
-              </tr>
+              </tr> */}
               <tr>
                 <th className="border border-gray-300 px-4 py-2 text-left font-semibold">
                   Room Price
                 </th>
                 <td className="border border-gray-300 px-4 py-2">
-                  ₹{roomPrice.toLocaleString("en-IN")}
+                  Rs {roomPrice.toLocaleString("en-IN")}
                 </td>
               </tr>
-              <tr>
-                <th className="border border-gray-300 px-4 py-2 text-left font-semibold">
-                  Subtotal
-                </th>
-                <td className="border border-gray-300 px-4 py-2">
-                  ₹{totalPrice.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                </td>
-              </tr>
-              <tr>
-                <th className="border border-gray-300 px-4 py-2 text-left font-semibold">
-                  GST (5%)
-                </th>
-                <td className="border border-gray-300 px-4 py-2">
-                  ₹{gst.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                </td>
-              </tr>
+            
+         
               <tr className="bg-gray-100 font-semibold">
                 <th className="border border-gray-300 px-4 py-2 text-left font-semibold">
                   Total Amount
                 </th>
                 <td className="border border-gray-300 px-4 py-2">
-                  ₹{finalAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                  Rs {booking.price.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                 </td>
               </tr>
               <tr>
@@ -411,7 +397,7 @@ const BookingDetail = () => {
                   Advance Paid
                 </th>
                 <td className="border border-gray-300 px-4 py-2">
-                  ₹{booking.advancePaid.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                  Rs {booking.advancePaid.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                 </td>
               </tr>
               <tr>
@@ -419,7 +405,7 @@ const BookingDetail = () => {
                   Remaining Balance
                 </th>
                 <td className="border border-gray-300 px-4 py-2">
-                  ₹{booking.remainingBalance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                  Rs {booking.remainingBalance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                 </td>
               </tr>
               <tr>
