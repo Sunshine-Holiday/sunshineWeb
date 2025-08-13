@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { PassengerData } from "./components/PassengerForm";
@@ -39,7 +40,6 @@ interface RoomChoice {
   type: string;
   price: number;
   description: string;
-  personCount: number;
 }
 
 interface Trip {
@@ -113,7 +113,6 @@ const BookingPage = () => {
   const [selectedRoomChoice, setSelectedRoomChoice] = useState<RoomChoice | null>(null);
   const [selectedRoomCount, setSelectedRoomCount] = useState<number>(0);
   const [paymentOption, setPaymentOption] = useState<"full" | "advance">("full");
-  const [hasManuallyAdjustedRooms, setHasManuallyAdjustedRooms] = useState(false);
 
   // Date formatting functions
   const formatDateToString = (dateInput: StartDate | string | Date): string => {
@@ -254,9 +253,6 @@ const BookingPage = () => {
             phoneNumber: "",
           }
         );
-        if (selectedRoomChoice && !hasManuallyAdjustedRooms) {
-          setSelectedRoomCount(Math.ceil(newSeats.length / selectedRoomChoice.personCount));
-        }
         return newPassengers;
       });
 
@@ -280,7 +276,7 @@ const BookingPage = () => {
       : 0;
 
     const maxPassengers = selectedPackage || selectedRoomChoice
-      ? Math.min(maxAvailableSeats, selectedPackage?.personCount || selectedRoomChoice?.personCount || 0)
+      ? Math.min(maxAvailableSeats, selectedPackage?.personCount || 0)
       : maxAvailableSeats;
 
     if (passengers.length >= maxPassengers) {
@@ -301,10 +297,6 @@ const BookingPage = () => {
       },
     ]);
 
-    if (selectedRoomChoice && !hasManuallyAdjustedRooms) {
-      setSelectedRoomCount(Math.ceil((passengers.length + 1) / selectedRoomChoice.personCount));
-    }
-
     if ((selectedPackage || selectedRoomChoice) && (selectedDate?.seats === 20 || selectedDate?.seats === 32)) {
       const availableSeats = Array.from(
         { length: selectedDate?.seats || 0 },
@@ -322,9 +314,6 @@ const BookingPage = () => {
     setPassengers((prev) => prev.filter((_, i) => i !== index));
     if ((selectedPackage || selectedRoomChoice) && (selectedDate?.seats === 20 || selectedDate?.seats === 32)) {
       setSelectedSeats((prev) => prev.filter((_, i) => i !== index));
-    }
-    if (selectedRoomChoice && !hasManuallyAdjustedRooms) {
-      setSelectedRoomCount(Math.ceil((passengers.length - 1) / selectedRoomChoice.personCount));
     }
   };
 
@@ -351,7 +340,6 @@ const BookingPage = () => {
     setSelectedSeats([]);
     setPassengers([]);
     setSelectedRoomCount(1);
-    setHasManuallyAdjustedRooms(false);
     if (pkg) {
       setPassengers([
         {
@@ -370,7 +358,6 @@ const BookingPage = () => {
   const handleRoomChoiceSelect = (room: RoomChoice | null) => {
     setSelectedRoomChoice(room);
     setSelectedRoomCount(1);
-    setHasManuallyAdjustedRooms(false);
     if (room) {
       setPassengers([
         {
@@ -388,25 +375,12 @@ const BookingPage = () => {
 
   const addRoom = () => {
     if (isSubmitting) return;
-    setSelectedRoomCount((prev) => {
-      const newCount = prev + 1;
-      // toast.info(`Added room. Total rooms: ${newCount}`);
-      return newCount;
-    });
-    setHasManuallyAdjustedRooms(true);
+    setSelectedRoomCount((prev) => prev + 1);
   };
 
   const removeRoom = () => {
     if (isSubmitting) return;
-    setSelectedRoomCount((prev) => {
-      const minRooms = selectedRoomChoice ? Math.ceil(passengers.length / selectedRoomChoice.personCount) : 0;
-      const newCount = Math.max(1, prev - 1);
-      if (newCount < minRooms) {
-        toast.warn(`Minimum ${minRooms} room${minRooms > 1 ? "s" : ""} required for ${passengers.length} passenger${passengers.length > 1 ? "s" : ""}.`);
-      }
-      setHasManuallyAdjustedRooms(true);
-      return newCount;
-    });
+    setSelectedRoomCount((prev) => Math.max(1, prev - 1));
   };
 
   const handlePayment = async (paymentDetail: any, amountToPay: number, totalAmount: number) => {
@@ -416,7 +390,7 @@ const BookingPage = () => {
         amount: paymentDetail.amount,
         currency: paymentDetail.currency,
         name: "Sunshine Holiday Packages",
-        description: "Seat Booking",
+        description: "Sunrise Tours",
         order_id: paymentDetail.id,
         handler: async (response: any) => {
           try {
@@ -442,9 +416,6 @@ const BookingPage = () => {
               passengers,
             };
 
-            if (bookingData.selectedRoomChoice && bookingData.roomCount < Math.ceil(bookingData.passengers.length / (selectedRoomChoice?.personCount || 2))) {
-              throw new Error(`Room count must be at least ${Math.ceil(bookingData.passengers.length / (selectedRoomChoice?.personCount || 2))}`);
-            }
             if (!bookingData.passengers.length) {
               throw new Error("At least one passenger is required");
             }
@@ -542,11 +513,6 @@ const BookingPage = () => {
         return;
       }
 
-      if (selectedRoomChoice && selectedRoomCount < Math.ceil(passengers.length / selectedRoomChoice.personCount)) {
-        toast.error(`Room count must be at least ${Math.ceil(passengers.length / selectedRoomChoice.personCount)} for ${passengers.length} passengers.`);
-        return;
-      }
-
       setIsSubmitting(true);
       try {
         const numPassengers = (selectedDate?.seats === 20 || selectedDate?.seats === 32) ? selectedSeats.length : passengers.length;
@@ -614,10 +580,8 @@ const BookingPage = () => {
 
   const totalSeats = selectedDate?.seats || Number(tripDetails.busSize);
   const maxAvailableSeats = (selectedPackage || selectedRoomChoice)
-    ? Math.min(totalSeats - bookedSeats.length, selectedPackage?.personCount || selectedRoomChoice?.personCount || 0)
+    ? Math.min(totalSeats - bookedSeats.length, selectedPackage?.personCount || 0)
     : totalSeats - bookedSeats.length;
-
-  const minRooms = selectedRoomChoice ? Math.ceil(passengers.length / selectedRoomChoice.personCount) : 0;
 
   return (
     <div className="min-h-screen bg-gray-50 pt-24 pb-16 relative">
@@ -645,7 +609,7 @@ const BookingPage = () => {
           </h1>
           <p className="text-gray-600">
             {step === "select-seats"
-              ? `Choose ${selectedPackage || selectedRoomChoice ? `up to ${selectedPackage?.personCount || selectedRoomChoice?.personCount || 0}` : "your"} seats for your journey`
+              ? `Choose ${selectedPackage || selectedRoomChoice ? `up to ${selectedPackage?.personCount || 0}` : "your"} seats for your journey`
               : `Enter details for up to ${maxAvailableSeats} passenger(s)`}
           </p>
         </motion.div>
@@ -1187,10 +1151,9 @@ const BookingSummary = ({
   const totalSeats = selectedDate?.seats || 0;
   const isSeatSelection = totalSeats === 20 || totalSeats === 32;
   const numPassengers = isSeatSelection ? selectedSeats.length : passengers.length;
-  const minRooms = selectedRoomChoice ? Math.ceil(numPassengers / selectedRoomChoice.personCount) : 0;
 
   // Debugging log
-  console.log("BookingSummary props:", { disabled, selectedRoomCount, minRooms, numPassengers, personCount: selectedRoomChoice?.personCount });
+  console.log("BookingSummary props:", { disabled, selectedRoomCount, numPassengers });
 
   let basePrice = selectedPackage ? selectedPackage.price : (tripDetails.baseSeatPrice || 1000) * numPassengers;
   const hasDiscount = tripDetails.discountPercentage !== undefined && tripDetails.discountPercentage > 0 && tripDetails.discountPercentage <= 100;
@@ -1326,9 +1289,6 @@ const BookingSummary = ({
                 >
                   <h4 className="font-semibold">{room.type}</h4>
                   <p className="text-sm text-gray-600">{room.description}</p>
-                  <p className="text-sm text-gray-600">
-                    Accommodates: {room.personCount} person{room.personCount > 1 ? "s" : ""}
-                  </p>
                   <p className="text-sm font-medium mt-2">
                     ₹{room.price.toLocaleString("en-IN")} x {selectedRoomChoice?._id === room._id ? selectedRoomCount : 1} {selectedRoomChoice?._id === room._id && selectedRoomCount > 1 ? "rooms" : "room"}
                   </p>

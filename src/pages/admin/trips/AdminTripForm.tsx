@@ -60,7 +60,6 @@ interface Package {
 
 interface RoomChoice {
   description: string;
-  personCount: number;
   roomCount: number;
   price: number;
 }
@@ -212,8 +211,6 @@ const AdminTripForm: React.FC = () => {
         break;
       case "roomChoices":
         tripDetails.roomChoices.forEach((room, index) => {
-          if (room.description && (!room.personCount || room.personCount <= 0))
-            newErrors[`room-personCount-${index}`] = "Valid person count is required";
           if (room.description && (!room.roomCount || room.roomCount <= 0))
             newErrors[`room-roomCount-${index}`] = "Valid room count is required";
           if (room.description && (!room.price || room.price <= 0))
@@ -274,7 +271,7 @@ const AdminTripForm: React.FC = () => {
     setTripDetails({
       ...tripDetails,
       packages: [...tripDetails.packages, { title: "", description: "", personCount: 0, price: 0 }],
-      price: 0, // Reset single price when adding a package
+      price: 0,
     });
     setErrors({ ...errors, packages: "", price: "" });
   };
@@ -292,14 +289,14 @@ const AdminTripForm: React.FC = () => {
     const updatedPackages = tripDetails.packages.map((pkg, i) =>
       i === index ? { ...pkg, [field]: value } : pkg
     );
-    setTripDetails({ ...tripDetails, packages: updatedPackages, price: 0 }); // Reset single price when packages are modified
+    setTripDetails({ ...tripDetails, packages: updatedPackages, price: 0 });
     validateField("packages");
   };
 
   const handleAddRoomChoice = () => {
     setTripDetails({
       ...tripDetails,
-      roomChoices: [...tripDetails.roomChoices, { description: "", personCount: 0, roomCount: 0, price: 0 }],
+      roomChoices: [...tripDetails.roomChoices, { description: "", roomCount: 0, price: 0 }],
     });
   };
 
@@ -377,7 +374,7 @@ const AdminTripForm: React.FC = () => {
   };
 
   const validateForm = () => {
-    const requiredFields = ["title", "location", "description", "category", "file","price"];
+    const requiredFields = ["title", "location", "description", "category", "file", "price"];
     let newErrors: FormErrors = {};
     let isValid = true;
 
@@ -405,8 +402,6 @@ const AdminTripForm: React.FC = () => {
     });
 
     tripDetails.roomChoices.forEach((room, index) => {
-      if (room.description && (!room.personCount || room.personCount <= 0))
-        newErrors[`room-personCount-${index}`] = "Valid person count is required";
       if (room.description && (!room.roomCount || room.roomCount <= 0))
         newErrors[`room-roomCount-${index}`] = "Valid room count is required";
       if (room.description && (!room.price || room.price <= 0))
@@ -430,13 +425,11 @@ const AdminTripForm: React.FC = () => {
     }
 
     setErrors(newErrors);
-    console.log(newErrors)
     return isValid && Object.keys(newErrors).length === 0;
   };
 
   const handleSave = async () => {
     if (!validateForm()) {
-      console.log(validateForm())
       toast.error("Please fill in all required fields.");
       return;
     }
@@ -456,7 +449,7 @@ const AdminTripForm: React.FC = () => {
           }))
         )
       );
-      formData.append("price", tripDetails.price);
+      formData.append("price", tripDetails.price.toString());
       formData.append("category", tripDetails.category);
       formData.append("amenities", JSON.stringify(tripDetails.amenities));
       formData.append("boardingPoints", JSON.stringify(tripDetails.boardingPoints));
@@ -746,24 +739,12 @@ const AdminTripForm: React.FC = () => {
                       <Label htmlFor={`room-description-${index}`}>Room Description</Label>
                       <Input
                         id={`room-description-${index}`}
-                        placeholder="e.g., 1 room 4 people"
+                        placeholder="e.g., 1 room"
                         value={room.description}
                         onChange={(e) => handleRoomChoiceChange(index, "description", e.target.value)}
                         onBlur={() => validateField("roomChoices")}
                       />
                       {errors[`room-description-${index}`] && <p className="mt-1 text-sm text-red-500">{errors[`room-description-${index}`]}</p>}
-                    </div>
-                    <div>
-                      <Label htmlFor={`room-personCount-${index}`}>Person Count</Label>
-                      <Input
-                        id={`room-personCount-${index}`}
-                        type="number"
-                        placeholder="e.g., 4"
-                        value={room.personCount || ""}
-                        onChange={(e) => handleRoomChoiceChange(index, "personCount", parseInt(e.target.value) || 0)}
-                        onBlur={() => validateField("roomChoices")}
-                      />
-                      {errors[`room-personCount-${index}`] && <p className="mt-1 text-sm text-red-500">{errors[`room-personCount-${index}`]}</p>}
                     </div>
                     <div>
                       <Label htmlFor={`room-roomCount-${index}`}>Room Count</Label>
