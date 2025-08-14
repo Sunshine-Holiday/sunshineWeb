@@ -63,7 +63,9 @@ const BookingPage = () => {
   const navigate = useNavigate();
 
   // State variables
-  const [selectedDate, setSelectedDate] = useState<string>(startDate?.date || "");
+  const [selectedDate, setSelectedDate] = useState<string>(
+    startDate?.date || ""
+  );
   const [selectedSeats, setSelectedSeats] = useState<string[]>([]);
   const [bookedSeats, setBookedSeats] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -121,9 +123,7 @@ const BookingPage = () => {
   // Get totalSeats from startDate or trip
   const getTotalSeats = (): number | "block" | undefined => {
     if (trip?.startDates) {
-      const matchingDate = trip.startDates.find(
-        (d) => d.date === selectedDate
-      );
+      const matchingDate = trip.startDates.find((d) => d.date === selectedDate);
       return matchingDate?.seats;
     }
     return undefined;
@@ -131,9 +131,13 @@ const BookingPage = () => {
 
   const totalSeats = getTotalSeats();
 
+  console.log("Total Seats:", totalSeats);
+
   // Effect to update showSeatLayout when totalSeats changes
   useEffect(() => {
-    const isValidSeatCount = typeof totalSeats === "number" && (totalSeats === 20 || totalSeats === 32);
+    const isValidSeatCount =
+      typeof totalSeats === "number" &&
+      (totalSeats === 20 || totalSeats === 32);
     setShowSeatLayout(isValidSeatCount);
   }, [totalSeats]);
 
@@ -233,7 +237,8 @@ const BookingPage = () => {
 
     setIsSubmitting(true);
 
-    const totalAmount = (showSeatLayout ? selectedSeats.length : 1) * Number(trip.price);
+    const totalAmount =
+      (showSeatLayout ? selectedSeats.length : 1) * Number(trip.price);
     const gst = totalAmount * 0.05;
     const finalAmount = totalAmount + gst;
 
@@ -261,7 +266,9 @@ const BookingPage = () => {
   };
 
   if (!tripId) {
-    return <div className="text-center">Invalid trip ID. Please select a trip.</div>;
+    return (
+      <div className="text-center">Invalid trip ID. Please select a trip.</div>
+    );
   }
 
   if (tripLoading || (bookingLoading && selectedDate)) {
@@ -287,7 +294,7 @@ const BookingPage = () => {
     boardingPoints: trip.boardingPoints || [],
     busSize: trip.busSize || "20",
   };
-
+console.log("Trip Details:", trip);
   return (
     <div className="">
       {isSubmitting && (

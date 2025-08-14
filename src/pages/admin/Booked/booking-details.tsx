@@ -235,6 +235,7 @@ const BookingDetails = () => {
   console.log("Booking Data:", tripDetails);
   const seatPrice = tripDetails?.price || 0;
   const totalSeats = selectedDate?.seats || Number(tripDetails.totalSeat);
+  console.log(totalSeats)
   const bookedSeatCount = bookedSeats.length;
   const availableSeatCount = totalSeats - bookedSeatCount;
 

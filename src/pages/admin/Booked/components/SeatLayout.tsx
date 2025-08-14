@@ -64,7 +64,9 @@ export const SeatLayout = ({
     totalSeats !== 20 ? true : false
   );
   const [showLayoutModal, setShowLayoutModal] = useState(false);
-
+useEffect(() => {
+    setIsTwoSeaterLayout(totalSeats === 32);
+  }, [totalSeats]);
   // Define seat layout
   const seats = isTwoSeaterLayout
     ? [

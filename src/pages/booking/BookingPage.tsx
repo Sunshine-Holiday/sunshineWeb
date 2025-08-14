@@ -183,6 +183,7 @@ const BookingPage = () => {
 
   useEffect(() => {
     if (selectedDate) {
+      console.log("selectedDate",selectedDate)
       const totalSeats = selectedDate.seats;
       if (totalSeats !== 20 && totalSeats !== 32) {
         setStep("passenger-details");
@@ -758,10 +759,13 @@ const SeatLayout = ({
   const [isTwoSeaterLayout, setIsTwoSeaterLayout] = useState(
     totalSeats !== 20 ? true : false
   );
+  console.log(`isTwoSeaterLayout: ${totalSeats}`);
   const [showLayoutModal, setShowLayoutModal] = useState(false);
 
   const isBlockBooking = selectedSeats.includes("block");
-
+useEffect(() => {
+    setIsTwoSeaterLayout(totalSeats === 32);
+  }, [totalSeats]);
   if (totalSeats !== 20 && totalSeats !== 32) {
     console.warn(`Invalid totalSeats value: ${totalSeats}. Expected 20 or 32.`);
     return null;
@@ -786,7 +790,7 @@ const SeatLayout = ({
         ["13", "", "14", "15"],
         ["16", "17", "18", "19"],
       ];
-
+console.log("Seat Layout:", isTwoSeaterLayout);
   useEffect(() => {
     if (
       !isBlockBooking &&
@@ -1149,6 +1153,7 @@ const BookingSummary = ({
   disabled = false,
 }: BookingSummaryProps) => {
   const totalSeats = selectedDate?.seats || 0;
+  console.log("Total Seats:", totalSeats);
   const isSeatSelection = totalSeats === 20 || totalSeats === 32;
   const numPassengers = isSeatSelection ? selectedSeats.length : passengers.length;
 

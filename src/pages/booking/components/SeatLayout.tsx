@@ -62,12 +62,13 @@ export const SeatLayout = ({
   onSeatSelect,
   bookedSeats,
   seatPrice,
-  totalSeats,
+  totalSeats=32,
   disabled = false,
 }: SeatLayoutProps) => {
   const [isTwoSeaterLayout, setIsTwoSeaterLayout] = useState(
     totalSeats !== 20 ? true : false
   );
+  console.log(`isTwoSeaterLayout: ${totalSeats}`);
   const [showLayoutModal, setShowLayoutModal] = useState(false);
 
   const isBlockBooking = selectedSeats.includes("block");
