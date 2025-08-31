@@ -16,6 +16,7 @@ interface StartDate {
 interface TripCardProps {
   trip: {
     _id: string;
+    readonly: boolean;
     title: string;
     location: string;
     duration: string;
@@ -28,7 +29,9 @@ interface TripCardProps {
 }
 
 // Validate and parse a date string in "dd-MM-yyyy" format
-const isValidStartDate = (startDate: unknown): { date: Date; seats: number | "block" | "N/A" } | null => {
+const isValidStartDate = (
+  startDate: unknown
+): { date: Date; seats: number | "block" | "N/A" } | null => {
   if (!startDate || typeof startDate !== "object" || !("date" in startDate)) {
     return null;
   }
@@ -68,19 +71,21 @@ export const TripCard = ({ trip }: TripCardProps) => {
 
   // Debug: Log startDates to identify issues
   console.log(`Trip ${trip.title} startDates:`, trip.startDates);
+  const readonly = trip?.readonly || false;
 
   // Convert all start dates to objects with Date and seats, filter valid ones
   const validStartDates = trip.startDates
     .map(isValidStartDate)
-    .filter((item): item is { date: Date; seats: number | "block" | "N/A" } => item !== null)
+    .filter(
+      (item): item is { date: Date; seats: number | "block" | "N/A" } =>
+        item !== null
+    )
     .sort((a, b) => a.date.getTime() - b.date.getTime());
 
   // Select the first valid start date that is today or in the future
   const today = new Date();
   today.setHours(0, 0, 0, 0); // Normalize to start of day for comparison
-  const displayDate = validStartDates.find(
-    (item) => item.date >= today
-  );
+  const displayDate = validStartDates.find((item) => item.date >= today);
 
   // Calculate discounted price if discountPercentage is valid
   const hasDiscount =
@@ -125,50 +130,79 @@ export const TripCard = ({ trip }: TripCardProps) => {
             <MapPin className="h-4 w-4 mr-2 text-gray-500 hover:text-orange-500 transition-colors duration-200" />
             <span>{trip.location}</span>
           </div>
-          <div className="flex items-center text-gray-600">
-            <Users className="h-4 w-4 mr-2 text-gray-500 hover:text-orange-500 transition-colors duration-200" />
-            <span>{displayDate ? displayDate.seats : "N/A"}</span>
-          </div>
-          <div className="flex items-center text-gray-600">
-            <Calendar className="h-4 w-4 mr-2 text-gray-500 hover:text-orange-500 transition-colors duration-200" />
-            <span>{displayDate ? formatDateWithSeats(displayDate.date) : "N/A"}</span>
-          </div>
+          {readonly ? (
+            <div></div>
+          ) : (
+            <>
+              <div className="flex items-center text-gray-600">
+                <Users className="h-4 w-4 mr-2 text-gray-500 hover:text-orange-500 transition-colors duration-200" />
+                <span>{displayDate ? displayDate.seats : "N/A"}</span>
+              </div>
+              <div className="flex items-center text-gray-600">
+                <Calendar className="h-4 w-4 mr-2 text-gray-500 hover:text-orange-500 transition-colors duration-200" />
+                <span>
+                  {displayDate ? formatDateWithSeats(displayDate.date) : "N/A"}
+                </span>
+              </div>
+            </>
+          )}
         </div>
+
         <div className="flex items-center justify-between mt-4">
-          <div className="flex flex-col">
-            {hasDiscount ? (
-              <>
-                <span className="text-lg line-through text-gray-500">
-               ₹{trip.price.toLocaleString("en-IN")}
-                </span>
+          {readonly ? (
+            <div></div>
+          ) : (
+            <div className="flex flex-col">
+              {hasDiscount ? (
+                <>
+                  <span className="text-lg line-through text-gray-500">
+                    ₹{trip?.price?.toLocaleString("en-IN")}
+                  </span>
+                  <span className="text-2xl font-semibold text-orange-500">
+                    ₹{Math?.round(discountedPrice!)?.toLocaleString("en-IN")}
+                  </span>
+                  <span className="text-sm font-medium text-green-600">
+                    {trip.discountPercentage}% off
+                  </span>
+                </>
+              ) : (
                 <span className="text-2xl font-semibold text-orange-500">
-             ₹{Math.round(discountedPrice!).toLocaleString("en-IN")}
+                  ₹{trip?.price?.toLocaleString("en-IN")}
                 </span>
-                <span className="text-sm font-medium text-green-600">
-                  {trip.discountPercentage}% off
-                </span>
-              </>
-            ) : (
-              <span className="text-2xl font-semibold text-orange-500">
-                ₹{trip.price.toLocaleString("en-IN")}
-              </span>
-            )}
-          </div>
-          <Button
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(`/trips/${trip._id}`, { state: { tripId: trip._id } });
-            }}
-            className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white py-2 px-4 rounded-lg font-medium shadow-md transition-all duration-200"
-          >
-            Book Now
-          </Button>
+              )}
+            </div>
+          )}
+
+          {readonly ? (
+            <Button
+              onClick={(e) => {
+                e.stopPropagation();
+                navigate(`/trips/${trip._id}`, { state: { tripId: trip._id } });
+              }}
+              className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white py-2 px-4 rounded-lg font-medium shadow-md transition-all duration-200"
+            >
+              Read more & Contact
+            </Button>
+          ) : (
+            <Button
+              onClick={(e) => {
+                e.stopPropagation();
+                navigate(`/trips/${trip._id}`, { state: { tripId: trip._id } });
+              }}
+              className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white py-2 px-4 rounded-lg font-medium shadow-md transition-all duration-200"
+            >
+              Book Now
+            </Button>
+          )}
         </div>
       </div>
 
       <style jsx>{`
-        h3, span, button {
-          font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        h3,
+        span,
+        button {
+          font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI",
+            Roboto, sans-serif;
         }
       `}</style>
     </motion.div>

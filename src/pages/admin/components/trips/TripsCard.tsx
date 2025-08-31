@@ -15,6 +15,7 @@ interface StartDate {
 interface TripCardProps {
   trip?: {
     _id?: number;
+    readonly?: boolean; // Added readonly property
     title?: string;
     image?: string;
     location?: string;
@@ -91,6 +92,8 @@ export const TripCard = ({ trip, onDelete, onEdit }: TripCardProps) => {
     );
   }
 
+  const readonly = trip?.readonly || false;
+
   const handleEdit = (e: React.MouseEvent) => {
     e.stopPropagation();
     onEdit(trip._id!);
@@ -102,6 +105,7 @@ export const TripCard = ({ trip, onDelete, onEdit }: TripCardProps) => {
   };
 
   const handleCardClick = () => {
+    
     navigate(`/trips/${trip._id}`, { state: { trip } });
   };
 
@@ -131,19 +135,25 @@ export const TripCard = ({ trip, onDelete, onEdit }: TripCardProps) => {
             <MapPin className="h-4 w-4 mr-2" />
             <span>{trip.location ?? "N/A"}</span>
           </div>
-          <div className="flex items-center text-gray-600">
-            <Users className="h-4 w-4 mr-2" />
-            <span>{displayDate?.seats ?? "N/A"}</span>
-          </div>
-          <div className="flex items-center text-gray-600">
-            <Calendar className="h-4 w-4 mr-2" />
-            <span>{displayDate ? formatDateWithSeats(displayDate.date) : "N/A"}</span>
-          </div>
+          {!readonly && (
+            <>
+              <div className="flex items-center text-gray-600">
+                <Users className="h-4 w-4 mr-2" />
+                <span>{displayDate?.seats ?? "N/A"}</span>
+              </div>
+              <div className="flex items-center text-gray-600">
+                <Calendar className="h-4 w-4 mr-2" />
+                <span>{displayDate ? formatDateWithSeats(displayDate.date) : "N/A"}</span>
+              </div>
+            </>
+          )}
         </div>
         <div className="flex items-center justify-between mt-4">
-          <span className="text-2xl font-bold text-blue-600">
-            ₹{trip.price?.toLocaleString("en-IN") ?? "N/A"}
-          </span>
+          {!readonly && (
+            <span className="text-2xl font-bold text-blue-600">
+              ₹{trip.price?.toLocaleString("en-IN") ?? "N/A"}
+            </span>
+          )}
           <div className="flex gap-2">
             <Button
               variant="default"

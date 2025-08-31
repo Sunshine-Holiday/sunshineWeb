@@ -2,7 +2,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 
-const categories = ['All', 'One Day Tours', 'Stay Package', 'Domestic Tours'];
+const categories = ['All', 'One Day Tours', 'Stay Package', 'Domestic Tours','Educational Tours'];
 
 export const TripFilters = ({ filterTrips, selectedCategory }: { filterTrips: (category: string) => void; selectedCategory: string }) => {
   return (

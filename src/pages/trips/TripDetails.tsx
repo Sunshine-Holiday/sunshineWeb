@@ -10,6 +10,10 @@ import {
   Power,
   HelpCircle,
   AlertCircle,
+  Phone,
+  Mail,
+  Clock,
+  Map,
 } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import { fadeInUp, staggerChildren } from "../../utils/animations";
@@ -17,6 +21,13 @@ import { useGettripsIDQuery } from "@/store/api/trips";
 import { format, parse, isValid, startOfDay } from "date-fns";
 import { IMAGE_URL } from "@/store/store";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"; // Using ShadCN UI Dialog component
 import ReviewCarousel from "@/components/ReviewCarousel";
 
 // Interfaces
@@ -53,6 +64,7 @@ interface Trip {
   amenities: string[];
   boardingPoints: { _id: string; location: string; time: string; details: string; maplink: string }[];
   discountPercentage?: number;
+  readonly?: boolean;
 }
 
 const amenitiesList: Amenity[] = [
@@ -61,6 +73,14 @@ const amenitiesList: Amenity[] = [
   { icon: Snowflake, name: "AC" },
   { icon: Power, name: "Charging Points" },
 ];
+
+// Contact Information
+const contactInfo = {
+  address: "Sr No 53/1 Ashtavinayak Chowk, Sainath Nagar, Vadgaon Sheri, Pune - 411014",
+  phone: "+91 9975375975 / +91 9175757178",
+  email: "sunshineholidaypackages@gmail.com",
+  hours: "Mon-Fri: 9AM-7PM",
+};
 
 // Function to format StartDate to "dd-MM-yyyy (seats)"
 const formatDateWithSeats = (startDate: StartDate): string => {
@@ -90,6 +110,7 @@ const TripDetails = () => {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [selectedDate, setSelectedDate] = useState<StartDate | null>(null);
   const { data, isLoading, isError } = useGettripsIDQuery({ id: id! });
+  const readonly = trip?.readonly || false;
   const bannerURL = trip?.banner
     ? IMAGE_URL + trip.banner
     : "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b";
@@ -198,7 +219,7 @@ const TripDetails = () => {
     );
   }
 
-  if (!trip || !trip.price || isError) {
+  if (!trip || isError) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-white">
         <div className="text-3xl font-semibold text-gray-800">Trip not found</div>
@@ -230,25 +251,27 @@ const TripDetails = () => {
                   alt={trip.title}
                   className="w-full h-full object-cover"
                 />
-                <div className="absolute top-4 right-4 bg-orange-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-orange-600 transition-colors duration-200">
-                  {hasDiscount ? (
-                    <div className="flex flex-col items-end">
-                      <span className="text-sm line-through text-gray-200">
-                        Before: ₹{trip.price.toLocaleString("en-IN")}
-                      </span>
+                {!readonly && (
+                  <div className="absolute top-4 right-4 bg-orange-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-orange-600 transition-colors duration-200">
+                    {hasDiscount ? (
+                      <div className="flex flex-col items-end">
+                        <span className="text-sm line-through text-gray-200">
+                          Before: ₹{trip.price.toLocaleString("en-IN")}
+                        </span>
+                        <span className="text-lg font-semibold">
+                          After: ₹{Math.round(discountedPrice!).toLocaleString("en-IN")}
+                        </span>
+                        <span className="text-xs font-medium text-green-200">
+                          {trip.discountPercentage}% off
+                        </span>
+                      </div>
+                    ) : (
                       <span className="text-lg font-semibold">
-                        After: ₹{Math.round(discountedPrice!).toLocaleString("en-IN")}
+                        ₹{trip.price.toLocaleString("en-IN")}
                       </span>
-                      <span className="text-xs font-medium text-green-200">
-                        {trip.discountPercentage}% off
-                      </span>
-                    </div>
-                  ) : (
-                    <span className="text-lg font-semibold">
-                      ₹{trip.price.toLocaleString("en-IN")}
-                    </span>
-                  )}
-                </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className="p-8">
@@ -262,47 +285,49 @@ const TripDetails = () => {
                     <span>{trip.location}</span>
                   </div>
 
-                  <div className="flex items-start text-gray-600">
-                    <Calendar className="h-5 w-5 mr-2 text-gray-500 hover:text-orange-500 transition-colors duration-200" />
-                    <div className="w-full">
-                      <label
-                        htmlFor="dateSelect"
-                        className="block text-base font-semibold text-gray-800 mb-2"
-                      >
-                        Select Travel Date
-                      </label>
-                      <select
-                        id="dateSelect"
-                        value={
-                          selectedDate
-                            ? formatDateWithSeats(selectedDate)
-                            : ""
-                        }
-                        onChange={handleDateChange}
-                        className="mt-1 block w-full pl-3 pr-10 py-3 text-base border-gray-200 shadow-sm focus:outline-none focus:ring-orange-500 focus:border-orange-500 rounded-lg font-medium text-gray-800"
-                      >
-                        <option value="">Choose a date</option>
-                        {trip.startDates.map(
-                          (date: StartDate, index: number) => (
-                            <option
-                              key={index}
-                              value={formatDateWithSeats(date)}
-                              disabled={!isDateValid(date)}
-                            >
-                              {formatDateWithSeats(date)}{" "}
-                              {!isDateValid(date) ? "(Past date)" : ""}
-                            </option>
-                          )
+                  {!readonly && (
+                    <div className="flex items-start text-gray-600">
+                      <Calendar className="h-5 w-5 mr-2 text-gray-500 hover:text-orange-500 transition-colors duration-200" />
+                      <div className="w-full">
+                        <label
+                          htmlFor="dateSelect"
+                          className="block text-base font-semibold text-gray-800 mb-2"
+                        >
+                          Select Travel Date
+                        </label>
+                        <select
+                          id="dateSelect"
+                          value={
+                            selectedDate
+                              ? formatDateWithSeats(selectedDate)
+                              : ""
+                          }
+                          onChange={handleDateChange}
+                          className="mt-1 block w-full pl-3 pr-10 py-3 text-base border-gray-200 shadow-sm focus:outline-none focus:ring-orange-500 focus:border-orange-500 rounded-lg font-medium text-gray-800"
+                        >
+                          <option value="">Choose a date</option>
+                          {trip.startDates.map(
+                            (date: StartDate, index: number) => (
+                              <option
+                                key={index}
+                                value={formatDateWithSeats(date)}
+                                disabled={!isDateValid(date)}
+                              >
+                                {formatDateWithSeats(date)}{" "}
+                                {!isDateValid(date) ? "(Past date)" : ""}
+                              </option>
+                            )
+                          )}
+                        </select>
+                        {availableDates.length === 0 && (
+                          <p className="mt-2 text-sm text-red-500 flex items-center">
+                            <AlertCircle className="h-4 w-4 mr-1" />
+                            No future dates available
+                          </p>
                         )}
-                      </select>
-                      {availableDates.length === 0 && (
-                        <p className="mt-2 text-sm text-red-500 flex items-center">
-                          <AlertCircle className="h-4 w-4 mr-1" />
-                          No future dates available
-                        </p>
-                      )}
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
 
                 {trip.description && (
@@ -373,10 +398,10 @@ const TripDetails = () => {
           <motion.div variants={fadeInUp} className="lg:col-span-1 order-2">
             <div className="bg-white/90 backdrop-blur-md rounded-lg shadow-md p-8 sticky top-24 border border-gray-200 hover:shadow-lg transition-all duration-200">
               <h2 className="text-2xl font-semibold text-gray-800 mb-4">
-                Price Details
+                {readonly ? "Trip Details" : "Price Details"}
               </h2>
 
-              {selectedDate && (
+              {!readonly && selectedDate && (
                 <div className="mb-4">
                   <p className="text-gray-600 font-medium">Selected Date:</p>
                   <p className="font-medium text-gray-800">
@@ -385,65 +410,117 @@ const TripDetails = () => {
                 </div>
               )}
 
-              <div className="space-y-3 mb-6">
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Base Fare</span>
-                  {hasDiscount ? (
-                    <div className="flex flex-col items-end">
-                      <span className="text-sm line-through text-gray-500">
+              {!readonly && (
+                <div className="space-y-3 mb-6">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Base Fare</span>
+                    {hasDiscount ? (
+                      <div className="flex flex-col items-end">
+                        <span className="text-sm line-through text-gray-500">
+                          ₹{trip.price.toLocaleString("en-IN")}
+                        </span>
+                        <span className="text-gray-800">
+                          ₹{Math.round(discountedPrice!).toLocaleString("en-IN")}
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="text-gray-800">
                         ₹{trip.price.toLocaleString("en-IN")}
                       </span>
-                      <span className="text-gray-800">
-                        ₹{Math.round(discountedPrice!).toLocaleString("en-IN")}
+                    )}
+                  </div>
+
+                  {hasDiscount && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Discount</span>
+                      <span className="text-green-600">
+                        {trip.discountPercentage}% off
                       </span>
                     </div>
-                  ) : (
-                    <span className="text-gray-800">
-                      ₹{trip.price.toLocaleString("en-IN")}
-                    </span>
                   )}
-                </div>
 
-                {hasDiscount && (
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Discount</span>
-                    <span className="text-green-600">
-                      {trip.discountPercentage}% off
+                  <div className="flex justify-between font-semibold text-lg pt-3 border-t border-gray-200">
+                    <span>Total</span>
+                    <span className="text-orange-500">
+                      ₹{hasDiscount
+                        ? Math.round(discountedPrice!).toLocaleString("en-IN")
+                        : trip.price.toLocaleString("en-IN")}
                     </span>
                   </div>
-                )}
-
-                <div className="flex justify-between font-semibold text-lg pt-3 border-t border-gray-200">
-                  <span>Total</span>
-                  <span className="text-orange-500">
-                    ₹{hasDiscount
-                      ? Math.round(discountedPrice!).toLocaleString("en-IN")
-                      : trip.price.toLocaleString("en-IN")}
-                  </span>
                 </div>
-              </div>
+              )}
 
-              <Button
-                onClick={handleBookNow}
-                disabled={!selectedDate || availableDates.length === 0}
-                className={`w-full py-3 rounded-lg font-medium transition-all duration-200 ${
-                  !selectedDate || availableDates.length === 0
-                    ? "bg-orange-300 cursor-not-allowed"
-                    : "bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white shadow-md hover:shadow-lg"
-                }`}
-              >
-                {availableDates.length === 0
-                  ? "No Available Dates"
-                  : "Book Now"}
-              </Button>
+              {readonly && (
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button
+                      className="w-full py-3 rounded-lg font-medium transition-all duration-200 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-md hover:shadow-lg"
+                    >
+                      Contact Us
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                      <DialogTitle className="text-2xl font-semibold text-gray-800">Contact Information</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      <a
+                        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(contactInfo.address)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-start cursor-pointer group hover:bg-gray-50 p-2 rounded-lg transition-colors duration-200"
+                      >
+                        <Map className="h-5 w-5 mr-2 text-gray-500 group-hover:text-orange-500" />
+                        <p className="text-sm text-gray-600">{contactInfo.address}</p>
+                      </a>
+                      <a
+                        href={`tel:${contactInfo.phone.split(" / ")[0].replace(/\s+/g, "")}`}
+                        className="flex items-center cursor-pointer group hover:bg-gray-50 p-2 rounded-lg transition-colors duration-200"
+                      >
+                        <Phone className="h-5 w-5 mr-2 text-gray-500 group-hover:text-orange-500" />
+                        <p className="text-sm text-gray-600">{contactInfo.phone}</p>
+                      </a>
+                      <a
+                        href={`mailto:${contactInfo.email}`}
+                        className="flex items-center cursor-pointer group hover:bg-gray-50 p-2 rounded-lg transition-colors duration-200"
+                      >
+                        <Mail className="h-5 w-5 mr-2 text-gray-500 group-hover:text-orange-500" />
+                        <p className="text-sm text-gray-600">{contactInfo.email}</p>
+                      </a>
+                      <div className="flex items-center">
+                        <Clock className="h-5 w-5 mr-2 text-gray-500" />
+                        <p className="text-sm text-gray-600">{contactInfo.hours}</p>
+                      </div>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              )}
 
-              <div className="mt-6 text-sm text-gray-600">
-                <p className="flex items-center mb-2">
-                  <Calendar className="h-5 w-5 mr-2 text-gray-500 hover:text-orange-500 transition-colors duration-200" />
-                  75% refund within 5-7 working days, if notified 8 or more
-                  days prior to the event date.
-                </p>
-              </div>
+              {!readonly && (
+                <Button
+                  onClick={handleBookNow}
+                  disabled={!selectedDate || availableDates.length === 0}
+                  className={`w-full py-3 rounded-lg font-medium transition-all duration-200 mt-4 ${
+                    !selectedDate || availableDates.length === 0
+                      ? "bg-orange-300 cursor-not-allowed"
+                      : "bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white shadow-md hover:shadow-lg"
+                  }`}
+                >
+                  {availableDates.length === 0
+                    ? "No Available Dates"
+                    : "Book Now"}
+                </Button>
+              )}
+
+              {!readonly && (
+                <div className="mt-6 text-sm text-gray-600">
+                  <p className="flex items-center mb-2">
+                    <Calendar className="h-5 w-5 mr-2 text-gray-500 hover:text-orange-500 transition-colors duration-200" />
+                    75% refund within 5-7 working days, if notified 8 or more
+                    days prior to the event date.
+                  </p>
+                </div>
+              )}
             </div>
           </motion.div>
         </motion.div>

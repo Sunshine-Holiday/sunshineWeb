@@ -15,6 +15,7 @@ interface StartDate {
 interface TripCardProps {
   trip: {
     _id: number;
+    readonly?: boolean; // Added readonly property
     title: string;
     image: string;
     location: string;
@@ -61,6 +62,7 @@ export const TripCard = ({ trip }: TripCardProps) => {
   const navigate = useNavigate();
   const today = new Date();
   const bannerURL = trip.banner ? IMAGE_URL + trip.banner : undefined;
+  const readonly = trip?.readonly || false;
 
   // Convert all start dates to objects with Date and seats, filter valid ones
   const validStartDates = trip.startDates
@@ -139,23 +141,28 @@ export const TripCard = ({ trip }: TripCardProps) => {
               <MapPin className="h-4 w-4 mr-2 flex-shrink-0" />
               <span className="truncate">{trip.location}</span>
             </div>
-            <div className="flex items-center text-gray-600 text-sm sm:text-base">
-              <Users className="h-4 w-4 mr-2 flex-shrink-0" />
-              <span>{displayDate ? displayDate.seats : "N/A"}</span>
-            </div>
-            <div className="flex items-center text-gray-600 text-sm sm:text-base">
-              <Calendar className="h-4 w-4 mr-2 flex-shrink-0" />
-              <span className="truncate">
-                {displayDate ? formatDate(displayDate.date) : "No valid date"}
-              </span>
-            </div>
-          
+            {!readonly && (
+              <>
+                <div className="flex items-center text-gray-600 text-sm sm:text-base">
+                  <Users className="h-4 w-4 mr-2 flex-shrink-0" />
+                  <span>{displayDate ? displayDate.seats : "N/A"}</span>
+                </div>
+                <div className="flex items-center text-gray-600 text-sm sm:text-base">
+                  <Calendar className="h-4 w-4 mr-2 flex-shrink-0" />
+                  <span className="truncate">
+                    {displayDate ? formatDate(displayDate.date) : "No valid date"}
+                  </span>
+                </div>
+              </>
+            )}
           </div>
         </div>
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mt-3">
-          <span className="text-xl sm:text-2xl font-bold text-blue-600">
-            ₹{trip.price.toLocaleString("en-IN")}
-          </span>
+          {!readonly && (
+            <span className="text-xl sm:text-2xl font-bold text-blue-600">
+              ₹{trip.price.toLocaleString("en-IN")}
+            </span>
+          )}
         </div>
         <div className="mt-3 flex flex-col sm:flex-row gap-2">
           <Button

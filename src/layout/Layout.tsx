@@ -24,6 +24,8 @@ import Special_sections from "@/pages/admin/special_sections";
 import CreateSpecialSection from "@/pages/admin/CreateSpecialSection";
 import EditSpecialSection from "@/pages/admin/EditSpecialSection";
 import AdminHomeControl from "@/components/dashboard/Home/home";
+import AddReadonlyTrips from "@/pages/admin/trips/add-readonlytrips";
+import EditReadonlyTrips from "@/pages/admin/trips/EditReadonlytrips";
 const Layout = () => {
   return (
     <div className="flex h-screen bg-background pt-14">
@@ -32,8 +34,15 @@ const Layout = () => {
         <Routes>
           <Route path="/dashboard" element={<AdminHomeControl />} />
           <Route path="/special_sections" element={<Special_sections />} />
-          <Route path="/special_sections/create" element={<CreateSpecialSection />} />
-          <Route path="/special_sections/Edit/:id" element={<EditSpecialSection />} />
+          <Route path="/trips/add-readonlytrips" element={<AddReadonlyTrips />} />
+          <Route
+            path="/special_sections/create"
+            element={<CreateSpecialSection />}
+          />
+          <Route
+            path="/special_sections/Edit/:id"
+            element={<EditSpecialSection />}
+          />
           <Route path="/refund" element={<CancelTrips />} />
           <Route path="/users" element={<UserManagement />} />
           <Route path="/about" element={<AboutPage />} />
@@ -41,6 +50,7 @@ const Layout = () => {
           <Route path="/trips" element={<Trips />} />
           <Route path="/trips/add-trips" element={<AddTrips />} />
           <Route path="/trips/edit" element={<EditTrips />} />
+          <Route path="/trips/edit-readonly" element={<EditReadonlyTrips />} />
           <Route path="/booked" element={<BookedPage />} />
           <Route path="/block-trip/:id" element={<BlockTrip />} />
           <Route path="/booked-data/:id" element={<Booked />} />

@@ -13,8 +13,9 @@ const TripsPage = () => {
   const [trips, setTrips] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [tripToDelete, setTripToDelete] = useState(null);
+  const [isAddMenuOpen, setIsAddMenuOpen] = useState(false);
 
-  const { data, isLoading, error } = useGettripsQuery();
+  const { data, isLoading, error } = useGettripsQuery({});
   const [deleteTrips] = useDeleteTripsMutation();
   const navigate = useNavigate();
 
@@ -34,23 +35,36 @@ const TripsPage = () => {
     );
   };
 
-  const handleAddTrip = () => navigate("/admin/trips/add-trips");
+  const handleAddTrip = (path) => {
+    setIsAddMenuOpen(false);
+    navigate(path);
+  };
+
+  const toggleAddMenu = () => {
+    setIsAddMenuOpen(!isAddMenuOpen);
+  };
 
   const confirmDelete = (trip) => {
     setTripToDelete(trip);
     setIsModalOpen(true);
   };
-  const onEdit = (id) => {
-    console.log(id);
-    navigate(`/admin/trips/edit`, { state: { id } });
+
+  const onEdit = (trip) => {
+    console.log(trip._id);
+    if (trip.readonly) {
+      navigate(`/admin/trips/edit-readonly`, { state: { id: trip._id } });
+    } else {
+      navigate(`/admin/trips/edit`, { state: { id: trip._id } });
+    }
   };
+
   const handleDelete = async () => {
     if (!tripToDelete) return;
     try {
       await deleteTrips(tripToDelete._id).unwrap();
-      toast.success("trips delete successfully");
+      toast.success("Trip deleted successfully");
     } catch (error) {
-      toast.error("trips failed to delete");
+      toast.error("Failed to delete trip");
       console.error("Error deleting trip:", error);
     } finally {
       setIsModalOpen(false);
@@ -103,7 +117,7 @@ const TripsPage = () => {
                 <TripCard
                   trip={trip}
                   onDelete={() => confirmDelete(trip)}
-                  onEdit={onEdit}
+                  onEdit={() => onEdit(trip)}
                 />
               </motion.div>
             ))}
@@ -111,14 +125,32 @@ const TripsPage = () => {
         )}
       </div>
 
-      {/* Floating Action Button */}
-      <button
-        onClick={handleAddTrip}
-        className="fixed bottom-6 sm:bottom-8 right-6 sm:right-8 bg-blue-600 text-white p-3 sm:p-4 rounded-full shadow-lg hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-300"
-        aria-label="Add New Trip"
-      >
-        <FaPlus className="w-5 h-5 sm:w-6 sm:h-6" />
-      </button>
+      {/* Floating Action Button with Dropdown */}
+      <div className="fixed bottom-6 sm:bottom-8 right-6 sm:right-8">
+        <button
+          onClick={toggleAddMenu}
+          className="bg-blue-600 text-white p-3 sm:p-4 rounded-full shadow-lg hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-300"
+          aria-label="Add New Trip"
+        >
+          <FaPlus className="w-5 h-5 sm:w-6 sm:h-6" />
+        </button>
+        {isAddMenuOpen && (
+          <div className="absolute bottom-16 right-0 bg-white rounded-lg shadow-lg w-48 z-50">
+            <button
+              onClick={() => handleAddTrip("/admin/trips/add-trips")}
+              className="block w-full text-left px-4 py-2 text-gray-800 hover:bg-gray-100"
+            >
+              Create Trip
+            </button>
+            <button
+              onClick={() => handleAddTrip("/admin/trips/add-readonlytrips")}
+              className="block w-full text-left px-4 py-2 text-gray-800 hover:bg-gray-100"
+            >
+              Create Read-Only Trip
+            </button>
+          </div>
+        )}
+      </div>
 
       {/* Delete Confirmation Modal */}
       {isModalOpen && (
