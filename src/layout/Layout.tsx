@@ -1,5 +1,5 @@
 // import React from "react";
-import Dashboard from "@/pages/admin/Dashboard";
+
 import UserManagement from "@/pages/admin/userManagement";
 import { Route, Routes } from "react-router-dom";
 import Sidebar from "./sidebar";
@@ -24,8 +24,9 @@ import Special_sections from "@/pages/admin/special_sections";
 import CreateSpecialSection from "@/pages/admin/CreateSpecialSection";
 import EditSpecialSection from "@/pages/admin/EditSpecialSection";
 import AdminHomeControl from "@/components/dashboard/Home/home";
-import AddReadonlyTrips from "@/pages/admin/trips/add-readonlytrips";
+
 import EditReadonlyTrips from "@/pages/admin/trips/EditReadonlytrips";
+import AddReadonlyTrips from "@/pages/admin/trips/Add-readonlytrips";
 const Layout = () => {
   return (
     <div className="flex h-screen bg-background pt-14">
