@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Table,
   TableBody,
@@ -19,7 +19,6 @@ import {
 } from "@/components/ui/pagination";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ChevronDown } from "lucide-react";
-import { User, UserTableColumn } from "@/types/user";
 import { useSelector } from "react-redux";
 import { selectCurrentUser } from "@/store/reducer/auth";
 import { IMAGE_URL } from "@/store/store";
@@ -30,15 +29,17 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { UserTableColumn } from "@/types/user";
 
-// Update the User type to match the schema
+/* ================= TYPES ================= */
+
 interface User {
   _id: string;
   username: string;
   email: string;
   role: "user" | "admin";
   createdAt: string;
-  profile?: string; // URL for avatar image
+  profile?: string;
   phone?: string;
   address?: string;
   emailVerified: boolean;
@@ -50,46 +51,83 @@ interface UserTableProps {
   onUpdateRole: (userId: string) => void;
 }
 
-export function UserTable({ users, columns, onUpdateRole }: UserTableProps) {
-  const isAuth = useSelector(selectCurrentUser);
+/* ================= COMPONENT ================= */
+
+export function UserTable({
+  users,
+  columns,
+  onUpdateRole,
+}: UserTableProps) {
+  const authUser = useSelector(selectCurrentUser);
+
   const [sortConfig, setSortConfig] = useState<{
     key: keyof User;
     direction: "asc" | "desc";
   } | null>(null);
+
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
+
   const itemsPerPage = 10;
 
-  // Sorting logic
-  const sortedUsers = [...users].sort((a, b) => {
-    if (!sortConfig) return 0;
+  /* ================= SORTING ================= */
 
-    const aValue = a[sortConfig.key];
-    const bValue = b[sortConfig.key];
+  const sortedUsers = useMemo(() => {
+    if (!sortConfig) return users;
 
-    if (aValue < bValue) return sortConfig.direction === "asc" ? -1 : 1;
-    if (aValue > bValue) return sortConfig.direction === "asc" ? 1 : -1;
-    return 0;
-  });
+    return [...users].sort((a, b) => {
+      const aValue = a[sortConfig.key];
+      const bValue = b[sortConfig.key];
 
-  // Pagination logic
-  const totalPages = Math.ceil(sortedUsers.length / itemsPerPage);
-  const paginatedUsers = sortedUsers.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
+      if (aValue < bValue) return sortConfig.direction === "asc" ? -1 : 1;
+      if (aValue > bValue) return sortConfig.direction === "asc" ? 1 : -1;
+      return 0;
+    });
+  }, [users, sortConfig]);
 
   const requestSort = (key: keyof User) => {
-    setSortConfig((current) => ({
+    setSortConfig((prev) => ({
       key,
       direction:
-        current?.key === key && current.direction === "asc" ? "desc" : "asc",
+        prev?.key === key && prev.direction === "asc" ? "desc" : "asc",
     }));
+    setCurrentPage(1); // 🔥 reset page on sort
   };
 
+  /* ================= PAGINATION ================= */
+
+  const totalPages = Math.ceil(sortedUsers.length / itemsPerPage);
+
+  const paginatedUsers = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return sortedUsers.slice(start, start + itemsPerPage);
+  }, [sortedUsers, currentPage]);
+
   const handlePageChange = (page: number) => {
+    if (page < 1 || page > totalPages) return;
     setCurrentPage(page);
   };
+
+  const getVisiblePages = () => {
+    const maxVisible = 5;
+    let start = Math.max(currentPage - 2, 1);
+    let end = start + maxVisible - 1;
+
+    if (end > totalPages) {
+      end = totalPages;
+      start = Math.max(end - maxVisible + 1, 1);
+    }
+
+    return Array.from({ length: end - start + 1 }, (_, i) => start + i);
+  };
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(1);
+    }
+  }, [totalPages, currentPage]);
+
+  /* ================= RENDER ================= */
 
   return (
     <div className="space-y-4">
@@ -99,169 +137,175 @@ export function UserTable({ users, columns, onUpdateRole }: UserTableProps) {
             <TableRow>
               <TableHead>Sr No</TableHead>
               <TableHead>Avatar</TableHead>
+
               {columns.map((column) => (
                 <TableHead
                   key={column.id}
-                  className={column.sortable ? "cursor-pointer" : ""}
-                  onClick={() => column.sortable && requestSort(column.id)}
+                  onClick={() =>
+                    column.sortable && requestSort(column.id as keyof User)
+                  }
+                  className={column.sortable ? "cursor-pointer select-none" : ""}
                 >
                   {column.label}
                   {sortConfig?.key === column.id && (
-                    <span>{sortConfig.direction === "asc" ? " ↑" : " ↓"}</span>
+                    <span className="ml-1">
+                      {sortConfig.direction === "asc" ? "↑" : "↓"}
+                    </span>
                   )}
                 </TableHead>
               ))}
+
               <TableHead>Actions</TableHead>
               <TableHead>Details</TableHead>
             </TableRow>
           </TableHeader>
+
           <TableBody>
-            {paginatedUsers.map((user, index) => {
-              const profileUrl = (IMAGE_URL + user.profile) || "https://via.placeholder.com/40";
-              return (
-                <TableRow key={user._id}>
-                  <TableCell>{(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
-                  <TableCell>
-                    <Avatar>
-                      <AvatarImage
-                        src={profileUrl}
-                        alt={user.username}
-                      />
-                      <AvatarFallback>
-                        {user.username.charAt(0).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                  </TableCell>
-                  <TableCell>{user.username}</TableCell>
-                  <TableCell>{user.email}</TableCell>
-                  <TableCell>
-                    <Badge
-                      variant={user.role === "admin" ? "default" : "secondary"}
-                    >
-                      {user.role}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    {new Date(user.createdAt).toLocaleDateString("en-GB")}
-                  </TableCell>
-                  <TableCell>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={user._id === isAuth?._id}
-                      onClick={() => onUpdateRole(user._id)}
-                    >
-                      Make {user.role === "admin" ? "User" : "Admin"}
-                    </Button>
-                  </TableCell>
-                  <TableCell>
-                    <Dialog>
-                      <DialogTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setSelectedUser(user)}
-                        >
-                          <ChevronDown className="h-4 w-4" />
-                          <span className="ml-2">View Details</span>
-                        </Button>
-                      </DialogTrigger>
-                      {selectedUser?._id === user._id && (
-                        <DialogContent className="sm:max-w-[425px]">
-                          <DialogHeader>
-                            <DialogTitle>User Details</DialogTitle>
-                          </DialogHeader>
-                          <div className="grid gap-4 py-4">
-                            <div className="flex items-center gap-4">
-                              <Avatar className="h-16 w-16">
-                                <AvatarImage
-                                  src={profileUrl}
-                                  alt={user.username}
-                                />
-                                <AvatarFallback>
-                                  {user.username.charAt(0).toUpperCase()}
-                                </AvatarFallback>
-                              </Avatar>
-                              <div>
-                                <h3 className="font-semibold">{user.username}</h3>
-                                <p className="text-sm text-muted-foreground">
-                                  {user.email}
-                                </p>
-                              </div>
+            {paginatedUsers.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={columns.length + 4} className="text-center">
+                  No users found
+                </TableCell>
+              </TableRow>
+            ) : (
+              paginatedUsers.map((user, index) => {
+                const profileUrl = user.profile
+                  ? IMAGE_URL + user.profile
+                  : "https://via.placeholder.com/40";
+
+                return (
+                  <TableRow key={user._id}>
+                    <TableCell>
+                      {(currentPage - 1) * itemsPerPage + index + 1}
+                    </TableCell>
+
+                    <TableCell>
+                      <Avatar>
+                        <AvatarImage src={profileUrl} />
+                        <AvatarFallback>
+                          {user.username[0].toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                    </TableCell>
+
+                    <TableCell>{user.username}</TableCell>
+                    <TableCell>{user.email}</TableCell>
+
+                    <TableCell>
+                      <Badge
+                        variant={
+                          user.role === "admin" ? "default" : "secondary"
+                        }
+                      >
+                        {user.role}
+                      </Badge>
+                    </TableCell>
+
+                    <TableCell>
+                      {new Date(user.createdAt).toLocaleDateString("en-GB")}
+                    </TableCell>
+
+                    <TableCell>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={user._id === authUser?._id}
+                        onClick={() => onUpdateRole(user._id)}
+                      >
+                        Make {user.role === "admin" ? "User" : "Admin"}
+                      </Button>
+                    </TableCell>
+
+                    <TableCell>
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setSelectedUser(user)}
+                          >
+                            <ChevronDown className="h-4 w-4" />
+                            <span className="ml-1">View</span>
+                          </Button>
+                        </DialogTrigger>
+
+                        {selectedUser?._id === user._id && (
+                          <DialogContent>
+                            <DialogHeader>
+                              <DialogTitle>User Details</DialogTitle>
+                            </DialogHeader>
+
+                            <div className="space-y-2">
+                              <p><b>Username:</b> {user.username}</p>
+                              <p><b>Email:</b> {user.email}</p>
+                              <p><b>Phone:</b> {user.phone || "N/A"}</p>
+                              <p><b>Address:</b> {user.address || "N/A"}</p>
+                              <p>
+                                <b>Email Verified:</b>{" "}
+                                {user.emailVerified ? "Yes" : "No"}
+                              </p>
                             </div>
-                            <div className="grid gap-2">
-                              <div className="flex items-center justify-between">
-                                <span className="font-medium">Role:</span>
-                                <Badge
-                                  variant={user.role === "admin" ? "default" : "secondary"}
-                                >
-                                  {user.role}
-                                </Badge>
-                              </div>
-                              <div className="flex items-center justify-between">
-                                <span className="font-medium">Created:</span>
-                                <span>
-                                  {new Date(user.createdAt).toLocaleDateString("en-GB")}
-                                </span>
-                              </div>
-                              <div className="flex items-center justify-between">
-                                <span className="font-medium">Phone:</span>
-                                <span>{user.phone || "Not provided"}</span>
-                              </div>
-                              <div className="flex items-center justify-between">
-                                <span className="font-medium">Address:</span>
-                                <span>{user.address || "Not provided"}</span>
-                              </div>
-                              <div className="flex items-center justify-between">
-                                <span className="font-medium">Email Verified:</span>
-                                <span>{user.emailVerified ? "Yes" : "No"}</span>
-                              </div>
-                            </div>
-                          </div>
-                        </DialogContent>
-                      )}
-                    </Dialog>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
+                          </DialogContent>
+                        )}
+                      </Dialog>
+                    </TableCell>
+                  </TableRow>
+                );
+              })
+            )}
           </TableBody>
         </Table>
       </div>
-      <div className="flex items-center justify-between">
-        <div>
-          Showing {(currentPage - 1) * itemsPerPage + 1} to{" "}
-          {Math.min(currentPage * itemsPerPage, sortedUsers.length)} of{" "}
-          {sortedUsers.length} users
-        </div>
-        <Pagination>
-          <PaginationContent>
-            <PaginationItem>
-              <PaginationPrevious
-                onClick={() => handlePageChange(Math.max(currentPage - 1, 1))}
-                className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
-              />
-            </PaginationItem>
-            {[...Array(totalPages)].map((_, index) => (
-              <PaginationItem key={index}>
-                <PaginationLink
-                  onClick={() => handlePageChange(index + 1)}
-                  isActive={currentPage === index + 1}
-                  className="cursor-pointer"
-                >
-                  {index + 1}
-                </PaginationLink>
+
+      {/* ================= PAGINATION UI ================= */}
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-muted-foreground">
+            Showing {(currentPage - 1) * itemsPerPage + 1} –{" "}
+            {Math.min(currentPage * itemsPerPage, sortedUsers.length)} of{" "}
+            {sortedUsers.length}
+          </p>
+
+          <Pagination>
+            <PaginationContent>
+              <PaginationItem>
+                <PaginationPrevious
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  className={
+                    currentPage === 1
+                      ? "pointer-events-none opacity-50"
+                      : "cursor-pointer"
+                  }
+                />
               </PaginationItem>
-            ))}
-            <PaginationItem>
-              <PaginationNext
-                onClick={() => handlePageChange(Math.min(currentPage + 1, totalPages))}
-                className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
-              />
-            </PaginationItem>
-          </PaginationContent>
-        </Pagination>
-      </div>
+
+              {getVisiblePages().map((page) => (
+                <PaginationItem key={page}>
+                  <PaginationLink
+                    isActive={currentPage === page}
+                    onClick={() => handlePageChange(page)}
+                    className="cursor-pointer"
+                  >
+                    {page}
+                  </PaginationLink>
+                </PaginationItem>
+              ))}
+
+              <PaginationItem>
+                <PaginationNext
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  className={
+                    currentPage === totalPages
+                      ? "pointer-events-none opacity-50"
+                      : "cursor-pointer"
+                  }
+                />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
+        </div>
+      )}
     </div>
   );
 }

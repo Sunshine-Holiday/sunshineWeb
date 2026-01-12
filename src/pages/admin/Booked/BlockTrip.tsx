@@ -19,6 +19,7 @@ import { MapPin } from "lucide-react";
 interface StartDate {
   date: string;
   seats: number | "block";
+  numberOfBusesAvailable?: number;
 }
 
 interface Trip {
@@ -117,8 +118,9 @@ const BookingPage = () => {
     },
     { skip: !tripId || !selectedDate }
   );
-
+console.log("Booking Data:", bookingData);
   const [createBooking] = useCreatebookingMutation();
+const [currentBus, setCurrentBus] = useState(0);
 
   // Get totalSeats from startDate or trip
   const getTotalSeats = (): number | "block" | undefined => {
@@ -132,6 +134,12 @@ const BookingPage = () => {
   const totalSeats = getTotalSeats();
 
   console.log("Total Seats:", totalSeats);
+const seatsPerBus =
+  typeof totalSeats === "number" ? totalSeats : 0;
+
+const numberOfBuses =
+  trip?.startDates?.find(d => d.date === selectedDate)
+    ?.numberOfBusesAvailable || 1;
 
   // Effect to update showSeatLayout when totalSeats changes
   useEffect(() => {
@@ -195,13 +203,24 @@ const BookingPage = () => {
     }
   }, [trip?.startDates, selectedDate]);
 
-  useEffect(() => {
-    if (bookingData?.selectedSeats) {
-      setBookedSeats(bookingData.selectedSeats);
-    } else {
-      setBookedSeats([]);
+useEffect(() => {
+  if (!bookingData?.selectedSeatsByBus) {
+    setBookedSeats([]);
+    return;
+  }
+
+  const mapped: string[] = [];
+
+  Object.entries(bookingData.selectedSeatsByBus).forEach(
+    ([busIndex, seats]: any) => {
+      seats.forEach((seat: string) => {
+        mapped.push(`${busIndex}-${seat}`);
+      });
     }
-  }, [bookingData]);
+  );
+
+  setBookedSeats(mapped);
+}, [bookingData]);
 
   // Handlers
   const changeDate = (date: string) => {
@@ -209,18 +228,21 @@ const BookingPage = () => {
     setSelectedSeats([]); // Reset selected seats when date changes
   };
 
-  const handleSeatSelect = (seatId: string) => {
-    if (isSubmitting) return;
-    if (bookedSeats.includes(seatId)) {
-      toast.error("This seat is already booked");
-      return;
-    }
-    setSelectedSeats((prev) =>
-      prev.includes(seatId)
-        ? prev.filter((id) => id !== seatId)
-        : [...prev, seatId].sort()
-    );
-  };
+const handleSeatSelect = (seatKey: string) => {
+  if (isSubmitting) return;
+
+  if (bookedSeats.includes(seatKey)) {
+    toast.error("This seat is already booked");
+    return;
+  }
+
+  setSelectedSeats(prev =>
+    prev.includes(seatKey)
+      ? prev.filter(s => s !== seatKey)
+      : [...prev, seatKey]
+  );
+};
+
 
   const handleProceed = async () => {
     if (isSubmitting) return;
@@ -236,6 +258,21 @@ const BookingPage = () => {
     }
 
     setIsSubmitting(true);
+const formattedSeats =
+  showSeatLayout
+    ? selectedSeats.map((s) => {
+        const [busIndex, seat] = s.split("-");
+        return {
+          seat,
+          busIndex: Number(busIndex),
+        };
+      })
+    : [
+        {
+          seat: "N/A",
+          busIndex: 0,
+        },
+      ];
 
     const totalAmount =
       (showSeatLayout ? selectedSeats.length : 1) * Number(trip.price);
@@ -245,7 +282,7 @@ const BookingPage = () => {
     try {
       const resp = await createBooking({
         tripId,
-        selectedSeats: showSeatLayout ? selectedSeats : ["N/A"],
+    selectedSeats: formattedSeats,
         selectedDate: formatDateToString(selectedDate),
         passengers: [],
         price: finalAmount,
@@ -330,11 +367,14 @@ console.log("Trip Details:", trip);
           <div className="md:col-span-2">
             {showSeatLayout ? (
               <SeatLayout
-                totalSeats={totalSeats as number} // Safe cast since showSeatLayout ensures number
-                selectedSeats={selectedSeats}
-                onSeatSelect={handleSeatSelect}
-                bookedSeats={bookedSeats}
-                seatPrice={tripDetails.price}
+             totalSeats={totalSeats as number}
+  selectedSeats={selectedSeats}
+  onSeatSelect={handleSeatSelect}
+  bookedSeats={bookedSeats}
+  seatPrice={tripDetails.price}
+  currentBus={currentBus}
+  numberOfBuses={numberOfBuses}
+  onBusChange={setCurrentBus}
               />
             ) : (
               <div className="text-center py-12 border border-dashed rounded-lg">
@@ -347,6 +387,12 @@ console.log("Trip Details:", trip);
               </div>
             )}
           </div>
+{selectedSeats.length === 1 && selectedSeats[0] === "N/A" && (
+  <div className="flex justify-between mb-2">
+    <span>Seat Type</span>
+    <span>Block Booking</span>
+  </div>
+)}
 
           <div className="md:col-span-1">
             <BookingSummary

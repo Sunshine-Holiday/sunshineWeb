@@ -136,35 +136,14 @@ export const AppContent = () => {
           <Route
             path="/booking"
             element={
-              <ProtectedRoute role={user?.role}>
+
                 <BookingPage />
-              </ProtectedRoute>
+
             }
           />
-             <Route
-            path="/review/:id"
-            element={
-              <ProtectedRoute role={user?.role}>
-                <ReviewCreatePage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/booked"
-            element={
-              <ProtectedRoute role={user?.role}>
-                <Booked />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/booked/:id"
-            element={
-              <ProtectedRoute role={user?.role}>
-                <BookingDetail />
-              </ProtectedRoute>
-            }
-          />
+   
+
+     
           <Route path="*" element={<NotFound />} />
         </Routes>
       </React.Suspense>

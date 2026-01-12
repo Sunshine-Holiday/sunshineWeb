@@ -108,10 +108,17 @@ export const BookingSummary = ({
       </div>
 
       <div className="border-t border-gray-200 pt-4 mb-6">
-        <div className="flex justify-between mb-2">
-          <span>Selected Seats</span>
-          <span>{selectedSeats.join(", ") || "None"}</span>
-        </div>
+     <div className="flex justify-between mb-2">
+  <span>Selected Seats</span>
+  <span className="text-right">
+    {selectedSeats.length === 0
+      ? "None"
+      : [...selectedSeats]
+          .sort((a, b) => Number(a) - Number(b))
+          .join(", ")}
+  </span>
+</div>
+
         <div className="flex justify-between mb-2">
           <span>Price per Seat</span>
           <span>₹{seatPrice.toLocaleString("en-IN")}</span>

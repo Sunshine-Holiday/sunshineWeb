@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   useGetTripBookingHistoryQuery,
@@ -69,16 +69,14 @@ import {
 } from "@/components/ui/select";
 import { toast } from "react-toastify";
 import { Skeleton } from "@/components/ui/skeleton";
-import { error } from "console";
 
 const BookingDetails = () => {
   const { state } = useLocation();
   const { date, tripId, tripName } = state || {};
   const [activeTab, setActiveTab] = useState("table");
-  const [selectedSeats, setSelectedSeats] = useState([]);
-  const [editingBooking, setEditingBooking] = useState(null);
+  const [editingBooking, setEditingBooking] = useState<string | null>(null);
   const [newSeatNumber, setNewSeatNumber] = useState("");
-  const [deleteBookingId, setDeleteBookingId] = useState(null);
+  const [deleteBookingId, setDeleteBookingId] = useState<string | null>(null);
   const [reviewFilter, setReviewFilter] = useState("all");
   const navigate = useNavigate();
 
@@ -87,14 +85,12 @@ const BookingDetails = () => {
     data: bookingData,
     isLoading: isBookingLoading,
     isError: isBookingError,
-    error: bookingError,
     refetch: refetchBookings,
   } = useGetTripBookingHistoryQuery({
     trip: tripId,
     date: date,
   });
-  console.log("hello", bookingError);
-  console.log("Booking Data:", bookingData);
+
   const {
     data: reviewData,
     isLoading: isReviewLoading,
@@ -108,20 +104,22 @@ const BookingDetails = () => {
   const [updateBooking, { isLoading: isUpdatingBooking }] = useUpdateBookingMutation();
   const [updateReview, { isLoading: isUpdatingReview }] = useUpdateReviewMutation();
 
+  // Extract booked seats from all bookings
   const bookedSeats =
-    bookingData?.purchaseHistory.flatMap((booking) => booking.selectedSeats) ||
-    [];
+    bookingData?.purchaseHistory
+      .flatMap((booking) => booking.selectedSeats)
+      .filter((seat) => /^\d+$/.test(seat)) || [];
 
-  const handleSeatSelect = (id) => {
+  const handleSeatSelect = (id: string) => {
     console.log(`Seat ${id} clicked in view-only mode`);
   };
 
-  const handleEditClick = (bookingId, seat) => {
+  const handleEditClick = (bookingId: string, seat: string) => {
     setEditingBooking(`${bookingId}-${seat}`);
     setNewSeatNumber(seat);
   };
 
-  const handleSubmitEdit = async (bookingSeatId) => {
+  const handleSubmitEdit = async (bookingSeatId: string) => {
     const [bookingId, originalSeat] = bookingSeatId.split("-");
     try {
       await updateTrip({
@@ -152,15 +150,15 @@ const BookingDetails = () => {
     }
   };
 
-  const openDeleteDialog = (bookingId) => {
+  const openDeleteDialog = (bookingId: string) => {
     setDeleteBookingId(bookingId);
   };
 
-  const handleToggleReviewActivate = async (bookingId, currentStatus) => {
+  const handleToggleReviewActivate = async (bookingId: string, currentStatus: boolean) => {
     try {
       await updateBooking({
         bookingId,
-        isReviewActivate: !currentStatus,
+        reviewEnabled: !currentStatus,
       }).unwrap();
       toast.success(
         `Review ${!currentStatus ? "enabled" : "disabled"} for booking ${bookingId.substring(0, 8)}...`
@@ -172,7 +170,7 @@ const BookingDetails = () => {
     }
   };
 
-  const handleReviewStatusUpdate = async (reviewId, status) => {
+  const handleReviewStatusUpdate = async (reviewId: string, status: string) => {
     try {
       await updateReview({
         reviewId,
@@ -189,7 +187,7 @@ const BookingDetails = () => {
     }
   };
 
-  // Filter reviews based on the selected filter
+  // Filter reviews
   const filteredReviews = reviewData?.filter((review) => {
     if (reviewFilter === "all") return true;
     if (reviewFilter === "approved") return review.isAdminApproved;
@@ -231,25 +229,19 @@ const BookingDetails = () => {
     );
   }
 
-  const { purchaseHistory, selectedDate, tripDetails, message } = bookingData;
-  console.log("Booking Data:", tripDetails);
-  const seatPrice = tripDetails?.price || 0;
-  const totalSeats = selectedDate?.seats || Number(tripDetails.totalSeat);
-  console.log(totalSeats)
-  const bookedSeatCount = bookedSeats.length;
-  const availableSeatCount = totalSeats - bookedSeatCount;
+  const { purchaseHistory, selectedDate, tripDetails } = bookingData;
 
-  // Determine if SeatLayout should be shown (only for 20 or 32 seats)
+  const totalSeats = tripDetails?.totalSeatsAvailable || 0;
+  const bookedSeatCount = purchaseHistory.reduce((count, booking) => {
+    return count + booking.selectedSeats.filter((seat: string) => /^\d+$/.test(seat)).length;
+  }, 0);
+  const availableSeatCount = totalSeats - bookedSeatCount;
   const showSeatLayout = totalSeats === 20 || totalSeats === 32;
 
   return (
     <div className="container mx-auto p-4">
       <div className="flex items-center mb-4">
-        <Button
-          variant="ghost"
-          className="mr-2"
-          onClick={() => navigate(-1)}
-        >
+        <Button variant="ghost" className="mr-2" onClick={() => navigate(-1)}>
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back
         </Button>
@@ -319,114 +311,58 @@ const BookingDetails = () => {
                     <TableHeader>
                       <TableRow>
                         <TableHead className="w-1/7">Booking ID</TableHead>
-                        <TableHead className="w-1/7">User Email</TableHead>
+                        <TableHead className="w-1/7">Lead Passenger</TableHead>
+                        <TableHead className="w-1/7">Phone</TableHead>
                         <TableHead className="w-1/7 text-center">Passengers</TableHead>
                         <TableHead className="w-1/7 text-center">Selected Seats</TableHead>
                         <TableHead className="w-1/7 text-right">Price Details</TableHead>
-                        <TableHead className="w-1/7 text-center">Review Status</TableHead>
+                
                         <TableHead className="w-1/7 text-center">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {purchaseHistory.map((booking) => {console.log({"wew":booking})
-                      return(
+                      {purchaseHistory.map((booking) => (
                         <TableRow key={booking.bookingId} className="hover:bg-gray-50">
-                          <TableCell
-                            className="font-medium truncate"
-                            title={booking.bookingId}
-                          >
+                          <TableCell className="font-medium truncate" title={booking.bookingId}>
                             {booking.bookingId.substring(0, 8)}...
                           </TableCell>
-                          <TableCell
-                            className="truncate"
-                            title={booking.user.email}
-                          >
-                            {booking.user.email}
+
+                          <TableCell className="font-medium">
+                            {booking.leadPassenger?.name || "Guest"}
                           </TableCell>
+
+                          <TableCell>
+                            {booking.leadPassenger?.phoneNumber || "N/A"}
+                          </TableCell>
+
                           <TableCell className="text-center">
                             {booking.totalPassengers}
                           </TableCell>
+
                           <TableCell>
                             <div className="flex flex-wrap gap-1 justify-center">
-                              {booking.selectedSeats.map((seat) => (
-                                <Badge
-                                  key={seat}
-                                  variant="secondary"
-                                  className="text-xs"
-                                >
-                                  {seat}
-                                </Badge>
-                              ))}
+                            {booking.selectedSeats.map(({ seat, busIndex }) => (
+  <Badge key={`${seat}-${busIndex}`} variant="secondary" className="text-xs">
+    {seat}
+  </Badge>
+))}
+
                             </div>
                           </TableCell>
+
                           <TableCell className="text-right font-medium">
                             <div className="flex flex-col items-end">
-                              <span>Total: ₹{booking.price.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
-                              <span>Paid: ₹{(booking.advancePaid || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
-                              <span>Remaining: ₹{(booking.remainingBalance || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+                              <span>Total: ₹{booking.price.toLocaleString("en-IN")}</span>
+                              <span>Paid: ₹{(booking.advancePaid || 0).toLocaleString("en-IN")}</span>
+                              <span>Remaining: ₹{(booking.remainingBalance || 0).toLocaleString("en-IN")}</span>
                             </div>
                           </TableCell>
-                          <TableCell className="text-center">
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    variant={booking.isReviewActivate ? "default" : "outline"}
-                                    size="sm"
-                                    className={booking.isReviewActivate ? "bg-green-600 hover:bg-green-700" : ""}
-                                    onClick={() =>
-                                      handleToggleReviewActivate(
-                                        booking.bookingId,
-                                        booking.isReviewActivate
-                                      )
-                                    }
-                                    disabled={isUpdatingBooking}
-                                  >
-                                    {booking.isReviewActivate ? (
-                                      <>
-                                        <CheckCircle className="h-4 w-4 mr-1" />
-                                        Active
-                                      </>
-                                    ) : (
-                                      <>
-                                        <XCircle className="h-4 w-4 mr-1" />
-                                        Inactive
-                                      </>
-                                    )}
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p>
-                                    {booking.isReviewActivate
-                                      ? "Deactivate review option"
-                                      : "Activate review option"}
-                                  </p>
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          </TableCell>
+
+             
+
                           <TableCell>
                             <div className="flex justify-center space-x-2">
-                              <TooltipProvider>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() => {
-                                        navigate(`/booked/${booking.bookingId}`, {
-                                          state: { id: booking.bookingId },
-                                        });
-                                      }}
-                                    >
-                                      <FileText className="h-4 w-4" />
-                                    </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    <p>View Invoice</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
+                       
 
                               <AlertDialog>
                                 <TooltipProvider>
@@ -454,7 +390,9 @@ const BookingDetails = () => {
                                     <AlertDialogDescription>
                                       This action cannot be undone. This will permanently delete
                                       the booking for{" "}
-                                      <span className="font-medium">{booking.user.email}</span>{" "}
+                                      <span className="font-medium">
+                                        {booking.leadPassenger?.name || "Guest"} ({booking.leadPassenger?.phoneNumber || "N/A"})
+                                      </span>{" "}
                                       with ID{" "}
                                       <span className="font-medium">
                                         {booking.bookingId.substring(0, 8)}...
@@ -462,9 +400,7 @@ const BookingDetails = () => {
                                     </AlertDialogDescription>
                                   </AlertDialogHeader>
                                   <AlertDialogFooter>
-                                    <AlertDialogCancel
-                                      onClick={() => setDeleteBookingId(null)}
-                                    >
+                                    <AlertDialogCancel onClick={() => setDeleteBookingId(null)}>
                                       Cancel
                                     </AlertDialogCancel>
                                     <AlertDialogAction
@@ -479,7 +415,7 @@ const BookingDetails = () => {
                             </div>
                           </TableCell>
                         </TableRow>
-                      )})}
+                      ))}
                     </TableBody>
                   </Table>
                 </div>
@@ -512,7 +448,7 @@ const BookingDetails = () => {
                   selectedSeats={[]}
                   onSeatSelect={handleSeatSelect}
                   bookedSeats={bookedSeats}
-                  seatPrice={seatPrice}
+                  seatPrice={tripDetails?.price || 0}
                   totalSeats={totalSeats}
                 />
               ) : (
@@ -535,16 +471,18 @@ const BookingDetails = () => {
                             <div className="flex items-center space-x-2">
                               <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
                                 <span className="font-medium text-blue-700">
-                                  {booking.user.email.charAt(0).toUpperCase()}
+                                  {booking.leadPassenger?.name?.charAt(0).toUpperCase() || "G"}
                                 </span>
                               </div>
                               <div>
-                                <p className="font-medium" title={booking.user.email}>
-                                  {booking.user.email.split("@")[0]}
+                                <p className="font-medium">
+                                  {booking.leadPassenger?.name || "Guest"}
                                 </p>
                                 <p className="text-xs text-gray-500">
-                                  {booking.totalPassengers} passenger
-                                  {booking.totalPassengers > 1 ? "s" : ""}
+                                  {booking.totalPassengers} passenger{booking.totalPassengers > 1 ? "s" : ""}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  {booking.leadPassenger?.phoneNumber || "N/A"}
                                 </p>
                               </div>
                             </div>
@@ -564,14 +502,12 @@ const BookingDetails = () => {
                                   <AlertDialogTitle>Confirm Deletion</AlertDialogTitle>
                                   <AlertDialogDescription>
                                     This action cannot be undone. This will permanently delete
-                                    the booking for {booking.user.email} with ID{" "}
+                                    the booking for {booking.leadPassenger?.name || "Guest"} with ID{" "}
                                     {booking.bookingId.substring(0, 8)}...
                                   </AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
-                                  <AlertDialogCancel
-                                    onClick={() => setDeleteBookingId(null)}
-                                  >
+                                  <AlertDialogCancel onClick={() => setDeleteBookingId(null)}>
                                     Cancel
                                   </AlertDialogCancel>
                                   <AlertDialogAction
@@ -587,11 +523,8 @@ const BookingDetails = () => {
                         </CardHeader>
                         <CardContent className="p-3">
                           <div className="flex flex-wrap gap-2">
-                            {booking.selectedSeats.map((seat, index) => (
-                              <div
-                                key={`${booking.bookingId}-${seat}-${index}`}
-                                className="flex items-center"
-                              >
+                            {booking.selectedSeats.map((seat: string, index: number) => (
+                              <div key={`${booking.bookingId}-${seat}-${index}`} className="flex items-center">
                                 {editingBooking === `${booking.bookingId}-${seat}` ? (
                                   <div className="flex gap-2 items-center">
                                     <Input
@@ -603,9 +536,7 @@ const BookingDetails = () => {
                                     <Button
                                       size="sm"
                                       className="h-8"
-                                      onClick={() =>
-                                        handleSubmitEdit(`${booking.bookingId}-${seat}`)
-                                      }
+                                      onClick={() => handleSubmitEdit(`${booking.bookingId}-${seat}`)}
                                       disabled={isUpdatingTrip}
                                     >
                                       Save
@@ -613,17 +544,14 @@ const BookingDetails = () => {
                                   </div>
                                 ) : (
                                   <div className="flex items-center gap-2 bg-gray-50 p-1 px-2 rounded-lg">
-                                    <Badge
-                                      variant="secondary"
-                                      className="bg-blue-100 text-blue-700"
-                                    >
+                                    <Badge variant="secondary" className="bg-blue-100 text-blue-700">
                                       {seat}
                                     </Badge>
                                     <Button
                                       variant="ghost"
                                       size="sm"
                                       className="h-6 w-6 p-0"
-                                      onClick={() => handleEditClick(booking.bookingId, seat)}
+                                      onClick={() => handleEditClick(booking.bookingId, seat.seat)}
                                     >
                                       <Edit className="h-3 w-3" />
                                     </Button>
@@ -692,20 +620,16 @@ const BookingDetails = () => {
                           <div className="flex items-center space-x-3">
                             <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
                               <span className="font-medium text-blue-700">
-                                {review.user.email.charAt(0).toUpperCase()}
+                                {review.user?.email?.charAt(0).toUpperCase() || "G"}
                               </span>
                             </div>
                             <div>
-                              <p className="font-medium">{review.user.email}</p>
+                              <p className="font-medium">{review.user?.email || "Guest"}</p>
                               <div className="flex items-center text-xs text-gray-500 mt-1">
                                 <CalendarDays className="h-3 w-3 mr-1" />
-                                <p>
-                                  Travel: {new Date(review.travelDate).toLocaleDateString()}
-                                </p>
+                                <p>Travel: {new Date(review.travelDate).toLocaleDateString()}</p>
                                 <span className="mx-2">•</span>
-                                <p>
-                                  Booking: {new Date(review.bookingDate).toLocaleDateString()}
-                                </p>
+                                <p>Booking: {new Date(review.bookingDate).toLocaleDateString()}</p>
                               </div>
                             </div>
                           </div>
@@ -755,9 +679,7 @@ const BookingDetails = () => {
                               size="sm"
                               variant="outline"
                               className="text-green-600 border-green-200 hover:bg-green-50 hover:text-green-700"
-                              onClick={() =>
-                                handleReviewStatusUpdate(review._id, "admin_approved")
-                              }
+                              onClick={() => handleReviewStatusUpdate(review._id, "admin_approved")}
                               disabled={isUpdatingReview}
                             >
                               <CheckCircle className="h-4 w-4 mr-1" />
@@ -769,9 +691,7 @@ const BookingDetails = () => {
                               variant="outline"
                               size="sm"
                               className="text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
-                              onClick={() =>
-                                handleReviewStatusUpdate(review._id, "admin_rejected")
-                              }
+                              onClick={() => handleReviewStatusUpdate(review._id, "admin_rejected")}
                               disabled={isUpdatingReview}
                             >
                               <XCircle className="h-4 w-4 mr-1" />
@@ -788,32 +708,6 @@ const BookingDetails = () => {
           </Card>
         </TabsContent>
       </Tabs>
-
-      {message && (
-        <Card className="border-blue-200 bg-blue-50 mt-4">
-          <CardContent className="p-4">
-            <div className="flex items-start">
-              <div className="mr-3 mt-1">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-5 w-5 text-blue-600"
-                  fill="none"
-                  viewBox="0 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
-                </svg>
-              </div>
-              <p className="text-blue-700 text-sm">{message}</p>
-            </div>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 };

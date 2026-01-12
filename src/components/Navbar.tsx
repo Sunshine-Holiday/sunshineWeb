@@ -51,7 +51,7 @@ export const Navbar: React.FC = () => {
               {user ? (
                 <>
                   <NavLink to="/profile">Profile</NavLink>
-                  <NavLink to="/booked">Booked</NavLink>
+
                   <motion.button
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
@@ -135,9 +135,7 @@ export const Navbar: React.FC = () => {
                       <NavLink to="/profile" onClick={handleDrawerToggle}>
                         Profile
                       </NavLink>
-                      <NavLink to="/booked" onClick={handleDrawerToggle}>
-                        Booked
-                      </NavLink>
+          
                     </>
                   )}
                   {user ? (

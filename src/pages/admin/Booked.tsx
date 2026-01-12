@@ -69,10 +69,7 @@ const Booked = () => {
       <div className="bg-white shadow rounded-lg p-6 mb-8">
         <h2 className="text-xl font-semibold mb-4">Summary</h2>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="bg-blue-50 p-4 rounded-lg">
-            <p className="text-sm text-gray-500">Unique Users</p>
-            <p className="text-2xl font-bold">{stats.uniqueUsers}</p>
-          </div>
+   
           <div className="bg-green-50 p-4 rounded-lg">
             <p className="text-sm text-gray-500">Total Bookings</p>
             <p className="text-2xl font-bold">{stats.totalBookings}</p>

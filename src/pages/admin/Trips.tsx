@@ -1,75 +1,63 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { FaPlus } from "react-icons/fa";
 import { fadeInUp, staggerChildren } from "../../utils/animations";
 import { TripFilters } from "../trips/TripFilters";
 import { useNavigate } from "react-router-dom";
-import { useDeleteTripsMutation, useGettripsQuery } from "@/store/api/trips";
+import {
+  useDeleteTripsMutation,
+  useGettripsQuery,
+} from "@/store/api/trips";
 import { TripCard } from "./components/trips/TripsCard";
 import { toast } from "react-toastify";
+import { Search } from "lucide-react";
 
 const TripsPage = () => {
-  const [selectedCategory, setSelectedCategory] = useState("All");
-  const [trips, setTrips] = useState([]);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [tripToDelete, setTripToDelete] = useState(null);
-  const [isAddMenuOpen, setIsAddMenuOpen] = useState(false);
-
-  const { data, isLoading, error } = useGettripsQuery({});
-  const [deleteTrips] = useDeleteTripsMutation();
   const navigate = useNavigate();
 
-  useEffect(() => {
-    if (data) {
-      setTrips(data);
-      console.log(data);
-    }
-  }, [data]);
+  const { data = [], isLoading, error } = useGettripsQuery({});
+  const [deleteTrips] = useDeleteTripsMutation();
 
-  const filterTrips = (category) => {
+  const [selectedCategory, setSelectedCategory] = useState("All");
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [tripToDelete, setTripToDelete] = useState<any>(null);
+  const [isAddMenuOpen, setIsAddMenuOpen] = useState(false);
+
+  /* ================= FILTERED TRIPS ================= */
+
+  const filteredTrips = useMemo(() => {
+    return data.filter((trip: any) => {
+      const matchesCategory =
+        selectedCategory === "All" || trip.category === selectedCategory;
+
+      const matchesSearch =
+        trip.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        trip.location?.toLowerCase().includes(searchQuery.toLowerCase());
+
+      return matchesCategory && matchesSearch;
+    });
+  }, [data, selectedCategory, searchQuery]);
+
+  /* ================= HANDLERS ================= */
+
+  const filterTrips = (category: string) => {
     setSelectedCategory(category);
-    setTrips(
-      category === "All"
-        ? data
-        : data.filter((trip) => trip.category === category)
-    );
   };
 
-  const handleAddTrip = (path) => {
+  const toggleAddMenu = () => {
+    setIsAddMenuOpen((prev) => !prev);
+  };
+
+  const handleAddTrip = (path: string) => {
     setIsAddMenuOpen(false);
     navigate(path);
   };
 
-  const toggleAddMenu = () => {
-    setIsAddMenuOpen(!isAddMenuOpen);
-  };
-
-  const confirmDelete = (trip) => {
+  const confirmDelete = (trip: any) => {
     setTripToDelete(trip);
     setIsModalOpen(true);
-  };
-
-  const onEdit = (trip) => {
-    console.log(trip._id);
-    if (trip.readonly) {
-      navigate(`/admin/trips/edit-readonly`, { state: { id: trip._id } });
-    } else {
-      navigate(`/admin/trips/edit`, { state: { id: trip._id } });
-    }
-  };
-
-  const handleDelete = async () => {
-    if (!tripToDelete) return;
-    try {
-      await deleteTrips(tripToDelete._id).unwrap();
-      toast.success("Trip deleted successfully");
-    } catch (error) {
-      toast.error("Failed to delete trip");
-      console.error("Error deleting trip:", error);
-    } finally {
-      setIsModalOpen(false);
-      setTripToDelete(null);
-    }
   };
 
   const cancelDelete = () => {
@@ -77,14 +65,40 @@ const TripsPage = () => {
     setIsModalOpen(false);
   };
 
+  const handleDelete = async () => {
+    if (!tripToDelete) return;
+
+    try {
+      await deleteTrips(tripToDelete._id).unwrap();
+      toast.success("Trip deleted successfully");
+    } catch (err) {
+      toast.error("Failed to delete trip");
+      console.error(err);
+    } finally {
+      cancelDelete();
+    }
+  };
+
+  const onEdit = (trip: any) => {
+    navigate(
+      trip.readonly
+        ? `/admin/trips/edit-readonly`
+        : `/admin/trips/edit`,
+      { state: { id: trip._id } }
+    );
+  };
+
+  /* ================= RENDER ================= */
+
   return (
     <div className="min-h-screen bg-gray-50 pt-24 pb-16 relative">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* HEADER */}
         <motion.div
           variants={fadeInUp}
           initial="initial"
           animate="animate"
-          className="text-center mb-12"
+          className="text-center mb-10"
         >
           <h1 className="text-4xl font-bold text-gray-900 mb-4">
             Discover Our Trips
@@ -94,25 +108,43 @@ const TripsPage = () => {
           </p>
         </motion.div>
 
+        {/* SEARCH BAR */}
+        <div className="max-w-lg mx-auto mb-8">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 h-5 w-5" />
+            <input
+              type="text"
+              placeholder="Search by trip name or location..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-400 outline-none"
+            />
+          </div>
+        </div>
+
+        {/* CATEGORY FILTER */}
         <TripFilters
           filterTrips={filterTrips}
           selectedCategory={selectedCategory}
         />
 
+        {/* CONTENT */}
         {isLoading ? (
-          <div className="text-center mt-8 text-gray-600">Loading trips...</div>
+          <div className="text-center mt-8 text-gray-600">
+            Loading trips...
+          </div>
         ) : error ? (
           <div className="text-center mt-8 text-red-600">
             Error loading trips.
           </div>
-        ) : (
+        ) : filteredTrips.length > 0 ? (
           <motion.div
             variants={staggerChildren}
             initial="initial"
             animate="animate"
-            className="grid md:grid-cols-2 lg:grid-cols-3 gap-8"
+            className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 mt-8"
           >
-            {trips.map((trip) => (
+            {filteredTrips.map((trip: any) => (
               <motion.div key={trip._id} variants={fadeInUp}>
                 <TripCard
                   trip={trip}
@@ -122,29 +154,33 @@ const TripsPage = () => {
               </motion.div>
             ))}
           </motion.div>
+        ) : (
+          <div className="text-center mt-12 text-gray-600 font-medium">
+            No trips found.
+          </div>
         )}
       </div>
 
-      {/* Floating Action Button with Dropdown */}
-      <div className="fixed bottom-6 sm:bottom-8 right-6 sm:right-8">
+      {/* FLOATING ADD BUTTON */}
+      <div className="fixed bottom-6 right-6">
         <button
           onClick={toggleAddMenu}
-          className="bg-blue-600 text-white p-3 sm:p-4 rounded-full shadow-lg hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-300"
-          aria-label="Add New Trip"
+          className="bg-blue-600 text-white p-4 rounded-full shadow-lg hover:bg-blue-700"
         >
-          <FaPlus className="w-5 h-5 sm:w-6 sm:h-6" />
+          <FaPlus />
         </button>
+
         {isAddMenuOpen && (
-          <div className="absolute bottom-16 right-0 bg-white rounded-lg shadow-lg w-48 z-50">
+          <div className="absolute bottom-16 right-0 bg-white rounded-lg shadow-lg w-56 z-50">
             <button
               onClick={() => handleAddTrip("/admin/trips/add-trips")}
-              className="block w-full text-left px-4 py-2 text-gray-800 hover:bg-gray-100"
+              className="block w-full px-4 py-2 text-left hover:bg-gray-100"
             >
               Create Trip
             </button>
             <button
               onClick={() => handleAddTrip("/admin/trips/add-readonlytrips")}
-              className="block w-full text-left px-4 py-2 text-gray-800 hover:bg-gray-100"
+              className="block w-full px-4 py-2 text-left hover:bg-gray-100"
             >
               Create Read-Only Trip
             </button>
@@ -152,27 +188,28 @@ const TripsPage = () => {
         )}
       </div>
 
-      {/* Delete Confirmation Modal */}
+      {/* DELETE MODAL */}
       {isModalOpen && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-          <div className="bg-white rounded-lg p-6 w-96 shadow-lg">
-            <h2 className="text-lg font-bold text-gray-800 mb-4">
-              Confirm Deletion
-            </h2>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-96">
+            <h2 className="text-lg font-bold mb-4">Confirm Deletion</h2>
             <p className="text-gray-600 mb-6">
-              Are you sure you want to delete the trip{" "}
-              <span className="font-semibold">{tripToDelete?.name}</span>?
+              Are you sure you want to delete{" "}
+              <span className="font-semibold">
+                {tripToDelete?.title}
+              </span>
+              ?
             </p>
             <div className="flex justify-end gap-4">
               <button
                 onClick={cancelDelete}
-                className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400"
+                className="px-4 py-2 bg-gray-300 rounded-lg"
               >
                 Cancel
               </button>
               <button
                 onClick={handleDelete}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                className="px-4 py-2 bg-red-600 text-white rounded-lg"
               >
                 Delete
               </button>

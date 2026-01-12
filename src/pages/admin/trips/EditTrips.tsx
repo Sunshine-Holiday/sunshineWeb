@@ -56,7 +56,9 @@ interface BoardingPoint {
 interface StartDate {
   date: Date;
   seats: number | "block";
+  numberOfBusesAvailable: number;
 }
+
 
 interface Package {
   title: string;
@@ -138,6 +140,8 @@ const EditTrips: React.FC = () => {
     advancePaymentPercentage: undefined,
     discountPercentage: undefined,
   });
+const [numberOfBuses, setNumberOfBuses] = useState<number | "">("");
+const [numberOfBusesError, setNumberOfBusesError] = useState<string>("");
 
   const [errors, setErrors] = useState<FormErrors>({});
   const [touched, setTouched] = useState<{ [key: string]: boolean }>({});
@@ -157,7 +161,11 @@ const EditTrips: React.FC = () => {
     if (data) {
       const parsedDates = data?.trip.startDates
         .map(
-          (item: { date: string; seats: number | "block" }, index: number) => {
+          (item: {
+  date: string;
+  seats: number | "block";
+  numberOfBusesAvailable?: number;
+}, index: number) => {
             try {
               const parsedDate = parse(item.date, "dd-MM-yyyy", new Date());
               if (isNaN(parsedDate.getTime())) {
@@ -167,6 +175,7 @@ const EditTrips: React.FC = () => {
               return {
                 date: startOfDay(parsedDate),
                 seats: item.seats,
+                  numberOfBusesAvailable: item.numberOfBusesAvailable ?? 1,
               };
             } catch (error) {
               console.error(
@@ -532,52 +541,68 @@ const EditTrips: React.FC = () => {
     return "";
   }, []);
 
-  const handleModalSubmit = useCallback(() => {
-    if (selectedDate && selectedSeats !== null) {
-      const newStartDate: StartDate = {
-        date: selectedDate,
-        seats: selectedSeats,
-      };
-      const newDates = [...tripDetails.startDates, newStartDate].sort(
-        (a, b) => a.date.getTime() - b.date.getTime()
-      );
-      setTripDetails((prev) => ({ ...prev, startDates: newDates }));
-      setErrors((prev) => ({ ...prev, startDates: "" }));
-      setIsModalOpen(false);
-      setSelectedDate(null);
-      setSelectedSeats(null);
-      setSeatSelectionType(null);
-      setBlockSeats("");
-      setBlockSeatsError("");
-    } else if (seatSelectionType === "block") {
-      const error = validateBlockSeats(blockSeats);
-      if (error) {
-        setBlockSeatsError(error);
-      } else {
-        const newStartDate: StartDate = {
-          date: selectedDate!,
-          seats: parseInt(blockSeats),
-        };
-        const newDates = [...tripDetails.startDates, newStartDate].sort(
-          (a, b) => a.date.getTime() - b.date.getTime()
-        );
-        setTripDetails((prev) => ({ ...prev, startDates: newDates }));
-        setErrors((prev) => ({ ...prev, startDates: "" }));
-        setIsModalOpen(false);
-        setSelectedDate(null);
-        setSelectedSeats(null);
-        setSeatSelectionType(null);
-        setBlockSeats("");
-        setBlockSeatsError("");
-      }
+  const validateBuses = (value: number | "") => {
+  if (value === "") return "Number of buses is required";
+  if (!Number.isInteger(value) || value <= 0)
+    return "Enter a valid number of buses";
+  return "";
+};
+
+const handleModalSubmit = useCallback(() => {
+  if (!selectedDate) return;
+
+  const busError = validateBuses(numberOfBuses);
+  if (busError) {
+    setNumberOfBusesError(busError);
+    return;
+  }
+
+  let finalSeats: number | "block" | null = null;
+
+  if (seatSelectionType === "block") {
+    const error = validateBlockSeats(blockSeats);
+    if (error) {
+      setBlockSeatsError(error);
+      return;
     }
-  }, [
-    selectedDate,
-    selectedSeats,
-    seatSelectionType,
-    blockSeats,
-    tripDetails.startDates,
-  ]);
+    finalSeats = parseInt(blockSeats);
+  } else {
+    finalSeats = selectedSeats;
+  }
+
+  if (finalSeats === null) return;
+
+  const newStartDate: StartDate = {
+    date: selectedDate,
+    seats: finalSeats,
+    numberOfBusesAvailable: Number(numberOfBuses),
+  };
+
+  const newDates = [...tripDetails.startDates, newStartDate].sort(
+    (a, b) => a.date.getTime() - b.date.getTime()
+  );
+
+  setTripDetails((prev) => ({ ...prev, startDates: newDates }));
+  setErrors((prev) => ({ ...prev, startDates: "" }));
+
+  // reset modal
+  setIsModalOpen(false);
+  setSelectedDate(null);
+  setSelectedSeats(null);
+  setSeatSelectionType(null);
+  setBlockSeats("");
+  setBlockSeatsError("");
+  setNumberOfBuses("");
+  setNumberOfBusesError("");
+}, [
+  selectedDate,
+  selectedSeats,
+  seatSelectionType,
+  blockSeats,
+  numberOfBuses,
+  tripDetails.startDates,
+]);
+
 
   const validateForm = useCallback(() => {
     const requiredFields = ["title", "location", "description", "category"];
@@ -668,6 +693,7 @@ const EditTrips: React.FC = () => {
           tripDetails.startDates.map((d) => ({
             date: formatDateToString(d.date),
             seats: d.seats,
+                numberOfBusesAvailable: d.numberOfBusesAvailable,
           }))
         )
       );
@@ -939,9 +965,10 @@ const EditTrips: React.FC = () => {
                   id: index,
                   start: d.date,
                   end: d.date,
-                  title: `${formatDateToString(d.date)} (${
-                    d.seats === "block" ? "Block" : `${d.seats} Seats`
-                  })`,
+            title: `${formatDateToString(d.date)} • ${
+  d.seats === "block" ? "Block" : `${d.seats} Seats`
+} • ${d.numberOfBusesAvailable} Bus(es)`,
+
                 }))}
                 selectable
                 onSelectSlot={(slotInfo) => handleDateSelection(slotInfo.start)}
@@ -1408,6 +1435,25 @@ const EditTrips: React.FC = () => {
               )}
             </div>
           )}
+          <div className="mt-4">
+  <Label htmlFor="numberOfBuses">Number of Buses Available</Label>
+  <Input
+    id="numberOfBuses"
+    type="number"
+    placeholder="e.g., 2"
+    value={numberOfBuses}
+    onChange={(e) => {
+      const value = e.target.value === "" ? "" : parseInt(e.target.value);
+      setNumberOfBuses(value);
+      setNumberOfBusesError(validateBuses(value));
+    }}
+    className={numberOfBusesError ? "border-red-500" : ""}
+  />
+  {numberOfBusesError && (
+    <p className="mt-1 text-sm text-red-500">{numberOfBusesError}</p>
+  )}
+</div>
+
           <DialogFooter>
             <Button
               variant="outline"

@@ -44,7 +44,7 @@ const Layout = () => {
             path="/special_sections/Edit/:id"
             element={<EditSpecialSection />}
           />
-          <Route path="/refund" element={<CancelTrips />} />
+
           <Route path="/users" element={<UserManagement />} />
           <Route path="/about" element={<AboutPage />} />
           <Route path="/privacy-policy" element={<EditPrivacy />} />

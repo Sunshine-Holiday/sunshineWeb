@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { PassengerData } from "./components/PassengerForm";
@@ -12,8 +11,6 @@ import { toast } from "react-toastify";
 import { useCreatebookingMutation } from "@/store/api/booking";
 import { useCreatePaymentIntentMutation } from "@/store/api/terms";
 import { RAZORPAY_API_KEY } from "@/store/store";
-import { useSelector } from "react-redux";
-import { selectCurrentUser } from "@/store/reducer/auth";
 import { FaSpinner, FaPlus, FaMinus } from "react-icons/fa";
 import { format, parse, isValid } from "date-fns";
 import { Button } from "@/components/ui/button";
@@ -24,6 +21,7 @@ const INITIAL_STEP = "select-seats";
 interface StartDate {
   date: string;
   seats: number;
+  numberOfBusesAvailable?: number;
   _id?: string;
 }
 
@@ -52,13 +50,23 @@ interface Trip {
   amenities: string[];
   packages: Package[];
   roomChoices: RoomChoice[];
-  boardingPoints: { _id: string; location: string; time: string; details: string }[];
+  boardingPoints: {
+    _id: string;
+    location: string;
+    time: string;
+    details: string;
+  }[];
   price: string;
   discountPercentage?: number;
   advancePaymentPercentage?: number;
 }
 
 interface BookingSummaryProps {
+  numberofBuses: number;
+  totaCapacity: number;
+  addPassenger: () => void;
+  removePassenger: (index: number) => void;
+  bookedSeats: string[];
   addRoom: () => void;
   removeRoom: () => void;
   tripDetails: {
@@ -93,7 +101,6 @@ interface BookingSummaryProps {
 
 const BookingPage = () => {
   const location = useLocation();
-  const userDetails = useSelector(selectCurrentUser);
   const tripId = location.state?.tripId;
   const [selectedDate, setSelectedDate] = useState<StartDate | null>(
     location.state?.selectedDate || null
@@ -102,7 +109,10 @@ const BookingPage = () => {
 
   // State variables
   const [selectedSeats, setSelectedSeats] = useState<string[]>([]);
-  const [bookedSeats, setBookedSeats] = useState<string[]>([]);
+const [bookedSeats, setBookedSeats] = useState<
+  { seat: string; busIndex: number }[]
+>([]);
+
   const [passengers, setPassengers] = useState<PassengerData[]>([]);
   const [step, setStep] = useState<"select-seats" | "passenger-details">(
     INITIAL_STEP
@@ -110,9 +120,12 @@ const BookingPage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [trip, setTrip] = useState<Trip | null>(null);
   const [selectedPackage, setSelectedPackage] = useState<Package | null>(null);
-  const [selectedRoomChoice, setSelectedRoomChoice] = useState<RoomChoice | null>(null);
+  const [selectedRoomChoice, setSelectedRoomChoice] =
+    useState<RoomChoice | null>(null);
   const [selectedRoomCount, setSelectedRoomCount] = useState<number>(0);
-  const [paymentOption, setPaymentOption] = useState<"full" | "advance">("full");
+  const [paymentOption, setPaymentOption] = useState<"full" | "advance">(
+    "full"
+  );
 
   // Date formatting functions
   const formatDateToString = (dateInput: StartDate | string | Date): string => {
@@ -155,6 +168,7 @@ const BookingPage = () => {
     selectedDate: selectedDate ? formatDateForAPI(selectedDate) : "",
   });
 
+  console.log("Booking Data:", bookingData);
   const [createBooking] = useCreatebookingMutation();
   const [createPayment] = useCreatePaymentIntentMutation();
 
@@ -173,17 +187,35 @@ const BookingPage = () => {
     }
   }, [tripData]);
 
-  useEffect(() => {
-    if (bookingData?.selectedSeats) {
-      setBookedSeats(bookingData.selectedSeats);
-    } else {
-      setBookedSeats([]);
+useEffect(() => {
+  if (!bookingData?.selectedSeatsByBus) {
+    setBookedSeats([]);
+    return;
+  }
+
+  const mappedBookedSeats: { seat: string; busIndex: number }[] = [];
+
+  Object.entries(bookingData.selectedSeatsByBus).forEach(
+    ([busIndex, seats]) => {
+      seats.forEach((seat: string) => {
+        mappedBookedSeats.push({
+          seat,
+          busIndex: Number(busIndex),
+        });
+      });
     }
-  }, [bookingData]);
+  );
+
+  setBookedSeats(mappedBookedSeats);
+}, [bookingData]);
+
+
+  const seatsPerBus = selectedDate?.seats || 0;
+  const numberOfBuses = selectedDate?.numberOfBusesAvailable || 1;
+  const totalCapacity = seatsPerBus * numberOfBuses;
 
   useEffect(() => {
     if (selectedDate) {
-      console.log("selectedDate",selectedDate)
       const totalSeats = selectedDate.seats;
       if (totalSeats !== 20 && totalSeats !== 32) {
         setStep("passenger-details");
@@ -218,33 +250,27 @@ const BookingPage = () => {
     }
   };
 
-  const handleSeatSelect = (seatId: string) => {
-    if (isSubmitting) return;
-    if (bookedSeats.includes(seatId)) {
-      toast.error("This seat is already booked");
-      return;
-    }
+const handleSeatSelect = (seatId: string, busIndex: number) => {
+  if (isSubmitting) return;
 
-    const maxSeats = selectedPackage
-      ? Math.min(
-          selectedDate?.seats - bookedSeats.length,
-          selectedPackage?.personCount || 0
-        )
-      : selectedDate?.seats - bookedSeats.length;
+  const key = `${busIndex}-${seatId}`;
 
-    if (selectedSeats.length >= maxSeats && !selectedSeats.includes(seatId)) {
-      toast.error(`Cannot select more than ${maxSeats} seats`);
-      return;
-    }
+  // check if seat is already booked
+  if (bookedSeats.some(b => b.seat === seatId && b.busIndex === busIndex)) {
+    toast.error("This seat is already booked");
+    return;
+  }
 
-    setSelectedSeats((prev) => {
-      const newSeats = prev.includes(seatId)
-        ? prev.filter((id) => id !== seatId)
-        : [...prev, seatId].sort();
+  setSelectedSeats(prev => {
+    const updated = prev.includes(key)
+      ? prev.filter(s => s !== key)
+      : [...prev, key];
 
-      setPassengers((prevPassengers) => {
-        const newPassengers = newSeats.map((seat, index) =>
-          prevPassengers[index] || {
+    // sync passengers with selected seats
+    setPassengers(passengers =>
+      updated.map(
+        (_, i) =>
+          passengers[i] || {
             name: "",
             age: "",
             gender: "",
@@ -253,13 +279,13 @@ const BookingPage = () => {
             address: "",
             phoneNumber: "",
           }
-        );
-        return newPassengers;
-      });
+      )
+    );
 
-      return newSeats;
-    });
-  };
+    return updated;
+  });
+};
+
 
   const handlePassengerChange = (index: number, data: PassengerData) => {
     if (isSubmitting) return;
@@ -273,15 +299,18 @@ const BookingPage = () => {
   const addPassenger = () => {
     if (isSubmitting) return;
     const maxAvailableSeats = selectedDate
-      ? selectedDate.seats - bookedSeats.length
+      ? totalCapacity - bookedSeats.length
       : 0;
 
-    const maxPassengers = selectedPackage || selectedRoomChoice
-      ? Math.min(maxAvailableSeats, selectedPackage?.personCount || 0)
-      : maxAvailableSeats;
+    const maxPassengers =
+      selectedPackage || selectedRoomChoice
+        ? Math.min(maxAvailableSeats, selectedPackage?.personCount || 0)
+        : maxAvailableSeats;
 
     if (passengers.length >= maxPassengers) {
-      toast.error(`Cannot add more passengers. Only ${maxPassengers} seats available.`);
+      toast.error(
+        `Cannot add more passengers. Only ${maxPassengers} seats available.`
+      );
       return;
     }
 
@@ -298,11 +327,16 @@ const BookingPage = () => {
       },
     ]);
 
-    if ((selectedPackage || selectedRoomChoice) && (selectedDate?.seats === 20 || selectedDate?.seats === 32)) {
+    if (
+      (selectedPackage || selectedRoomChoice) &&
+      (selectedDate?.seats === 20 || selectedDate?.seats === 32)
+    ) {
       const availableSeats = Array.from(
         { length: selectedDate?.seats || 0 },
         (_, i) => (i + 1).toString()
-      ).filter(seat => !bookedSeats.includes(seat) && !selectedSeats.includes(seat));
+      ).filter(
+        (seat) => !bookedSeats.includes(seat) && !selectedSeats.includes(seat)
+      );
 
       if (availableSeats.length > 0) {
         setSelectedSeats((prev) => [...prev, availableSeats[0]].sort());
@@ -313,7 +347,10 @@ const BookingPage = () => {
   const removePassenger = (index: number) => {
     if (isSubmitting) return;
     setPassengers((prev) => prev.filter((_, i) => i !== index));
-    if ((selectedPackage || selectedRoomChoice) && (selectedDate?.seats === 20 || selectedDate?.seats === 32)) {
+    if (
+      (selectedPackage || selectedRoomChoice) &&
+      (selectedDate?.seats === 20 || selectedDate?.seats === 32)
+    ) {
       setSelectedSeats((prev) => prev.filter((_, i) => i !== index));
     }
   };
@@ -384,107 +421,165 @@ const BookingPage = () => {
     setSelectedRoomCount((prev) => Math.max(1, prev - 1));
   };
 
-  const handlePayment = async (paymentDetail: any, amountToPay: number, totalAmount: number) => {
-    return new Promise<void>((resolve, reject) => {
-      const options = {
-        key: RAZORPAY_API_KEY,
-        amount: paymentDetail.amount,
-        currency: paymentDetail.currency,
-        name: "Sunshine Holiday Packages",
-        description: "Sunrise Tours",
-        order_id: paymentDetail.id,
-        handler: async (response: any) => {
-          try {
-            const advancePaymentPercentage = trip?.advancePaymentPercentage || 50;
-            const advancePaid = paymentOption === "advance" ? amountToPay : totalAmount;
-            const remainingBalance = paymentOption === "advance" ? totalAmount - advancePaid : 0;
-            const paymentStatus = paymentOption === "advance" ? "advance" : "full";
+const handlePayment = async (
+  paymentDetail: any,
+  amountToPay: number,
+  totalAmount: number
+) => {
+  return new Promise<void>((resolve, reject) => {
+    // Safety check
+    if (!passengers.length || !passengers[0]?.phoneNumber) {
+      toast.error("Please add at least one passenger with a phone number.");
+      setIsSubmitting(false);
+      reject(new Error("Missing passenger contact"));
+      return;
+    }
 
-            const bookingData = {
-              tripId,
-              selectedPackage: selectedPackage?._id || null,
-              selectedRoomChoice: selectedRoomChoice?._id || null,
-              roomCount: selectedRoomCount,
-              price: totalAmount,
-              advancePaid,
-              remainingBalance,
-              paymentStatus,
-              selectedSeats:
-                selectedDate?.seats !== 20 && selectedDate?.seats !== 32
-                  ? Array(passengers.length).fill("N/A")
-                  : selectedSeats,
-              selectedDate: formatDateToString(selectedDate),
-              passengers,
-            };
+    const options = {
+      key: RAZORPAY_API_KEY,
+      amount: paymentDetail.amount, // paise
+      currency: paymentDetail.currency,
+      name: "Sunshine Holiday Packages",
+      description: `Booking for ${trip?.location || "Trip"} on ${
+        selectedDate ? formatDateToString(selectedDate) : ""
+      }`,
+      order_id: paymentDetail.id,
 
-            if (!bookingData.passengers.length) {
-              throw new Error("At least one passenger is required");
-            }
-            if (!/^\d{2}-\d{2}-\d{4}$/.test(bookingData.selectedDate)) {
-              throw new Error("Invalid date format");
-            }
+      handler: async () => {
+        try {
+          // -------------------------------
+          // 🟢 TRANSFORM SEATS (IMPORTANT)
+          // -------------------------------
+          const formattedSeats =
+            selectedDate?.seats === 20 || selectedDate?.seats === 32
+              ? selectedSeats.map((s) => {
+                  const [busIndex, seat] = s.split("-");
+                  return {
+                    seat,
+                    busIndex: Number(busIndex),
+                  };
+                })
+              : passengers.map(() => ({
+                  seat: "N/A",
+                  busIndex: 0,
+                }));
 
-            const resp = await createBooking(bookingData).unwrap();
+          // -------------------------------
+          // 💰 PAYMENT CALCULATION
+          // -------------------------------
+          const advancePaymentPercentage =
+            trip?.advancePaymentPercentage || 50;
 
-            toast.success("Trip booked successfully");
-            navigate("/booked", {
-              state: {
-                bookingDetails: resp,
-                paymentResponse: response,
-              },
-            });
-            resolve();
-          } catch (error) {
-            console.error("Booking error:", error);
-            toast.error(error.message || "Booking failed!");
-            reject(error);
-            setIsSubmitting(false);
+          const advancePaid =
+            paymentOption === "advance" ? amountToPay : totalAmount;
+
+          const remainingBalance =
+            paymentOption === "advance"
+              ? totalAmount - advancePaid
+              : 0;
+
+          const paymentStatus =
+            paymentOption === "advance" ? "advance" : "full";
+
+          // -------------------------------
+          // 📦 BOOKING PAYLOAD
+          // -------------------------------
+          const bookingPayload = {
+            tripId,
+            selectedPackage: selectedPackage?._id || null,
+            selectedRoomChoice: selectedRoomChoice?._id || null,
+            roomCount: selectedRoomChoice ? selectedRoomCount : 0,
+            price: totalAmount,
+            advancePaid,
+            remainingBalance,
+            paymentStatus,
+            selectedDate: formatDateToString(selectedDate),
+            passengers,
+            selectedSeats: formattedSeats,
+          };
+
+          // Final sanity check
+          if (!bookingPayload.selectedSeats.length) {
+            throw new Error("No seats selected");
           }
-        },
-        prefill: {
-          name: userDetails?.username || "",
-          email: userDetails?.email || "",
-          contact: passengers[0]?.phoneNumber || "",
-        },
-        theme: {
-          color: "#3399cc",
-        },
-        method: {
-          netbanking: true,
-          card: true,
-          wallet: true,
-          upi: true,
-        },
-        modal: {
-          ondismiss: () => {
-            setIsSubmitting(false);
-            toast.info("Payment cancelled by user");
-            reject(new Error("Payment cancelled"));
-          },
-        },
-      };
 
-      const razorpay = new window.Razorpay(options);
-      razorpay.on("payment.failed", (response: any) => {
-        toast.error("Payment failed. Please try again.");
-        setIsSubmitting(false);
-        reject(response);
-      });
-      razorpay.open();
+          // -------------------------------
+          // 🚀 CREATE BOOKING
+          // -------------------------------
+          await createBooking(bookingPayload).unwrap();
+
+          toast.success("Trip booked successfully 🎉");
+          navigate("/trips");
+          resolve();
+        } catch (err: any) {
+          console.error("Booking creation failed:", err);
+          toast.error(
+            err?.data?.message ||
+              err?.message ||
+              "Booking failed. Please try again."
+          );
+          setIsSubmitting(false);
+          reject(err);
+        }
+      },
+
+      prefill: {
+        name: passengers[0]?.name || "Guest",
+        contact: passengers[0]?.phoneNumber?.replace(/\D/g, "") || "",
+      },
+
+      notes: {
+        trip_id: tripId,
+        selected_date: formatDateToString(selectedDate),
+        passenger_count: passengers.length,
+      },
+
+      theme: {
+        color: "#3399cc",
+      },
+
+      modal: {
+        ondismiss: () => {
+          toast.info("Payment cancelled");
+          setIsSubmitting(false);
+          reject(new Error("Payment cancelled"));
+        },
+      },
+    };
+
+    // @ts-ignore
+    const razorpay = new window.Razorpay(options);
+
+    razorpay.on("payment.failed", (response: any) => {
+      console.error("Payment failed:", response);
+      toast.error(
+        response.error?.description || "Payment failed. Please try again."
+      );
+      setIsSubmitting(false);
+      reject(response);
     });
-  };
+
+    razorpay.open();
+  });
+};
+
 
   const handleProceed = async () => {
     if (isSubmitting) return;
 
-    if (step === "select-seats" && (selectedDate?.seats === 20 || selectedDate?.seats === 32)) {
+    if (
+      step === "select-seats" &&
+      (selectedDate?.seats === 20 || selectedDate?.seats === 32)
+    ) {
       if (selectedSeats.length === 0) {
         toast.error("Please select at least one seat.");
         return;
       }
       if (selectedPackage || selectedRoomChoice) {
         if (selectedSeats.length !== passengers.length) {
-          toast.error("Number of selected seats must match number of passengers.");
+          toast.error(
+            "Number of selected seats must match number of passengers."
+          );
           return;
         }
       } else {
@@ -507,30 +602,47 @@ const BookingPage = () => {
         return;
       }
 
-      if ((selectedPackage || selectedRoomChoice) &&
-          (selectedDate?.seats === 20 || selectedDate?.seats === 32) &&
-          selectedSeats.length !== passengers.length) {
-        toast.error("Number of selected seats must match number of passengers.");
+      if (
+        (selectedPackage || selectedRoomChoice) &&
+        (selectedDate?.seats === 20 || selectedDate?.seats === 32) &&
+        selectedSeats.length !== passengers.length
+      ) {
+        toast.error(
+          "Number of selected seats must match number of passengers."
+        );
         return;
       }
 
       setIsSubmitting(true);
       try {
-        const numPassengers = (selectedDate?.seats === 20 || selectedDate?.seats === 32) ? selectedSeats.length : passengers.length;
+        const numPassengers =
+          selectedDate?.seats === 20 || selectedDate?.seats === 32
+            ? selectedSeats.length
+            : passengers.length;
         const baseSeatPrice = parseInt(trip?.price) || 1000;
-        let basePrice = selectedPackage ? selectedPackage.price : baseSeatPrice * numPassengers;
+        let basePrice = selectedPackage
+          ? selectedPackage.price
+          : baseSeatPrice * numPassengers;
 
-        const hasDiscount = trip?.discountPercentage !== undefined && trip.discountPercentage > 0 && trip.discountPercentage <= 100;
+        const hasDiscount =
+          trip?.discountPercentage !== undefined &&
+          trip.discountPercentage > 0 &&
+          trip.discountPercentage <= 100;
         if (hasDiscount) {
           basePrice = basePrice * (1 - trip.discountPercentage / 100);
         }
 
-        const roomPrice = selectedRoomChoice ? selectedRoomChoice.price * selectedRoomCount : 0;
+        const roomPrice = selectedRoomChoice
+          ? selectedRoomChoice.price * selectedRoomCount
+          : 0;
         const totalPrice = basePrice + roomPrice;
         const totalGst = totalPrice * 0.05;
         const finalAmount = totalPrice + totalGst;
         const advancePaymentPercentage = trip?.advancePaymentPercentage || 50;
-        const amountToPay = paymentOption === "advance" ? finalAmount * (advancePaymentPercentage / 100) : finalAmount;
+        const amountToPay =
+          paymentOption === "advance"
+            ? finalAmount * (advancePaymentPercentage / 100)
+            : finalAmount;
 
         if (isNaN(totalPrice) || isNaN(totalGst) || isNaN(finalAmount)) {
           throw new Error("Invalid amount calculation");
@@ -541,11 +653,17 @@ const BookingPage = () => {
         }).unwrap();
 
         if (respPayment.success) {
-          await handlePayment(respPayment.paymentDetail, amountToPay, finalAmount);
+          await handlePayment(
+            respPayment.paymentDetail,
+            amountToPay,
+            finalAmount
+          );
         }
       } catch (error: any) {
         console.error("Payment error:", error);
-        toast.error(error.message || error.data?.message || "Payment processing failed.");
+        toast.error(
+          error.message || error.data?.message || "Payment processing failed."
+        );
         setIsSubmitting(false);
       }
     }
@@ -580,10 +698,13 @@ const BookingPage = () => {
   };
 
   const totalSeats = selectedDate?.seats || Number(tripDetails.busSize);
-  const maxAvailableSeats = (selectedPackage || selectedRoomChoice)
-    ? Math.min(totalSeats - bookedSeats.length, selectedPackage?.personCount || 0)
-    : totalSeats - bookedSeats.length;
-
+  const maxAvailableSeats =
+    selectedPackage || selectedRoomChoice
+      ? Math.min(
+          totalSeats - bookedSeats.length,
+          selectedPackage?.personCount || 0
+        )
+      : totalSeats - bookedSeats.length;
   return (
     <div className="min-h-screen bg-gray-50 pt-24 pb-16 relative">
       {isSubmitting && (
@@ -606,19 +727,27 @@ const BookingPage = () => {
           className="text-center mb-12"
         >
           <h1 className="text-4xl font-bold text-gray-900 mb-4">
-            {step === "select-seats" ? "Select Your Seats" : "Passenger Details"}
+            {step === "select-seats"
+              ? "Select Your Seats"
+              : "Passenger Details"}
           </h1>
           <p className="text-gray-600">
             {step === "select-seats"
-              ? `Choose ${selectedPackage || selectedRoomChoice ? `up to ${selectedPackage?.personCount || 0}` : "your"} seats for your journey`
+              ? `Choose ${
+                  selectedPackage || selectedRoomChoice
+                    ? `up to ${selectedPackage?.personCount || 0}`
+                    : "your"
+                } seats for your journey`
               : `Enter details for up to ${maxAvailableSeats} passenger(s)`}
           </p>
         </motion.div>
 
         <div className="grid md:grid-cols-3 gap-8">
           <div className="md:col-span-2">
-            {step === "select-seats" && (totalSeats === 20 || totalSeats === 32) ? (
+            {step === "select-seats" &&
+            (totalSeats === 20 || totalSeats === 32) ? (
               <SeatLayout
+                numberOfBuses={numberOfBuses}
                 totalSeats={totalSeats}
                 selectedSeats={selectedSeats}
                 onSeatSelect={handleSeatSelect}
@@ -648,33 +777,39 @@ const BookingPage = () => {
                     )}
                   </div>
                 ))}
-                {!(totalSeats === 20 || totalSeats === 32) && maxAvailableSeats > passengers.length && (
-                  <Button
-                    onClick={addPassenger}
-                    className="bg-green-500 hover:bg-green-600 text-white"
-                    disabled={isSubmitting}
-                  >
-                    Add Passenger
-                  </Button>
-                )}
+                {!(totalSeats === 20 || totalSeats === 32) &&
+                  maxAvailableSeats > passengers.length && (
+                    <Button
+                      onClick={addPassenger}
+                      className="bg-green-500 hover:bg-green-600 text-white"
+                      disabled={isSubmitting}
+                    >
+                      Add Passenger
+                    </Button>
+                  )}
                 <p className="text-sm text-gray-600">
                   {maxAvailableSeats} seat(s) available
                 </p>
-                {step === "passenger-details" && (totalSeats === 20 || totalSeats === 32) && (
-                  <Button
-                    onClick={handleGoBack}
-                    className="bg-gray-500 hover:bg-gray-600 text-white"
-                    disabled={isSubmitting}
-                  >
-                    Back to Seat Selection
-                  </Button>
-                )}
+                {step === "passenger-details" &&
+                  (totalSeats === 20 || totalSeats === 32) && (
+                    <Button
+                      onClick={handleGoBack}
+                      className="bg-gray-500 hover:bg-gray-600 text-white"
+                      disabled={isSubmitting}
+                    >
+                      Back to Seat Selection
+                    </Button>
+                  )}
               </div>
             )}
           </div>
 
           <div className="md:col-span-1">
             <BookingSummary
+              numberOfBuses={numberOfBuses}
+              seatsPerBus={seatsPerBus}
+              totalCapacity={totalCapacity}
+              bookedSeats={bookedSeats}
               step={step}
               addRoom={addRoom}
               removeRoom={removeRoom}
@@ -703,7 +838,14 @@ const BookingPage = () => {
 };
 
 // SeatLayout Component
-const Seat = ({ id, isBooked, isSelected, onSelect, price, totalSeats }: any) => {
+const Seat = ({
+  id,
+  isBooked,
+  isSelected,
+  onSelect,
+  price,
+  totalSeats,
+}: any) => {
   return (
     <div className="items-center flex flex-col">
       <motion.div
@@ -741,10 +883,11 @@ const Seat = ({ id, isBooked, isSelected, onSelect, price, totalSeats }: any) =>
 
 interface SeatLayoutProps {
   selectedSeats: string[];
-  onSeatSelect: (id: string) => void;
-  bookedSeats: string[];
+  onSeatSelect: (seatId: string, busIndex: number) => void;
+  bookedSeats: { seat: string; busIndex: number }[];
   seatPrice: number;
   totalSeats: number;
+  numberOfBuses: number;
   disabled?: boolean;
 }
 
@@ -754,6 +897,7 @@ const SeatLayout = ({
   bookedSeats,
   seatPrice,
   totalSeats,
+  numberOfBuses,
   disabled = false,
 }: SeatLayoutProps) => {
   const [isTwoSeaterLayout, setIsTwoSeaterLayout] = useState(
@@ -761,9 +905,16 @@ const SeatLayout = ({
   );
   console.log(`isTwoSeaterLayout: ${totalSeats}`);
   const [showLayoutModal, setShowLayoutModal] = useState(false);
+  const [currentBus, setCurrentBus] = useState(0);
 
   const isBlockBooking = selectedSeats.includes("block");
-useEffect(() => {
+const bookedSeatsForBus = bookedSeats
+  .filter((b) => b.busIndex === currentBus)
+  .map((b) => b.seat);
+
+  const isCurrentBusFull = bookedSeatsForBus.length >= totalSeats;
+
+  useEffect(() => {
     setIsTwoSeaterLayout(totalSeats === 32);
   }, [totalSeats]);
   if (totalSeats !== 20 && totalSeats !== 32) {
@@ -790,7 +941,7 @@ useEffect(() => {
         ["13", "", "14", "15"],
         ["16", "17", "18", "19"],
       ];
-console.log("Seat Layout:", isTwoSeaterLayout);
+  console.log("Seat Layout:", isTwoSeaterLayout);
   useEffect(() => {
     if (
       !isBlockBooking &&
@@ -809,6 +960,14 @@ console.log("Seat Layout:", isTwoSeaterLayout);
     if (!isBlockBooking && selectedSeats.length > 11) {
       setShowLayoutModal(true);
     }
+  };
+  useEffect(() => {
+    if (isCurrentBusFull && currentBus < numberOfBuses - 1) {
+      setCurrentBus((prev) => prev + 1);
+    }
+  }, [isCurrentBusFull, currentBus, numberOfBuses]);
+  const handleSeatClick = (seatId: string) => {
+    onSeatSelect(seatId, currentBus);
   };
 
   if (isBlockBooking) {
@@ -835,6 +994,12 @@ console.log("Seat Layout:", isTwoSeaterLayout);
         disabled ? "opacity-50 pointer-events-none" : ""
       }`}
     >
+      {isCurrentBusFull && (
+  <p className="text-green-600 text-sm mb-3 text-center">
+    This bus is fully booked. Moving to next bus…
+  </p>
+)}
+
       <div className="mb-6 flex justify-between items-center">
         <div className="flex gap-4">
           <div className="flex items-center">
@@ -885,11 +1050,10 @@ console.log("Seat Layout:", isTwoSeaterLayout);
                 {seatId ? (
                   <Seat
                     id={seatId}
-                    isBooked={bookedSeats.includes(seatId)}
-                    isSelected={selectedSeats.includes(seatId)}
-                    onSelect={onSeatSelect}
-                    price={seatPrice}
-                    totalSeats={totalSeats}
+          isBooked={bookedSeatsForBus.includes(seatId)}
+isSelected={selectedSeats.includes(`${currentBus}-${seatId}`)}
+
+                    onSelect={() => handleSeatClick(seatId)}
                   />
                 ) : (
                   <div className="w-10 h-16"></div>
@@ -897,8 +1061,31 @@ console.log("Seat Layout:", isTwoSeaterLayout);
               </div>
             ))
           )}
+          
         </div>
       </div>
+      <div className="flex justify-between items-center mb-4">
+  <Button
+    onClick={() => setCurrentBus(b => Math.max(0, b - 1))}
+    disabled={currentBus === 0}
+    variant="outline"
+  >
+    Previous Bus
+  </Button>
+
+  <span className="font-semibold">
+    Bus {currentBus + 1} of {numberOfBuses}
+  </span>
+
+  <Button
+    onClick={() => setCurrentBus(b => Math.min(numberOfBuses - 1, b + 1))}
+    disabled={currentBus === numberOfBuses - 1}
+    variant="outline"
+  >
+    Next Bus
+  </Button>
+</div>
+
     </div>
   );
 };
@@ -959,7 +1146,9 @@ const PassengerForm = ({
     const isEmpty = value.trim() === "";
     setErrors((prevErrors) => ({
       ...prevErrors,
-      [name]: isEmpty || (name === "gender" && !["male", "female", "other"].includes(value)) ||
+      [name]:
+        isEmpty ||
+        (name === "gender" && !["male", "female", "other"].includes(value)) ||
         (name === "idProof" && !["aadhar", "pan"].includes(value)),
     }));
 
@@ -967,15 +1156,16 @@ const PassengerForm = ({
       ...prevMessages,
       [name]: isEmpty
         ? `Please enter ${name}`
-        : (name === "gender" && !["male", "female", "other"].includes(value))
+        : name === "gender" && !["male", "female", "other"].includes(value)
         ? "Please select a valid gender"
-        : (name === "idProof" && !["aadhar", "pan"].includes(value))
+        : name === "idProof" && !["aadhar", "pan"].includes(value)
         ? "Please select a valid ID proof type"
         : "",
     }));
   };
 
-  const hasBoardingPoints = tripDetails.boardingPoints && tripDetails.boardingPoints.length > 0;
+  const hasBoardingPoints =
+    tripDetails.boardingPoints && tripDetails.boardingPoints.length > 0;
 
   return (
     <motion.div
@@ -1002,7 +1192,9 @@ const PassengerForm = ({
             aria-invalid={errors.name ? "true" : "false"}
             required
           />
-          {errors.name && <p className="text-red-500 text-xs">{errorMessages.name}</p>}
+          {errors.name && (
+            <p className="text-red-500 text-xs">{errorMessages.name}</p>
+          )}
         </div>
 
         <div>
@@ -1020,7 +1212,9 @@ const PassengerForm = ({
             aria-invalid={errors.age ? "true" : "false"}
             required
           />
-          {errors.age && <p className="text-red-500 text-xs">{errorMessages.age}</p>}
+          {errors.age && (
+            <p className="text-red-500 text-xs">{errorMessages.age}</p>
+          )}
         </div>
 
         <div>
@@ -1042,7 +1236,9 @@ const PassengerForm = ({
             <option value="female">Female</option>
             <option value="other">Other</option>
           </select>
-          {errors.gender && <p className="text-red-500 text-xs">{errorMessages.gender}</p>}
+          {errors.gender && (
+            <p className="text-red-500 text-xs">{errorMessages.gender}</p>
+          )}
         </div>
       </div>
 
@@ -1064,7 +1260,9 @@ const PassengerForm = ({
             <option value="aadhar">Aadhar</option>
             <option value="pan">PAN</option>
           </select>
-          {errors.idProof && <p className="text-red-500 text-xs">{errorMessages.idProof}</p>}
+          {errors.idProof && (
+            <p className="text-red-500 text-xs">{errorMessages.idProof}</p>
+          )}
         </div>
 
         <div>
@@ -1082,7 +1280,11 @@ const PassengerForm = ({
             aria-invalid={errors.idProofNumber ? "true" : "false"}
             required
           />
-          {errors.idProofNumber && <p className="text-red-500 text-xs">{errorMessages.idProofNumber}</p>}
+          {errors.idProofNumber && (
+            <p className="text-red-500 text-xs">
+              {errorMessages.idProofNumber}
+            </p>
+          )}
         </div>
 
         {hasBoardingPoints && (
@@ -1123,7 +1325,9 @@ const PassengerForm = ({
             aria-invalid={errors.phoneNumber ? "true" : "false"}
             required
           />
-          {errors.phoneNumber && <p className="text-red-500 text-xs">{errorMessages.phoneNumber}</p>}
+          {errors.phoneNumber && (
+            <p className="text-red-500 text-xs">{errorMessages.phoneNumber}</p>
+          )}
         </div>
       </div>
     </motion.div>
@@ -1151,23 +1355,39 @@ const BookingSummary = ({
   step,
   onProceed,
   disabled = false,
+  numberOfBuses,
+  totalCapacity,
+  bookedSeats,
 }: BookingSummaryProps) => {
   const totalSeats = selectedDate?.seats || 0;
   console.log("Total Seats:", totalSeats);
   const isSeatSelection = totalSeats === 20 || totalSeats === 32;
-  const numPassengers = isSeatSelection ? selectedSeats.length : passengers.length;
+  const numPassengers = isSeatSelection
+    ? selectedSeats.length
+    : passengers.length;
 
   // Debugging log
-  console.log("BookingSummary props:", { disabled, selectedRoomCount, numPassengers });
+  console.log("BookingSummary props:", {
+    disabled,
+    selectedRoomCount,
+    numPassengers,
+  });
 
-  let basePrice = selectedPackage ? selectedPackage.price : (tripDetails.baseSeatPrice || 1000) * numPassengers;
-  const hasDiscount = tripDetails.discountPercentage !== undefined && tripDetails.discountPercentage > 0 && tripDetails.discountPercentage <= 100;
+  let basePrice = selectedPackage
+    ? selectedPackage.price
+    : (tripDetails.baseSeatPrice || 1000) * numPassengers;
+  const hasDiscount =
+    tripDetails.discountPercentage !== undefined &&
+    tripDetails.discountPercentage > 0 &&
+    tripDetails.discountPercentage <= 100;
   const originalBasePrice = basePrice;
   if (hasDiscount) {
     basePrice = basePrice * (1 - tripDetails.discountPercentage / 100);
   }
 
-  const roomPrice = selectedRoomChoice ? selectedRoomChoice.price * selectedRoomCount : 0;
+  const roomPrice = selectedRoomChoice
+    ? selectedRoomChoice.price * selectedRoomCount
+    : 0;
   const totalPrice = basePrice + roomPrice;
   const totalGst = totalPrice * 0.05;
   const finalAmount = totalPrice + totalGst;
@@ -1197,9 +1417,25 @@ const BookingSummary = ({
       variants={fadeInUp}
       initial="initial"
       animate="animate"
-      className={`bg-white rounded-xl shadow-lg p-6 ${disabled ? "opacity-50" : ""}`}
+      className={`bg-white rounded-xl shadow-lg p-6 ${
+        disabled ? "opacity-50" : ""
+      }`}
     >
       <h3 className="text-xl font-semibold mb-4">Booking Summary</h3>
+      <div className="flex justify-between mb-2">
+        <span>Total Buses</span>
+        <span>{numberOfBuses}</span>
+      </div>
+
+      <div className="flex justify-between mb-2">
+        <span>Total Capacity</span>
+        <span>{totalCapacity} seats</span>
+      </div>
+
+      <div className="flex justify-between mb-2">
+        <span>Available Seats</span>
+        <span>{totalCapacity - bookedSeats.length}</span>
+      </div>
 
       <div className="space-y-4 mb-6">
         <div className="flex items-center text-gray-600">
@@ -1262,10 +1498,16 @@ const BookingSummary = ({
                         </span>
                         <br />
                         <span>
-                          After: ₹{Math.round(pkg.price * (1 - tripDetails.discountPercentage / 100)).toLocaleString("en-IN")}
+                          After: ₹
+                          {Math.round(
+                            pkg.price *
+                              (1 - tripDetails.discountPercentage / 100)
+                          ).toLocaleString("en-IN")}
                         </span>
                         <br />
-                        <span className="text-green-600">{tripDetails.discountPercentage}% off</span>
+                        <span className="text-green-600">
+                          {tripDetails.discountPercentage}% off
+                        </span>
                       </>
                     ) : (
                       <span>₹{pkg.price.toLocaleString("en-IN")}</span>
@@ -1289,13 +1531,22 @@ const BookingSummary = ({
                     selectedRoomChoice?._id === room._id
                       ? "border-blue-500 bg-blue-50"
                       : "border-gray-300 hover:bg-gray-50"
-                  } ${index === 0 ? "cursor-pointer opacity-75" : "cursor-pointer"}`}
+                  } ${
+                    index === 0 ? "cursor-pointer opacity-75" : "cursor-pointer"
+                  }`}
                   onClick={() => !disabled && setSelectedRoomChoice(room)}
                 >
                   <h4 className="font-semibold">{room.type}</h4>
                   <p className="text-sm text-gray-600">{room.description}</p>
                   <p className="text-sm font-medium mt-2">
-                    ₹{room.price.toLocaleString("en-IN")} x {selectedRoomChoice?._id === room._id ? selectedRoomCount : 1} {selectedRoomChoice?._id === room._id && selectedRoomCount > 1 ? "rooms" : "room"}
+                    ₹{room.price.toLocaleString("en-IN")} x{" "}
+                    {selectedRoomChoice?._id === room._id
+                      ? selectedRoomCount
+                      : 1}{" "}
+                    {selectedRoomChoice?._id === room._id &&
+                    selectedRoomCount > 1
+                      ? "rooms"
+                      : "room"}
                   </p>
                   {selectedRoomChoice?._id === room._id && (
                     <div className="absolute top-2 right-2 flex space-x-2">
@@ -1360,12 +1611,31 @@ const BookingSummary = ({
       </div>
 
       <div className="border-t border-gray-200 pt-4 mb-6">
-        {isSeatSelection && (
-          <div className="flex justify-between mb-2">
-            <span>Selected Seats</span>
-            <span>{selectedSeats.join(", ") || "None"}</span>
-          </div>
-        )}
+        
+    {isSeatSelection && (
+  <div className="flex justify-between mb-2">
+    <span>Selected Seats</span>
+  <span>
+    {selectedSeats.length === 0
+  ? "None"
+  : Object.entries(
+      selectedSeats.reduce((acc: Record<number, number[]>, seat) => {
+        const [busIndex, seatNo] = seat.split("-").map(Number);
+        if (!acc[busIndex]) acc[busIndex] = [];
+        acc[busIndex].push(seatNo);
+        return acc;
+      }, {})
+    )
+      .map(
+        ([busIndex, seats]) =>
+          `Bus ${Number(busIndex) + 1}: ${seats.sort((a, b) => a - b).join(", ")}`
+      )
+      .join(" | ")}
+
+  </span>
+  </div>
+)}
+
         <div className="flex justify-between mb-2">
           <span>Number of Passengers</span>
           <span>{numPassengers}</span>
@@ -1390,7 +1660,10 @@ const BookingSummary = ({
         </div>
         {selectedRoomChoice && (
           <div className="flex justify-between mb-2">
-            <span>Room Price ({selectedRoomCount} {selectedRoomCount > 1 ? "rooms" : "room"})</span>
+            <span>
+              Room Price ({selectedRoomCount}{" "}
+              {selectedRoomCount > 1 ? "rooms" : "room"})
+            </span>
             <span>₹{roomPrice.toLocaleString("en-IN")}</span>
           </div>
         )}
@@ -1409,22 +1682,42 @@ const BookingSummary = ({
         {paymentOption === "advance" && (
           <div className="flex justify-between font-semibold text-lg mt-2">
             <span>Advance Payment ({advancePaymentPercentage}%)</span>
-            <span>₹{(finalAmount * (advancePaymentPercentage / 100)).toLocaleString("en-IN")}</span>
+            <span>
+              ₹
+              {(finalAmount * (advancePaymentPercentage / 100)).toLocaleString(
+                "en-IN"
+              )}
+            </span>
           </div>
         )}
       </div>
 
       <Button
         onClick={() => !disabled && onProceed()}
-        disabled={(isSeatSelection && selectedSeats.length === 0 && step === "select-seats") || !selectedDate || loading || disabled}
+        disabled={
+          (isSeatSelection &&
+            selectedSeats.length === 0 &&
+            step === "select-seats") ||
+          !selectedDate ||
+          loading ||
+          disabled
+        }
         className={`w-full relative ${
-          (isSeatSelection && selectedSeats.length === 0 && step === "select-seats") || !selectedDate || loading || disabled
+          (isSeatSelection &&
+            selectedSeats.length === 0 &&
+            step === "select-seats") ||
+          !selectedDate ||
+          loading ||
+          disabled
             ? "bg-gray-300 cursor-not-allowed"
             : "bg-blue-600 hover:bg-blue-700 text-white"
         }`}
       >
         {loading && <FaSpinner className="animate-spin inline mr-2" />}
-        Proceed to {isSeatSelection && step === "select-seats" ? "Passenger Details" : "Payment"}
+        Proceed to{" "}
+        {isSeatSelection && step === "select-seats"
+          ? "Passenger Details"
+          : "Payment"}
       </Button>
     </motion.div>
   );

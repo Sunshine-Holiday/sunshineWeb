@@ -49,6 +49,7 @@ interface BoardingPoint {
 interface StartDate {
   date: Date;
   seats: number | "block";
+  numberOfBusesAvailable: number;
 }
 
 interface Package {
@@ -98,6 +99,15 @@ const formatDateToString = (date: Date): string => {
 };
 
 const AdminTripForm: React.FC = () => {
+  const [numberOfBuses, setNumberOfBuses] = useState<number | "">("");
+const [numberOfBusesError, setNumberOfBusesError] = useState<string>("");
+const validateBuses = (value: number | "") => {
+  if (value === "") return "Number of buses is required";
+  if (!Number.isInteger(value) || value <= 0)
+    return "Enter a valid number of buses";
+  return "";
+};
+
   const [createTrips] = useCreatetripsMutation();
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -335,43 +345,54 @@ const AdminTripForm: React.FC = () => {
     }
   };
 
-  const handleModalSubmit = () => {
-    if (selectedDate && selectedSeats !== null) {
-      const newStartDate: StartDate = {
-        date: selectedDate,
-        seats: selectedSeats === "block" ? "block" : selectedSeats,
-      };
-      const newDates = [...tripDetails.startDates, newStartDate].sort((a, b) =>
-        a.date.getTime() - b.date.getTime()
-      );
-      setTripDetails({ ...tripDetails, startDates: newDates });
-      setErrors({ ...errors, startDates: "" });
-      setIsModalOpen(false);
-      setSelectedDate(null);
-      setSelectedSeats(null);
-      setSeatSelectionType(null);
-      setBlockSeats("");
-      setBlockSeatsError("");
-    } else if (seatSelectionType === "block") {
-      const error = validateBlockSeats(blockSeats);
-      if (error) {
-        setBlockSeatsError(error);
-      } else {
-        const newStartDate: StartDate = { date: selectedDate!, seats: parseInt(blockSeats) };
-        const newDates = [...tripDetails.startDates, newStartDate].sort((a, b) =>
-          a.date.getTime() - b.date.getTime()
-        );
-        setTripDetails({ ...tripDetails, startDates: newDates });
-        setErrors({ ...errors, startDates: "" });
-        setIsModalOpen(false);
-        setSelectedDate(null);
-        setSelectedSeats(null);
-        setSeatSelectionType(null);
-        setBlockSeats("");
-        setBlockSeatsError("");
-      }
+const handleModalSubmit = () => {
+  const busError = validateBuses(numberOfBuses);
+  if (busError) {
+    setNumberOfBusesError(busError);
+    return;
+  }
+
+  if (!selectedDate) return;
+
+  let finalSeats: number | "block" | null = null;
+
+  if (seatSelectionType === "block") {
+    const error = validateBlockSeats(blockSeats);
+    if (error) {
+      setBlockSeatsError(error);
+      return;
     }
+    finalSeats = parseInt(blockSeats);
+  } else {
+    finalSeats = selectedSeats;
+  }
+
+  if (finalSeats === null) return;
+
+  const newStartDate: StartDate = {
+    date: selectedDate,
+    seats: finalSeats,
+    numberOfBusesAvailable: Number(numberOfBuses),
   };
+
+  const newDates = [...tripDetails.startDates, newStartDate].sort(
+    (a, b) => a.date.getTime() - b.date.getTime()
+  );
+
+  setTripDetails({ ...tripDetails, startDates: newDates });
+  setErrors({ ...errors, startDates: "" });
+
+  // Reset modal state
+  setIsModalOpen(false);
+  setSelectedDate(null);
+  setSelectedSeats(null);
+  setSeatSelectionType(null);
+  setBlockSeats("");
+  setBlockSeatsError("");
+  setNumberOfBuses("");
+  setNumberOfBusesError("");
+};
+
 
   const validateForm = () => {
     const requiredFields = ["title", "location", "description", "category", "file", "price"];
@@ -446,6 +467,7 @@ const AdminTripForm: React.FC = () => {
           tripDetails.startDates.map((d) => ({
             date: formatDateToString(d.date),
             seats: d.seats,
+            numberOfBusesAvailable: d.numberOfBusesAvailable,
           }))
         )
       );
@@ -641,7 +663,9 @@ const AdminTripForm: React.FC = () => {
                   id: index,
                   start: new Date(d.date.setHours(0, 0, 0, 0)),
                   end: new Date(d.date.setHours(0, 0, 0, 0)),
-                  title: `${formatDateToString(d.date)} (${d.seats === "block" ? "Block" : `${d.seats} Seats`})`,
+              title: `${formatDateToString(d.date)} • ${
+  d.seats === "block" ? "Block" : `${d.seats} Seats`
+} • ${d?.numberOfBusesAvailable} Bus(es)`,
                 }))}
                 selectable
                 onSelectSlot={(slotInfo) => handleDateSelection(slotInfo.start)}
@@ -927,6 +951,25 @@ const AdminTripForm: React.FC = () => {
                 {blockSeatsError && <p className="mt-1 text-sm text-red-500">{blockSeatsError}</p>}
               </div>
             )}
+            <div className="mt-4">
+  <Label htmlFor="numberOfBuses">Number of Buses Available</Label>
+  <Input
+    id="numberOfBuses"
+    type="number"
+    placeholder="e.g., 2"
+    value={numberOfBuses}
+    onChange={(e) => {
+      const value = e.target.value === "" ? "" : parseInt(e.target.value);
+      setNumberOfBuses(value);
+      setNumberOfBusesError(validateBuses(value));
+    }}
+    className={numberOfBusesError ? "border-red-500" : ""}
+  />
+  {numberOfBusesError && (
+    <p className="mt-1 text-sm text-red-500">{numberOfBusesError}</p>
+  )}
+</div>
+
             <DialogFooter>
               <Button
                 variant="outline"

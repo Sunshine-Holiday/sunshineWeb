@@ -8,16 +8,18 @@ interface SeatProps {
   isSelected: boolean;
   onSelect: (id: string) => void;
   price: number;
+  disabled?: boolean;
   totalSeats: number;
 }
 
-const Seat = ({ id, isBooked, isSelected, onSelect }: SeatProps) => {
+const Seat = ({ id, isBooked, isSelected, onSelect, disabled }: SeatProps) => {
   return (
     <div className="items-center flex flex-col">
       <motion.button
         whileHover={{ scale: 1.1 }}
         whileTap={{ scale: 0.95 }}
-        onClick={() => !isBooked && onSelect(id)}
+      onClick={() => !isBooked && !disabled && onSelect(id)}
+
         disabled={isBooked}
         className={`w-10 h-16 rounded-lg m-1 flex flex-col items-center justify-center transition-colors
         ${
@@ -50,6 +52,10 @@ interface SeatLayoutProps {
   bookedSeats: string[];
   seatPrice: number;
   totalSeats: number;
+  disabled?: boolean; // ✅ ADD THIS
+    currentBus: number;          // ✅
+  numberOfBuses: number;       // ✅
+  onBusChange: (n: number) => void; // ✅
 }
 
 export const SeatLayout = ({
@@ -58,7 +64,10 @@ export const SeatLayout = ({
   bookedSeats,
   seatPrice,
   totalSeats,
-  disabled
+  disabled,
+  currentBus,
+  numberOfBuses,
+  onBusChange,
 }: SeatLayoutProps) => {
   const [isTwoSeaterLayout, setIsTwoSeaterLayout] = useState(
     totalSeats !== 20 ? true : false
@@ -91,6 +100,26 @@ useEffect(() => {
 
   // Condition to show modal when more than 15 seats are selected
   const shouldShowLayoutChange = selectedSeats.length > 11;
+useEffect(() => {
+  if (
+    bookedSeats.length >= totalSeats &&
+    currentBus < numberOfBuses - 1
+  ) {
+    onBusChange(currentBus + 1);
+  }
+}, [bookedSeats, totalSeats, currentBus, numberOfBuses]);
+useEffect(() => {
+  const bookedForCurrentBus = bookedSeats.filter(
+    s => s.startsWith(`${currentBus}-`)
+  );
+
+  if (
+    bookedForCurrentBus.length >= totalSeats &&
+    currentBus < numberOfBuses - 1
+  ) {
+    onBusChange(currentBus + 1);
+  }
+}, [bookedSeats, currentBus, numberOfBuses, totalSeats]);
 
   useEffect(() => {
     if (bookedSeats.length === seats.flat().filter(Boolean).length) {
@@ -160,10 +189,14 @@ useEffect(() => {
               >
                 {seatId ? (
                   <Seat
+                  disabled={disabled}
                     id={seatId}
-                    isBooked={bookedSeats.includes(seatId)}
-                    isSelected={selectedSeats.includes(seatId)}
-                    onSelect={onSeatSelect}
+       isBooked={bookedSeats.includes(`${currentBus}-${seatId}`)}
+
+                 isSelected={selectedSeats.includes(`${currentBus}-${seatId}`)}
+
+                   onSelect={() => onSeatSelect(`${currentBus}-${seatId}`)}
+
                     price={seatPrice}
                     totalSeats={totalSeats}
                   />
@@ -175,6 +208,30 @@ useEffect(() => {
           )}
         </div>
       </div>
+      <div className="flex justify-between items-center mt-6">
+  <button
+    onClick={() => onBusChange(Math.max(0, currentBus - 1))}
+    disabled={currentBus === 0}
+    className="px-4 py-2 border rounded disabled:opacity-50"
+  >
+    Previous Bus
+  </button>
+
+  <span className="font-semibold">
+    Bus {currentBus + 1} of {numberOfBuses}
+  </span>
+
+  <button
+    onClick={() =>
+      onBusChange(Math.min(numberOfBuses - 1, currentBus + 1))
+    }
+    disabled={currentBus === numberOfBuses - 1}
+    className="px-4 py-2 border rounded disabled:opacity-50"
+  >
+    Next Bus
+  </button>
+</div>
+
     </div>
   );
 };

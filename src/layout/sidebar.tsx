@@ -49,11 +49,7 @@ const navigationItems = [
     href: "/admin/booked",
     icon: CheckSquare, // Represents booked items
   },
-  {
-    name: "Refund",
-    href: "/admin/refund",
-    icon: CopyX, // Represents booked items
-  },
+
   {
     name: "Gallery",
     href: "/admin/gallery",
