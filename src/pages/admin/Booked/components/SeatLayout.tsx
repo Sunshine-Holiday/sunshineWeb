@@ -101,13 +101,18 @@ useEffect(() => {
   // Condition to show modal when more than 15 seats are selected
   const shouldShowLayoutChange = selectedSeats.length > 11;
 useEffect(() => {
+  const bookedForCurrentBus = bookedSeats.filter(
+    s => s.startsWith(`${currentBus}-`)
+  );
+
   if (
-    bookedSeats.length >= totalSeats &&
+    bookedForCurrentBus.length >= totalSeats &&
     currentBus < numberOfBuses - 1
   ) {
     onBusChange(currentBus + 1);
   }
-}, [bookedSeats, totalSeats, currentBus, numberOfBuses]);
+}, [bookedSeats, currentBus, numberOfBuses, totalSeats]);
+
 useEffect(() => {
   const bookedForCurrentBus = bookedSeats.filter(
     s => s.startsWith(`${currentBus}-`)

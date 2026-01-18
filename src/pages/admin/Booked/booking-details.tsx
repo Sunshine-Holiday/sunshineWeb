@@ -29,6 +29,7 @@ import {
   AlertCircle,
   Filter,
   ArrowLeft,
+  Armchair,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -75,6 +76,7 @@ const BookingDetails = () => {
   const { date, tripId, tripName } = state || {};
   const [activeTab, setActiveTab] = useState("table");
   const [editingBooking, setEditingBooking] = useState<string | null>(null);
+
   const [newSeatNumber, setNewSeatNumber] = useState("");
   const [deleteBookingId, setDeleteBookingId] = useState<string | null>(null);
   const [reviewFilter, setReviewFilter] = useState("all");
@@ -101,33 +103,37 @@ const BookingDetails = () => {
   // Mutations
   const [updateTrip, { isLoading: isUpdatingTrip }] = useUpdateTripMutation();
   const [deleteBooking, { isLoading: isDeleting }] = useDeleteBookingMutation();
-  const [updateBooking, { isLoading: isUpdatingBooking }] = useUpdateBookingMutation();
-  const [updateReview, { isLoading: isUpdatingReview }] = useUpdateReviewMutation();
+  const [updateBooking, { isLoading: isUpdatingBooking }] =
+    useUpdateBookingMutation();
+  const [updateReview, { isLoading: isUpdatingReview }] =
+    useUpdateReviewMutation();
 
   // Extract booked seats from all bookings
-  const bookedSeats =
-    bookingData?.purchaseHistory
-      .flatMap((booking) => booking.selectedSeats)
-      .filter((seat) => /^\d+$/.test(seat)) || [];
+// Near the top, after queries
+const bookedSeats = bookingData?.purchaseHistory.flatMap((booking) =>
+  booking.selectedSeats.map(({ seat, busIndex }) => ({
+    seat,
+    busIndex,
+  }))
+) || [];
 
   const handleSeatSelect = (id: string) => {
     console.log(`Seat ${id} clicked in view-only mode`);
   };
 
-  const handleEditClick = (bookingId: string, seat: string) => {
-    setEditingBooking(`${bookingId}-${seat}`);
-    setNewSeatNumber(seat);
-  };
+  
+
 
   const handleSubmitEdit = async (bookingSeatId: string) => {
-    const [bookingId, originalSeat] = bookingSeatId.split("-");
+    const [bookingId, oldSeat, busIndex] = bookingSeatId.split("-");
     try {
       await updateTrip({
         bookingId,
-        oldSeat: originalSeat,
+        oldSeat,
         newSeat: newSeatNumber,
+        busIndex: Number(busIndex),
       }).unwrap();
-      toast.success(`Seat updated from ${originalSeat} to ${newSeatNumber}`);
+      toast.success(`Seat updated from ${oldSeat} to ${newSeatNumber}`);
       setEditingBooking(null);
       setNewSeatNumber("");
       refetchBookings();
@@ -154,14 +160,19 @@ const BookingDetails = () => {
     setDeleteBookingId(bookingId);
   };
 
-  const handleToggleReviewActivate = async (bookingId: string, currentStatus: boolean) => {
+  const handleToggleReviewActivate = async (
+    bookingId: string,
+    currentStatus: boolean
+  ) => {
     try {
       await updateBooking({
         bookingId,
         reviewEnabled: !currentStatus,
       }).unwrap();
       toast.success(
-        `Review ${!currentStatus ? "enabled" : "disabled"} for booking ${bookingId.substring(0, 8)}...`
+        `Review ${
+          !currentStatus ? "enabled" : "disabled"
+        } for booking ${bookingId.substring(0, 8)}...`
       );
       refetchBookings();
     } catch (error) {
@@ -178,7 +189,9 @@ const BookingDetails = () => {
         isAdminDisApproved: status === "admin_rejected",
       }).unwrap();
       toast.success(
-        `Review ${status === "admin_approved" ? "approved" : "disapproved"} successfully`
+        `Review ${
+          status === "admin_approved" ? "approved" : "disapproved"
+        } successfully`
       );
       refetchReviews();
     } catch (error) {
@@ -188,14 +201,15 @@ const BookingDetails = () => {
   };
 
   // Filter reviews
-  const filteredReviews = reviewData?.filter((review) => {
-    if (reviewFilter === "all") return true;
-    if (reviewFilter === "approved") return review.isAdminApproved;
-    if (reviewFilter === "disapproved") return review.isAdminDisApproved;
-    if (reviewFilter === "pending")
-      return !review.isAdminApproved && !review.isAdminDisApproved;
-    return true;
-  }) || [];
+  const filteredReviews =
+    reviewData?.filter((review) => {
+      if (reviewFilter === "all") return true;
+      if (reviewFilter === "approved") return review.isAdminApproved;
+      if (reviewFilter === "disapproved") return review.isAdminDisApproved;
+      if (reviewFilter === "pending")
+        return !review.isAdminApproved && !review.isAdminDisApproved;
+      return true;
+    }) || [];
 
   if (isBookingLoading || isReviewLoading) {
     return (
@@ -216,7 +230,9 @@ const BookingDetails = () => {
         <div className="flex justify-center items-center h-64">
           <div className="text-center">
             <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-            <h2 className="text-xl font-semibold text-red-500 mb-2">Failed to load data</h2>
+            <h2 className="text-xl font-semibold text-red-500 mb-2">
+              Failed to load data
+            </h2>
             <p className="text-gray-600 mb-4">
               There was an error loading booking details.
             </p>
@@ -233,7 +249,10 @@ const BookingDetails = () => {
 
   const totalSeats = tripDetails?.totalSeatsAvailable || 0;
   const bookedSeatCount = purchaseHistory.reduce((count, booking) => {
-    return count + booking.selectedSeats.filter((seat: string) => /^\d+$/.test(seat)).length;
+    return (
+      count +
+      booking.selectedSeats.filter((seat: string) => /^\d+$/.test(seat)).length
+    );
   }, 0);
   const availableSeatCount = totalSeats - bookedSeatCount;
   const showSeatLayout = totalSeats === 20 || totalSeats === 32;
@@ -261,11 +280,18 @@ const BookingDetails = () => {
           </div>
         </div>
         <div className="flex flex-wrap gap-2 mt-4 md:mt-0">
-          <Badge variant="outline" className="px-3 py-1 bg-blue-50 text-blue-600 font-medium">
+          <Badge
+            variant="outline"
+            className="px-3 py-1 bg-blue-50 text-blue-600 font-medium"
+          >
             <Ticket className="h-4 w-4 mr-1" />
-            {purchaseHistory.length} {purchaseHistory.length === 1 ? "Booking" : "Bookings"}
+            {purchaseHistory.length}{" "}
+            {purchaseHistory.length === 1 ? "Booking" : "Bookings"}
           </Badge>
-          <Badge variant="outline" className="px-3 py-1 bg-green-50 text-green-600 font-medium">
+          <Badge
+            variant="outline"
+            className="px-3 py-1 bg-green-50 text-green-600 font-medium"
+          >
             <MapPin className="h-4 w-4 mr-1" />
             {availableSeatCount} Seats Available
           </Badge>
@@ -293,7 +319,9 @@ const BookingDetails = () => {
             <Card className="border-dashed">
               <CardHeader className="text-center pb-2">
                 <CardTitle>No Bookings Found</CardTitle>
-                <CardDescription>There are no bookings for this trip on {selectedDate}</CardDescription>
+                <CardDescription>
+                  There are no bookings for this trip on {selectedDate}
+                </CardDescription>
               </CardHeader>
               <CardContent className="flex justify-center py-8">
                 <Ticket className="h-16 w-16 text-gray-300" />
@@ -303,7 +331,9 @@ const BookingDetails = () => {
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle>Bookings</CardTitle>
-                <CardDescription>Manage all bookings for this trip</CardDescription>
+                <CardDescription>
+                  Manage all bookings for this trip
+                </CardDescription>
               </CardHeader>
               <CardContent className="p-0">
                 <div className="overflow-x-auto">
@@ -313,17 +343,31 @@ const BookingDetails = () => {
                         <TableHead className="w-1/7">Booking ID</TableHead>
                         <TableHead className="w-1/7">Lead Passenger</TableHead>
                         <TableHead className="w-1/7">Phone</TableHead>
-                        <TableHead className="w-1/7 text-center">Passengers</TableHead>
-                        <TableHead className="w-1/7 text-center">Selected Seats</TableHead>
-                        <TableHead className="w-1/7 text-right">Price Details</TableHead>
-                
-                        <TableHead className="w-1/7 text-center">Actions</TableHead>
+                        <TableHead className="w-1/7 text-center">
+                          Passengers
+                        </TableHead>
+                        <TableHead className="w-1/7 text-center">
+                          Selected Seats
+                        </TableHead>
+                        <TableHead className="w-1/7 text-right">
+                          Price Details
+                        </TableHead>
+
+                        <TableHead className="w-1/7 text-center">
+                          Actions
+                        </TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {purchaseHistory.map((booking) => (
-                        <TableRow key={booking.bookingId} className="hover:bg-gray-50">
-                          <TableCell className="font-medium truncate" title={booking.bookingId}>
+                        <TableRow
+                          key={booking.bookingId}
+                          className="hover:bg-gray-50"
+                        >
+                          <TableCell
+                            className="font-medium truncate"
+                            title={booking.bookingId}
+                          >
                             {booking.bookingId.substring(0, 8)}...
                           </TableCell>
 
@@ -339,31 +383,50 @@ const BookingDetails = () => {
                             {booking.totalPassengers}
                           </TableCell>
 
-                          <TableCell>
-                            <div className="flex flex-wrap gap-1 justify-center">
-                            {booking.selectedSeats.map(({ seat, busIndex }) => (
-  <Badge key={`${seat}-${busIndex}`} variant="secondary" className="text-xs">
-    {seat}
-  </Badge>
-))}
+                     <TableCell>
+  <div className="flex flex-wrap gap-1 justify-center">
+    {booking.selectedSeats.map(({ seat, busIndex }, index) => (
+      <div
+        key={`${booking.bookingId}-${seat}-${busIndex}-${index}`}
+        className="flex items-center"
+      >
+        <Badge variant="secondary" className="bg-blue-100 text-blue-700 px-2.5 py-0.5">
+          {seat}
+          <span className="ml-1.5 text-xs text-gray-600 font-normal">
+            Bus {busIndex + 1}
+          </span>
+        </Badge>
+      </div>
+    ))}
 
-                            </div>
-                          </TableCell>
+    {booking.selectedSeats.length === 0 && (
+      <span className="text-gray-400 text-sm italic">—</span>
+    )}
+  </div>
+</TableCell>
 
                           <TableCell className="text-right font-medium">
                             <div className="flex flex-col items-end">
-                              <span>Total: ₹{booking.price.toLocaleString("en-IN")}</span>
-                              <span>Paid: ₹{(booking.advancePaid || 0).toLocaleString("en-IN")}</span>
-                              <span>Remaining: ₹{(booking.remainingBalance || 0).toLocaleString("en-IN")}</span>
+                              <span>
+                                Total: ₹{booking.price.toLocaleString("en-IN")}
+                              </span>
+                              <span>
+                                Paid: ₹
+                                {(booking.advancePaid || 0).toLocaleString(
+                                  "en-IN"
+                                )}
+                              </span>
+                              <span>
+                                Remaining: ₹
+                                {(booking.remainingBalance || 0).toLocaleString(
+                                  "en-IN"
+                                )}
+                              </span>
                             </div>
                           </TableCell>
 
-             
-
                           <TableCell>
                             <div className="flex justify-center space-x-2">
-                       
-
                               <AlertDialog>
                                 <TooltipProvider>
                                   <Tooltip>
@@ -372,7 +435,9 @@ const BookingDetails = () => {
                                         <Button
                                           variant="destructive"
                                           size="sm"
-                                          onClick={() => openDeleteDialog(booking.bookingId)}
+                                          onClick={() =>
+                                            openDeleteDialog(booking.bookingId)
+                                          }
                                           disabled={isDeleting}
                                         >
                                           <Trash2 className="h-4 w-4" />
@@ -386,12 +451,18 @@ const BookingDetails = () => {
                                 </TooltipProvider>
                                 <AlertDialogContent>
                                   <AlertDialogHeader>
-                                    <AlertDialogTitle>Confirm Deletion</AlertDialogTitle>
+                                    <AlertDialogTitle>
+                                      Confirm Deletion
+                                    </AlertDialogTitle>
                                     <AlertDialogDescription>
-                                      This action cannot be undone. This will permanently delete
-                                      the booking for{" "}
+                                      This action cannot be undone. This will
+                                      permanently delete the booking for{" "}
                                       <span className="font-medium">
-                                        {booking.leadPassenger?.name || "Guest"} ({booking.leadPassenger?.phoneNumber || "N/A"})
+                                        {booking.leadPassenger?.name || "Guest"}{" "}
+                                        (
+                                        {booking.leadPassenger?.phoneNumber ||
+                                          "N/A"}
+                                        )
                                       </span>{" "}
                                       with ID{" "}
                                       <span className="font-medium">
@@ -400,7 +471,9 @@ const BookingDetails = () => {
                                     </AlertDialogDescription>
                                   </AlertDialogHeader>
                                   <AlertDialogFooter>
-                                    <AlertDialogCancel onClick={() => setDeleteBookingId(null)}>
+                                    <AlertDialogCancel
+                                      onClick={() => setDeleteBookingId(null)}
+                                    >
                                       Cancel
                                     </AlertDialogCancel>
                                     <AlertDialogAction
@@ -433,7 +506,9 @@ const BookingDetails = () => {
                 <div className="flex gap-6 mt-2">
                   <div className="flex items-center gap-2">
                     <span className="h-3 w-3 rounded-full bg-green-500"></span>
-                    <span className="text-sm">{availableSeatCount} Available</span>
+                    <span className="text-sm">
+                      {availableSeatCount} Available
+                    </span>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="h-3 w-3 rounded-full bg-red-500"></span>
@@ -455,59 +530,71 @@ const BookingDetails = () => {
                 <div className="text-center py-8 border border-dashed rounded-lg">
                   <MapPin className="h-12 w-12 text-gray-300 mx-auto mb-4" />
                   <p className="text-gray-500">
-                    Seat map is not available for this trip ({totalSeats} seats).
+                    Seat map is not available for this trip ({totalSeats}{" "}
+                    seats).
                   </p>
                 </div>
               )}
 
-              {purchaseHistory.length > 0 && (
-                <div className="mt-8">
-                  <h4 className="font-medium mb-3 text-lg">Seat Allocation</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {purchaseHistory.map((booking) => (
-                      <Card key={booking.bookingId} className="overflow-hidden">
-                        <CardHeader className="bg-gray-50 p-3 pb-3">
-                          <div className="flex justify-between items-center">
-                            <div className="flex items-center space-x-2">
-                              <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
-                                <span className="font-medium text-blue-700">
-                                  {booking.leadPassenger?.name?.charAt(0).toUpperCase() || "G"}
-                                </span>
-                              </div>
-                              <div>
-                                <p className="font-medium">
-                                  {booking.leadPassenger?.name || "Guest"}
-                                </p>
-                                <p className="text-xs text-gray-500">
-                                  {booking.totalPassengers} passenger{booking.totalPassengers > 1 ? "s" : ""}
-                                </p>
-                                <p className="text-xs text-gray-500">
-                                  {booking.leadPassenger?.phoneNumber || "N/A"}
-                                </p>
-                              </div>
-                            </div>
+          {purchaseHistory.length > 0 && (
+  <div className="mt-10">
+    <h3 className="text-lg font-semibold mb-5 flex items-center gap-2">
+      <Armchair className="h-5 w-5 text-blue-600" />
+      Seat Allocation Details
+    </h3>
+
+    <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+      {purchaseHistory.map((booking) => (
+        <Card key={booking.bookingId} className="overflow-hidden border shadow-sm">
+          <CardHeader className="bg-gradient-to-r from-gray-50 to-gray-100/60 px-5 py-4">
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 text-blue-700 font-semibold">
+                  {booking.leadPassenger?.name?.charAt(0)?.toUpperCase() || "?"}
+                </div>
+                <div>
+                  <p className="font-medium leading-tight">
+                    {booking.leadPassenger?.name || "Guest User"}
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    {booking.totalPassengers} passenger
+                    {booking.totalPassengers !== 1 && "s"}
+                  </p>
+                  <p className="mt-0.5 text-xs text-gray-500">
+                    {booking.leadPassenger?.phoneNumber || "—"}
+                  </p>
+                </div>
+              </div>
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
                                 <Button
                                   variant="ghost"
                                   size="sm"
                                   className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                                  onClick={() => openDeleteDialog(booking.bookingId)}
+                                  onClick={() =>
+                                    openDeleteDialog(booking.bookingId)
+                                  }
                                 >
                                   <Trash2 className="h-4 w-4" />
                                 </Button>
                               </AlertDialogTrigger>
                               <AlertDialogContent>
                                 <AlertDialogHeader>
-                                  <AlertDialogTitle>Confirm Deletion</AlertDialogTitle>
+                                  <AlertDialogTitle>
+                                    Confirm Deletion
+                                  </AlertDialogTitle>
                                   <AlertDialogDescription>
-                                    This action cannot be undone. This will permanently delete
-                                    the booking for {booking.leadPassenger?.name || "Guest"} with ID{" "}
-                                    {booking.bookingId.substring(0, 8)}...
+                                    This action cannot be undone. This will
+                                    permanently delete the booking for{" "}
+                                    {booking.leadPassenger?.name || "Guest"}{" "}
+                                    with ID {booking.bookingId.substring(0, 8)}
+                                    ...
                                   </AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
-                                  <AlertDialogCancel onClick={() => setDeleteBookingId(null)}>
+                                  <AlertDialogCancel
+                                    onClick={() => setDeleteBookingId(null)}
+                                  >
                                     Cancel
                                   </AlertDialogCancel>
                                   <AlertDialogAction
@@ -521,51 +608,73 @@ const BookingDetails = () => {
                             </AlertDialog>
                           </div>
                         </CardHeader>
-                        <CardContent className="p-3">
-                          <div className="flex flex-wrap gap-2">
-                            {booking.selectedSeats.map((seat: string, index: number) => (
-                              <div key={`${booking.bookingId}-${seat}-${index}`} className="flex items-center">
-                                {editingBooking === `${booking.bookingId}-${seat}` ? (
-                                  <div className="flex gap-2 items-center">
-                                    <Input
-                                      value={newSeatNumber}
-                                      onChange={(e) => setNewSeatNumber(e.target.value)}
-                                      className="w-16 h-8"
-                                      placeholder="Seat"
-                                    />
-                                    <Button
-                                      size="sm"
-                                      className="h-8"
-                                      onClick={() => handleSubmitEdit(`${booking.bookingId}-${seat}`)}
-                                      disabled={isUpdatingTrip}
-                                    >
-                                      Save
-                                    </Button>
-                                  </div>
-                                ) : (
-                                  <div className="flex items-center gap-2 bg-gray-50 p-1 px-2 rounded-lg">
-                                    <Badge variant="secondary" className="bg-blue-100 text-blue-700">
-                                      {seat}
-                                    </Badge>
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      className="h-6 w-6 p-0"
-                                      onClick={() => handleEditClick(booking.bookingId, seat.seat)}
-                                    >
-                                      <Edit className="h-3 w-3" />
-                                    </Button>
-                                  </div>
-                                )}
-                              </div>
-                            ))}
+                  <CardContent className="px-5 py-4">
+            <div className="flex flex-wrap gap-2.5">
+              {booking.selectedSeats.length === 0 ? (
+                <p className="text-sm text-gray-500 italic py-2">
+                  No seats assigned to this booking
+                </p>
+              ) : (
+                booking.selectedSeats.map(({ seat, busIndex }) => {
+                  const editKey = `${booking.bookingId}-${seat}-${busIndex}`;
+
+                  return (
+                    <div key={editKey} className="flex items-center">
+                      {editingBooking === editKey ? (
+                        <div className="flex items-center gap-2 rounded-md border bg-white px-3 py-1.5 shadow-sm">
+                          <Input
+                            value={newSeatNumber}
+                            onChange={(e) => setNewSeatNumber(e.target.value.trim())}
+                            className="h-8 w-24 text-sm"
+                            placeholder="Seat"
+                            autoFocus
+                          />
+                          <Button
+                            size="sm"
+                            onClick={() => handleSubmitEdit(editKey)}
+                            disabled={isUpdatingTrip || !newSeatNumber.trim()}
+                          >
+                            Save
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setEditingBooking(null);
+                              setNewSeatNumber("");
+                            }}
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="group flex items-center gap-2 rounded-md border bg-gray-50/70 px-3 py-1.5 hover:bg-gray-100 transition-colors">
+                          <div className="font-medium text-blue-700">{seat}</div>
+                          <div className="text-xs text-gray-500">
+                            Bus {busIndex + 1}
                           </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                </div>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 opacity-60 group-hover:opacity-100"
+                            onClick={() => handleEditClick(booking.bookingId, seat, busIndex)}
+                          >
+                            <Edit className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
               )}
+            </div>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  </div>
+)}
+              
             </CardContent>
           </Card>
         </TabsContent>
@@ -599,7 +708,11 @@ const BookingDetails = () => {
                 <div className="text-center py-8">
                   <AlertCircle className="h-10 w-10 text-red-500 mx-auto mb-4" />
                   <p className="text-gray-500">Failed to load reviews.</p>
-                  <Button variant="outline" className="mt-4" onClick={refetchReviews}>
+                  <Button
+                    variant="outline"
+                    className="mt-4"
+                    onClick={refetchReviews}
+                  >
                     Try Again
                   </Button>
                 </div>
@@ -608,7 +721,10 @@ const BookingDetails = () => {
                   <Star className="h-12 w-12 text-gray-300 mx-auto mb-4" />
                   <p className="text-gray-500">
                     No reviews found{" "}
-                    {reviewFilter !== "all" ? `with '${reviewFilter}' status` : ""}.
+                    {reviewFilter !== "all"
+                      ? `with '${reviewFilter}' status`
+                      : ""}
+                    .
                   </p>
                 </div>
               ) : (
@@ -620,16 +736,29 @@ const BookingDetails = () => {
                           <div className="flex items-center space-x-3">
                             <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
                               <span className="font-medium text-blue-700">
-                                {review.user?.email?.charAt(0).toUpperCase() || "G"}
+                                {review.user?.email?.charAt(0).toUpperCase() ||
+                                  "G"}
                               </span>
                             </div>
                             <div>
-                              <p className="font-medium">{review.user?.email || "Guest"}</p>
+                              <p className="font-medium">
+                                {review.user?.email || "Guest"}
+                              </p>
                               <div className="flex items-center text-xs text-gray-500 mt-1">
                                 <CalendarDays className="h-3 w-3 mr-1" />
-                                <p>Travel: {new Date(review.travelDate).toLocaleDateString()}</p>
+                                <p>
+                                  Travel:{" "}
+                                  {new Date(
+                                    review.travelDate
+                                  ).toLocaleDateString()}
+                                </p>
                                 <span className="mx-2">•</span>
-                                <p>Booking: {new Date(review.bookingDate).toLocaleDateString()}</p>
+                                <p>
+                                  Booking:{" "}
+                                  {new Date(
+                                    review.bookingDate
+                                  ).toLocaleDateString()}
+                                </p>
                               </div>
                             </div>
                           </div>
@@ -671,7 +800,9 @@ const BookingDetails = () => {
                       <CardContent className="p-4 pt-2">
                         <div
                           className="text-gray-700 mb-4 p-3 bg-gray-50 rounded-md"
-                          dangerouslySetInnerHTML={{ __html: review.description }}
+                          dangerouslySetInnerHTML={{
+                            __html: review.description,
+                          }}
                         />
                         <div className="flex gap-2">
                           {!review.isAdminApproved && (
@@ -679,7 +810,12 @@ const BookingDetails = () => {
                               size="sm"
                               variant="outline"
                               className="text-green-600 border-green-200 hover:bg-green-50 hover:text-green-700"
-                              onClick={() => handleReviewStatusUpdate(review._id, "admin_approved")}
+                              onClick={() =>
+                                handleReviewStatusUpdate(
+                                  review._id,
+                                  "admin_approved"
+                                )
+                              }
                               disabled={isUpdatingReview}
                             >
                               <CheckCircle className="h-4 w-4 mr-1" />
@@ -691,7 +827,12 @@ const BookingDetails = () => {
                               variant="outline"
                               size="sm"
                               className="text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
-                              onClick={() => handleReviewStatusUpdate(review._id, "admin_rejected")}
+                              onClick={() =>
+                                handleReviewStatusUpdate(
+                                  review._id,
+                                  "admin_rejected"
+                                )
+                              }
                               disabled={isUpdatingReview}
                             >
                               <XCircle className="h-4 w-4 mr-1" />

@@ -24,6 +24,7 @@ export interface PassengerData {
   idProof: "aadhar" | "pan";
   idProofNumber: string;
   address: string;
+    email: string; // ✅ ADD
 }
 
 export const PassengerForm = ({
@@ -49,6 +50,7 @@ export const PassengerForm = ({
     idProof: "",
     idProofNumber: "",
     address: "",
+    
   });
 
   const handleChange = (

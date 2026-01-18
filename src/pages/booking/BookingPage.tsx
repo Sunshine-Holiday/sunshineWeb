@@ -229,6 +229,7 @@ useEffect(() => {
             idProofNumber: "",
             address: "",
             phoneNumber: "",
+            email: "",
           },
         ]);
       } else {
@@ -255,22 +256,40 @@ const handleSeatSelect = (seatId: string, busIndex: number) => {
 
   const key = `${busIndex}-${seatId}`;
 
-  // check if seat is already booked
+  // 🚫 Block already booked seats
   if (bookedSeats.some(b => b.seat === seatId && b.busIndex === busIndex)) {
     toast.error("This seat is already booked");
     return;
   }
 
   setSelectedSeats(prev => {
-    const updated = prev.includes(key)
-      ? prev.filter(s => s !== key)
-      : [...prev, key];
+    const isAlreadySelected = prev.includes(key);
 
-    // sync passengers with selected seats
-    setPassengers(passengers =>
-      updated.map(
+    // ✅ Allow deselect always
+    let updatedSeats = isAlreadySelected
+      ? prev.filter(s => s !== key)
+      : prev;
+
+    // 🔒 PACKAGE PERSON LIMIT CHECK (before adding)
+    if (!isAlreadySelected && selectedPackage) {
+      if (prev.length >= selectedPackage.personCount) {
+        toast.error(
+          `This package allows only ${selectedPackage.personCount} passengers`
+        );
+        return prev; // ❌ stop adding
+      }
+    }
+
+    // ➕ Add new seat
+    if (!isAlreadySelected) {
+      updatedSeats = [...updatedSeats, key];
+    }
+
+    // 🔄 Sync passengers with seats
+    setPassengers(prevPassengers =>
+      updatedSeats.map(
         (_, i) =>
-          passengers[i] || {
+          prevPassengers[i] || {
             name: "",
             age: "",
             gender: "",
@@ -278,13 +297,16 @@ const handleSeatSelect = (seatId: string, busIndex: number) => {
             idProofNumber: "",
             address: "",
             phoneNumber: "",
+            email: "",
           }
       )
     );
 
-    return updated;
+    return updatedSeats;
   });
 };
+
+
 
 
   const handlePassengerChange = (index: number, data: PassengerData) => {
@@ -296,53 +318,69 @@ const handleSeatSelect = (seatId: string, busIndex: number) => {
     });
   };
 
-  const addPassenger = () => {
-    if (isSubmitting) return;
-    const maxAvailableSeats = selectedDate
-      ? totalCapacity - bookedSeats.length
+const addPassenger = () => {
+  if (isSubmitting) return;
+
+  // 🧠 Total available seats (consider booked + buses)
+  const availableSeats =
+    selectedDate?.seats && selectedDate?.numberOfBusesAvailable
+      ? selectedDate.seats * selectedDate.numberOfBusesAvailable -
+        bookedSeats.length
       : 0;
 
-    const maxPassengers =
-      selectedPackage || selectedRoomChoice
-        ? Math.min(maxAvailableSeats, selectedPackage?.personCount || 0)
-        : maxAvailableSeats;
+  // 🔒 Package limit (if package selected)
+  const packageLimit = selectedPackage
+    ? selectedPackage.personCount
+    : Infinity;
 
-    if (passengers.length >= maxPassengers) {
-      toast.error(
-        `Cannot add more passengers. Only ${maxPassengers} seats available.`
-      );
-      return;
-    }
+  // 🔢 Final allowed passengers
+  const maxAllowed = Math.min(availableSeats, packageLimit);
 
-    setPassengers((prev) => [
-      ...prev,
-      {
-        name: "",
-        age: "",
-        gender: "",
-        idProof: "",
-        idProofNumber: "",
-        address: "",
-        phoneNumber: "",
-      },
-    ]);
+  // 🚫 Block if limit reached
+  if (passengers.length >= maxAllowed) {
+    toast.error(`Only ${maxAllowed} passenger(s) allowed for this booking`);
+    return;
+  }
 
-    if (
-      (selectedPackage || selectedRoomChoice) &&
-      (selectedDate?.seats === 20 || selectedDate?.seats === 32)
-    ) {
-      const availableSeats = Array.from(
-        { length: selectedDate?.seats || 0 },
-        (_, i) => (i + 1).toString()
-      ).filter(
-        (seat) => !bookedSeats.includes(seat) && !selectedSeats.includes(seat)
-      );
+  // ➕ Add passenger
+  setPassengers(prev => [
+    ...prev,
+    {
+      name: "",
+      age: "",
+      gender: "",
+      idProof: "",
+      idProofNumber: "",
+      address: "",
+      phoneNumber: "",
+      email: "",
+    },
+  ]);
 
-      if (availableSeats.length > 0) {
-        setSelectedSeats((prev) => [...prev, availableSeats[0]].sort());
+  // 🔄 Auto-select seat if seat-layout trip
+  if (
+    (selectedDate?.seats === 20 || selectedDate?.seats === 32) &&
+    !selectedPackage // package users select seats manually
+  ) {
+    const totalSeats = selectedDate.seats;
+    const totalBuses = Number(selectedDate.numberOfBusesAvailable || 1);
+
+    for (let busIndex = 0; busIndex < totalBuses; busIndex++) {
+      for (let seat = 1; seat <= totalSeats; seat++) {
+        const key = `${busIndex}-${seat}`;
+
+        const isBooked = bookedSeats.some(
+          b => b.busIndex === busIndex && b.seat === seat.toString()
+        );
+
+        if (!isBooked && !selectedSeats.includes(key)) {
+          setSelectedSeats(prev => [...prev, key]);
+          return;
+        }
       }
     }
-  };
+  }
+};
 
   const removePassenger = (index: number) => {
     if (isSubmitting) return;
@@ -356,15 +394,16 @@ const handleSeatSelect = (seatId: string, busIndex: number) => {
   };
 
   const validatePassengerDetails = () => {
-    return passengers.every(
-      (passenger) =>
-        passenger.name.trim() &&
-        passenger.age &&
-        ["male", "female", "other"].includes(passenger.gender) &&
-        ["aadhar", "pan"].includes(passenger.idProof) &&
-        passenger.idProofNumber.trim() &&
-        passenger.phoneNumber.trim()
-    );
+  return passengers.every(
+    (p) =>
+      p.name.trim() &&
+      p.age &&
+      ["male", "female", "other"].includes(p.gender) &&
+      ["aadhar", "pan"].includes(p.idProof) &&
+      p.idProofNumber.trim() &&
+      p.phoneNumber.trim() &&
+      /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(p.email) // ✅ ADD
+  );
   };
 
   const handleGoBack = () => {
@@ -1120,6 +1159,7 @@ const PassengerForm = ({
     idProof: false,
     idProofNumber: false,
     phoneNumber: false,
+    email:false,
   });
 
   const [errorMessages, setErrorMessages] = useState({
@@ -1129,40 +1169,94 @@ const PassengerForm = ({
     idProof: "",
     idProofNumber: "",
     phoneNumber: "",
+    email:"",
   });
 
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
-  ) => {
-    const { name, value } = e.target;
+const handleChange = (
+  e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+) => {
+  const { name, value } = e.target;
 
-    const updatedData: PassengerData = {
-      ...passengers[index],
-      [name]: value.trim(),
-    };
+  const trimmedValue = value.trim();
 
-    onChange(index, updatedData);
-
-    const isEmpty = value.trim() === "";
-    setErrors((prevErrors) => ({
-      ...prevErrors,
-      [name]:
-        isEmpty ||
-        (name === "gender" && !["male", "female", "other"].includes(value)) ||
-        (name === "idProof" && !["aadhar", "pan"].includes(value)),
-    }));
-
-    setErrorMessages((prevMessages) => ({
-      ...prevMessages,
-      [name]: isEmpty
-        ? `Please enter ${name}`
-        : name === "gender" && !["male", "female", "other"].includes(value)
-        ? "Please select a valid gender"
-        : name === "idProof" && !["aadhar", "pan"].includes(value)
-        ? "Please select a valid ID proof type"
-        : "",
-    }));
+  const updatedData: PassengerData = {
+    ...passengers[index],
+    [name]: trimmedValue,
   };
+
+  onChange(index, updatedData);
+
+  // ---------------------------
+  // 🧪 VALIDATIONS
+  // ---------------------------
+  let hasError = false;
+  let errorMessage = "";
+
+  // Empty check
+  if (trimmedValue === "") {
+    hasError = true;
+    errorMessage = `Please enter ${name.replace(/([A-Z])/g, " $1")}`;
+  }
+
+  // Gender validation
+  if (
+    name === "gender" &&
+    trimmedValue &&
+    !["male", "female", "other"].includes(trimmedValue)
+  ) {
+    hasError = true;
+    errorMessage = "Please select a valid gender";
+  }
+
+  // ID proof validation
+  if (
+    name === "idProof" &&
+    trimmedValue &&
+    !["aadhar", "pan"].includes(trimmedValue)
+  ) {
+    hasError = true;
+    errorMessage = "Please select a valid ID proof type";
+  }
+
+  // Age validation
+  if (name === "age" && trimmedValue) {
+    const ageNumber = Number(trimmedValue);
+    if (isNaN(ageNumber) || ageNumber <= 0 || ageNumber > 150) {
+      hasError = true;
+      errorMessage = "Please enter a valid age";
+    }
+  }
+
+  // Phone number validation (10–15 digits)
+  if (name === "phoneNumber" && trimmedValue) {
+    if (!/^\d{10,15}$/.test(trimmedValue)) {
+      hasError = true;
+      errorMessage = "Please enter a valid phone number";
+    }
+  }
+
+  // Email validation
+  if (name === "email" && trimmedValue) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedValue)) {
+      hasError = true;
+      errorMessage = "Please enter a valid email address";
+    }
+  }
+
+  // ---------------------------
+  // 🛑 SET ERRORS
+  // ---------------------------
+  setErrors((prev) => ({
+    ...prev,
+    [name]: hasError,
+  }));
+
+  setErrorMessages((prev) => ({
+    ...prev,
+    [name]: errorMessage,
+  }));
+};
+
 
   const hasBoardingPoints =
     tripDetails.boardingPoints && tripDetails.boardingPoints.length > 0;
@@ -1329,6 +1423,25 @@ const PassengerForm = ({
             <p className="text-red-500 text-xs">{errorMessages.phoneNumber}</p>
           )}
         </div>
+        <div>
+  <label className="block text-sm font-medium text-gray-700 mb-1">
+    Email Address
+  </label>
+  <input
+    type="email"
+    name="email"
+    value={passengers[index]?.email || ""}
+    onChange={handleChange}
+    className={`w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${
+      errors.email ? "border-red-500" : ""
+    }`}
+    required
+  />
+  {errors.email && (
+    <p className="text-red-500 text-xs">{errorMessages.email}</p>
+  )}
+</div>
+
       </div>
     </motion.div>
   );
