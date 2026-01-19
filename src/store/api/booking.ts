@@ -119,7 +119,15 @@ export const BookingApiSlice = apiWithTag.injectEndpoints({
       keepUnusedDataFor: 0,
       providesTags: ["booking"],
     }),
-
+    dateWise: builder.query<any, any>({
+      query: (date: any) => ({
+        url: `/api/v1/booking/day-wise`,
+        method: "GET",
+        params: { date },
+      }),
+      keepUnusedDataFor: 0,
+      providesTags: ["booking"],
+    }),
     getTripBookingStats: builder.query<any, any>({
       query: ({ trip }: any) => ({
         url: `/api/v1/booking/stats/${trip}`,
@@ -193,5 +201,5 @@ export const {
   useGetTripReviewsQuery,
   useUpdateBookingMutation,
   useUpdateReviewMutation,
-
+useDateWiseQuery,
 } = BookingApiSlice;

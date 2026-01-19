@@ -116,7 +116,7 @@ const SignInPage = () => {
 
           <SubmitButton loading={loading}>Sign in</SubmitButton>
 
-          <div className="text-center text-sm">
+          {/* <div className="text-center text-sm">
             <span className="text-gray-600">Don't have an account?</span>{" "}
             <Link
               to="/signup"
@@ -124,7 +124,7 @@ const SignInPage = () => {
             >
               Sign up
             </Link>
-          </div>
+          </div> */}
         </form>
       </AuthCard>
     </div>

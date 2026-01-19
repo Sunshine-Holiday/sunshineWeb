@@ -5,11 +5,23 @@ import {
   useDeleteTripsMutation,
   useGettripsQuery,
 } from "@/store/api/trips";
+import { useDateWiseQuery } from "@/store/api/booking";
 import { toast } from "react-toastify";
 import { fadeInUp, staggerChildren } from "@/utils/animations";
 import { TripCard } from "../components/trips/TripCardBooked";
 import { TripFilters } from "@/pages/trips/TripFilters";
 import { Search } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+import logo from "@/asserts/favicon.png";
 
 const BookedPage = () => {
   const navigate = useNavigate();
@@ -20,11 +32,17 @@ const BookedPage = () => {
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
 
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [tripToDelete, setTripToDelete] = useState<any>(null);
+  /* ================= SALES MODAL ================= */
+  const [open, setOpen] = useState(false);
+  const [date, setDate] = useState("");
+
+  const {
+    data: salesData,
+    isFetching,
+    refetch,
+  } = useDateWiseQuery(date, { skip: !date });
 
   /* ================= FILTERED TRIPS ================= */
-
   const filteredTrips = useMemo(() => {
     return data.filter((trip: any) => {
       const matchesCategory =
@@ -38,57 +56,141 @@ const BookedPage = () => {
     });
   }, [data, selectedCategory, searchQuery]);
 
-  /* ================= HANDLERS ================= */
+  /* ================= PDF GENERATOR ================= */
+const generateSalesPDF = () => {
+  if (!salesData) return;
 
-  const filterTrips = (category: string) => {
-    setSelectedCategory(category);
-  };
+  // ✅ Landscape PDF
+  const doc = new jsPDF({
+    orientation: "landscape",
+    unit: "mm",
+    format: "a4",
+  });
 
-  const confirmDelete = (trip: any) => {
-    setTripToDelete(trip);
-    setIsModalOpen(true);
-  };
+  const pageWidth = doc.internal.pageSize.getWidth();
 
-  const cancelDelete = () => {
-    setTripToDelete(null);
-    setIsModalOpen(false);
-  };
+  /* ================= HEADER ================= */
+  doc.addImage(logo, "PNG", 10, 8, 40, 18);
 
-  const handleDelete = async () => {
-    if (!tripToDelete) return;
+  doc.setFontSize(18);
+  doc.text("Sunshine Holiday Packages", pageWidth / 2, 18, {
+    align: "center",
+  });
 
-    try {
-      await deleteTrips(tripToDelete._id).unwrap();
-      toast.success("Trip deleted successfully");
-    } catch (error) {
-      toast.error("Failed to delete trip");
-      console.error("Error deleting trip:", error);
-    } finally {
-      cancelDelete();
-    }
-  };
+  doc.setFontSize(11);
+  doc.text(
+    "sunshineholidaypackages@gmail.com | +91 9975375975",
+    pageWidth / 2,
+    25,
+    { align: "center" }
+  );
+
+  doc.setFontSize(15);
+  doc.text("Day-wise Sales Report", pageWidth / 2, 36, {
+    align: "center",
+  });
+
+  doc.setFontSize(11);
+  doc.text(`Date: ${salesData.date ?? "N/A"}`, 14, 45);
+  doc.text(`Total Bookings: ${salesData.totalBookings ?? "-"}`, 14, 52);
+  doc.text(
+    `Total Sales: Rs ${salesData.totalSales?.toFixed(2) ?? "0.00"}`,
+    14,
+    59
+  );
+
+  /* ================= TABLE DATA ================= */
+  const rows: any[] = [];
+
+  salesData.bookings.forEach((booking: any) => {
+    booking.passengers.forEach((p: any) => {
+      rows.push([
+        p?.name || "N/A",
+        p?.email || "N/A",
+        p?.phoneNumber || "N/A",
+        p?.age ?? "N/A",
+        p?.gender || "N/A",
+        p?.idProof || "N/A",
+        p?.idProofNumber || "N/A",
+        booking?.tripName || "N/A",
+        `Rs ${booking?.tripPrice?.toFixed(2) ?? "0.00"}`,
+      ]);
+    });
+  });
+
+  /* ================= TABLE ================= */
+  autoTable(doc, {
+    startY: 68,
+    head: [
+      [
+        "Name",
+        "Email",
+        "Phone",
+        "Age",
+        "Gender",
+        "ID Proof",
+        "ID Number",
+        "Trip Name",
+        "Price",
+      ],
+    ],
+    body: rows,
+
+    theme: "grid",
+
+    styles: {
+      fontSize: 9,
+      cellPadding: 4,
+      overflow: "linebreak",
+      valign: "middle",
+    },
+
+    headStyles: {
+      fillColor: [37, 99, 235],
+      textColor: 255,
+      halign: "center",
+      fontSize: 10,
+    },
+
+    columnStyles: {
+      0: { cellWidth: 35 }, // Name
+      1: { cellWidth: 50 }, // Email
+      2: { cellWidth: 32 }, // Phone
+      3: { cellWidth: 15, halign: "center" }, // Age
+      4: { cellWidth: 22, halign: "center" }, // Gender
+      5: { cellWidth: 25 }, // ID Proof
+      6: { cellWidth: 32 }, // ID Number
+      7: { cellWidth: 40 }, // Trip Name
+      8: { cellWidth: 20, halign: "right" }, // Price
+    },
+  });
+
+  doc.save(`Sales_Report_${salesData.date}.pdf`);
+};
+
+
 
   /* ================= RENDER ================= */
-
   return (
-    <div className="min-h-screen bg-gray-50 pt-24 pb-16 relative">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* HEADER */}
-        <motion.div
-          variants={fadeInUp}
-          initial="initial"
-          animate="animate"
-          className="text-center mb-10"
-        >
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">
-            Discover Our Trips
-          </h1>
-          <p className="text-gray-600 max-w-2xl mx-auto">
-            Choose from our carefully curated selection of adventures
-          </p>
-        </motion.div>
+    <div className="min-h-screen bg-gray-50 pt-24 pb-16">
+      <div className="max-w-7xl mx-auto px-4">
 
-        {/* SEARCH BAR */}
+        {/* HEADER */}
+        <div className="flex justify-between items-center mb-10">
+          <motion.div variants={fadeInUp} initial="initial" animate="animate">
+            <h1 className="text-4xl font-bold text-gray-900">
+              Discover Our Trips
+            </h1>
+            <p className="text-gray-600 mt-2">
+              Choose from our curated adventures
+            </p>
+          </motion.div>
+
+          {/* ✅ SALES BUTTON */}
+          <Button onClick={() => setOpen(true)}>Generate Sales</Button>
+        </div>
+
+        {/* SEARCH */}
         <div className="max-w-lg mx-auto mb-8">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 h-5 w-5" />
@@ -102,22 +204,19 @@ const BookedPage = () => {
           </div>
         </div>
 
-        {/* CATEGORY FILTER */}
         <TripFilters
-          filterTrips={filterTrips}
+          filterTrips={setSelectedCategory}
           selectedCategory={selectedCategory}
         />
 
-        {/* CONTENT */}
+        {/* TRIPS */}
         {isLoading ? (
-          <div className="text-center mt-8 text-gray-600">
-            Loading trips...
-          </div>
+          <div className="text-center mt-8">Loading trips...</div>
         ) : error ? (
           <div className="text-center mt-8 text-red-600">
-            Error loading trips.
+            Error loading trips
           </div>
-        ) : filteredTrips.length > 0 ? (
+        ) : (
           <motion.div
             variants={staggerChildren}
             initial="initial"
@@ -130,44 +229,33 @@ const BookedPage = () => {
               </motion.div>
             ))}
           </motion.div>
-        ) : (
-          <div className="text-center mt-12 text-gray-600 font-medium">
-            No trips found.
-          </div>
         )}
       </div>
 
-      {/* DELETE CONFIRMATION MODAL */}
-      {isModalOpen && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-          <div className="bg-white rounded-lg p-6 w-96 shadow-lg">
-            <h2 className="text-lg font-bold text-gray-800 mb-4">
-              Confirm Deletion
-            </h2>
-            <p className="text-gray-600 mb-6">
-              Are you sure you want to delete{" "}
-              <span className="font-semibold">
-                {tripToDelete?.title}
-              </span>
-              ?
-            </p>
-            <div className="flex justify-end gap-4">
-              <button
-                onClick={cancelDelete}
-                className="px-4 py-2 bg-gray-300 rounded-lg hover:bg-gray-400"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleDelete}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
-              >
-                Delete
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* ================= SALES MODAL ================= */}
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Generate Day-wise Sales</DialogTitle>
+          </DialogHeader>
+
+          <Input
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+          />
+
+          <Button
+            disabled={!date || isFetching}
+            onClick={async () => {
+              await refetch();
+              generateSalesPDF();
+            }}
+          >
+            {isFetching ? "Generating..." : "Generate PDF"}
+          </Button>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

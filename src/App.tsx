@@ -91,7 +91,7 @@ export const AppContent = () => {
         <Routes>
           <Route element={<RedirectRoute redirectPath={from} />}>
             <Route path="/signin" element={<SignInPage />} />
-            <Route path="/signup" element={<SignUpPage />} />
+  
             <Route path="/otp-verify" element={<OTPPage />} />
             <Route path="/reset-password" element={<ResetPasword />} />
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
