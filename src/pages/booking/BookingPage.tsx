@@ -9,13 +9,16 @@ import {
 } from "@/store/api/trips";
 import { toast } from "react-toastify";
 import { useCreatebookingMutation } from "@/store/api/booking";
-import { useCreatePaymentIntentMutation } from "@/store/api/terms";
+import {
+  useCreatePaymentIntentMutation,
+  useGetTermsQuery,
+} from "@/store/api/terms";
 import { RAZORPAY_API_KEY } from "@/store/store";
 import { FaSpinner, FaPlus, FaMinus } from "react-icons/fa";
 import { format, parse, isValid } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Armchair, Calendar, MapPin } from "lucide-react";
-
+import TermsModal from "@/components/TermsModal";
 const INITIAL_STEP = "select-seats";
 
 interface StartDate {
@@ -62,13 +65,15 @@ interface Trip {
 }
 
 interface BookingSummaryProps {
-  numberofBuses: number;
+  numberOfBuses: number;
   totaCapacity: number;
   addPassenger: () => void;
   removePassenger: (index: number) => void;
-  bookedSeats: string[];
+  bookedSeats: { seat: string; busIndex: number }[];
+
   addRoom: () => void;
   removeRoom: () => void;
+
   tripDetails: {
     from: string;
     to: string;
@@ -81,41 +86,58 @@ interface BookingSummaryProps {
     discountPercentage?: number;
     advancePaymentPercentage?: number;
   };
+
   selectedDate: StartDate | null;
   setSelectedData: (date: StartDate) => void;
   selectedSeats: string[];
   passengers: PassengerData[];
+
   selectedPackage: Package | null;
   setSelectedPackage: (pkg: Package | null) => void;
+
   selectedRoomChoice: RoomChoice | null;
   setSelectedRoomChoice: (room: RoomChoice | null) => void;
+
   selectedRoomCount: number;
   setSelectedRoomCount: (count: number) => void;
+
   paymentOption: "full" | "advance";
   setPaymentOption: (option: "full" | "advance") => void;
+
   onProceed: () => void;
   loading: boolean;
   step: "select-seats" | "passenger-details";
   disabled?: boolean;
+
+  /** ✅ NEW — TERMS */
+  acceptedTerms: boolean;
+  setAcceptedTerms: (value: boolean) => void;
+  showTermsModal: boolean;
+  setShowTermsModal: (value: boolean) => void;
+  termsContent: string;
 }
 
 const BookingPage = () => {
+  const { data: termsData, isLoading } = useGetTermsQuery();
+  console.log("Terms Data:", termsData);
   const location = useLocation();
   const tripId = location.state?.tripId;
   const [selectedDate, setSelectedDate] = useState<StartDate | null>(
-    location.state?.selectedDate || null
+    location.state?.selectedDate || null,
   );
   const navigate = useNavigate();
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [showTermsModal, setShowTermsModal] = useState(false);
 
   // State variables
   const [selectedSeats, setSelectedSeats] = useState<string[]>([]);
-const [bookedSeats, setBookedSeats] = useState<
-  { seat: string; busIndex: number }[]
->([]);
+  const [bookedSeats, setBookedSeats] = useState<
+    { seat: string; busIndex: number }[]
+  >([]);
 
   const [passengers, setPassengers] = useState<PassengerData[]>([]);
   const [step, setStep] = useState<"select-seats" | "passenger-details">(
-    INITIAL_STEP
+    INITIAL_STEP,
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [trip, setTrip] = useState<Trip | null>(null);
@@ -124,7 +146,7 @@ const [bookedSeats, setBookedSeats] = useState<
     useState<RoomChoice | null>(null);
   const [selectedRoomCount, setSelectedRoomCount] = useState<number>(0);
   const [paymentOption, setPaymentOption] = useState<"full" | "advance">(
-    "full"
+    "full",
   );
 
   // Date formatting functions
@@ -187,28 +209,27 @@ const [bookedSeats, setBookedSeats] = useState<
     }
   }, [tripData]);
 
-useEffect(() => {
-  if (!bookingData?.selectedSeatsByBus) {
-    setBookedSeats([]);
-    return;
-  }
-
-  const mappedBookedSeats: { seat: string; busIndex: number }[] = [];
-
-  Object.entries(bookingData.selectedSeatsByBus).forEach(
-    ([busIndex, seats]) => {
-      seats.forEach((seat: string) => {
-        mappedBookedSeats.push({
-          seat,
-          busIndex: Number(busIndex),
-        });
-      });
+  useEffect(() => {
+    if (!bookingData?.selectedSeatsByBus) {
+      setBookedSeats([]);
+      return;
     }
-  );
 
-  setBookedSeats(mappedBookedSeats);
-}, [bookingData]);
+    const mappedBookedSeats: { seat: string; busIndex: number }[] = [];
 
+    Object.entries(bookingData.selectedSeatsByBus).forEach(
+      ([busIndex, seats]) => {
+        seats.forEach((seat: string) => {
+          mappedBookedSeats.push({
+            seat,
+            busIndex: Number(busIndex),
+          });
+        });
+      },
+    );
+
+    setBookedSeats(mappedBookedSeats);
+  }, [bookingData]);
 
   const seatsPerBus = selectedDate?.seats || 0;
   const numberOfBuses = selectedDate?.numberOfBusesAvailable || 1;
@@ -251,63 +272,60 @@ useEffect(() => {
     }
   };
 
-const handleSeatSelect = (seatId: string, busIndex: number) => {
-  if (isSubmitting) return;
+  const handleSeatSelect = (seatId: string, busIndex: number) => {
+    if (isSubmitting) return;
 
-  const key = `${busIndex}-${seatId}`;
+    const key = `${busIndex}-${seatId}`;
 
-  // 🚫 Block already booked seats
-  if (bookedSeats.some(b => b.seat === seatId && b.busIndex === busIndex)) {
-    toast.error("This seat is already booked");
-    return;
-  }
+    // 🚫 Block already booked seats
+    if (bookedSeats.some((b) => b.seat === seatId && b.busIndex === busIndex)) {
+      toast.error("This seat is already booked");
+      return;
+    }
 
-  setSelectedSeats(prev => {
-    const isAlreadySelected = prev.includes(key);
+    setSelectedSeats((prev) => {
+      const isAlreadySelected = prev.includes(key);
 
-    // ✅ Allow deselect always
-    let updatedSeats = isAlreadySelected
-      ? prev.filter(s => s !== key)
-      : prev;
+      // ✅ Allow deselect always
+      let updatedSeats = isAlreadySelected
+        ? prev.filter((s) => s !== key)
+        : prev;
 
-    // 🔒 PACKAGE PERSON LIMIT CHECK (before adding)
-    if (!isAlreadySelected && selectedPackage) {
-      if (prev.length >= selectedPackage.personCount) {
-        toast.error(
-          `This package allows only ${selectedPackage.personCount} passengers`
-        );
-        return prev; // ❌ stop adding
+      // 🔒 PACKAGE PERSON LIMIT CHECK (before adding)
+      if (!isAlreadySelected && selectedPackage) {
+        if (prev.length >= selectedPackage.personCount) {
+          toast.error(
+            `This package allows only ${selectedPackage.personCount} passengers`,
+          );
+          return prev; // ❌ stop adding
+        }
       }
-    }
 
-    // ➕ Add new seat
-    if (!isAlreadySelected) {
-      updatedSeats = [...updatedSeats, key];
-    }
+      // ➕ Add new seat
+      if (!isAlreadySelected) {
+        updatedSeats = [...updatedSeats, key];
+      }
 
-    // 🔄 Sync passengers with seats
-    setPassengers(prevPassengers =>
-      updatedSeats.map(
-        (_, i) =>
-          prevPassengers[i] || {
-            name: "",
-            age: "",
-            gender: "",
-            idProof: "",
-            idProofNumber: "",
-            address: "",
-            phoneNumber: "",
-            email: "",
-          }
-      )
-    );
+      // 🔄 Sync passengers with seats
+      setPassengers((prevPassengers) =>
+        updatedSeats.map(
+          (_, i) =>
+            prevPassengers[i] || {
+              name: "",
+              age: "",
+              gender: "",
+              idProof: "",
+              idProofNumber: "",
+              address: "",
+              phoneNumber: "",
+              email: "",
+            },
+        ),
+      );
 
-    return updatedSeats;
-  });
-};
-
-
-
+      return updatedSeats;
+    });
+  };
 
   const handlePassengerChange = (index: number, data: PassengerData) => {
     if (isSubmitting) return;
@@ -318,69 +336,69 @@ const handleSeatSelect = (seatId: string, busIndex: number) => {
     });
   };
 
-const addPassenger = () => {
-  if (isSubmitting) return;
+  const addPassenger = () => {
+    if (isSubmitting) return;
 
-  // 🧠 Total available seats (consider booked + buses)
-  const availableSeats =
-    selectedDate?.seats && selectedDate?.numberOfBusesAvailable
-      ? selectedDate.seats * selectedDate.numberOfBusesAvailable -
-        bookedSeats.length
-      : 0;
+    // 🧠 Total available seats (consider booked + buses)
+    const availableSeats =
+      selectedDate?.seats && selectedDate?.numberOfBusesAvailable
+        ? selectedDate.seats * selectedDate.numberOfBusesAvailable -
+          bookedSeats.length
+        : 0;
 
-  // 🔒 Package limit (if package selected)
-  const packageLimit = selectedPackage
-    ? selectedPackage.personCount
-    : Infinity;
+    // 🔒 Package limit (if package selected)
+    const packageLimit = selectedPackage
+      ? selectedPackage.personCount
+      : Infinity;
 
-  // 🔢 Final allowed passengers
-  const maxAllowed = Math.min(availableSeats, packageLimit);
+    // 🔢 Final allowed passengers
+    const maxAllowed = Math.min(availableSeats, packageLimit);
 
-  // 🚫 Block if limit reached
-  if (passengers.length >= maxAllowed) {
-    toast.error(`Only ${maxAllowed} passenger(s) allowed for this booking`);
-    return;
-  }
+    // 🚫 Block if limit reached
+    if (passengers.length >= maxAllowed) {
+      toast.error(`Only ${maxAllowed} passenger(s) allowed for this booking`);
+      return;
+    }
 
-  // ➕ Add passenger
-  setPassengers(prev => [
-    ...prev,
-    {
-      name: "",
-      age: "",
-      gender: "",
-      idProof: "",
-      idProofNumber: "",
-      address: "",
-      phoneNumber: "",
-      email: "",
-    },
-  ]);
+    // ➕ Add passenger
+    setPassengers((prev) => [
+      ...prev,
+      {
+        name: "",
+        age: "",
+        gender: "",
+        idProof: "",
+        idProofNumber: "",
+        address: "",
+        phoneNumber: "",
+        email: "",
+      },
+    ]);
 
-  // 🔄 Auto-select seat if seat-layout trip
-  if (
-    (selectedDate?.seats === 20 || selectedDate?.seats === 32) &&
-    !selectedPackage // package users select seats manually
-  ) {
-    const totalSeats = selectedDate.seats;
-    const totalBuses = Number(selectedDate.numberOfBusesAvailable || 1);
+    // 🔄 Auto-select seat if seat-layout trip
+    if (
+      (selectedDate?.seats === 20 || selectedDate?.seats === 32) &&
+      !selectedPackage // package users select seats manually
+    ) {
+      const totalSeats = selectedDate.seats;
+      const totalBuses = Number(selectedDate.numberOfBusesAvailable || 1);
 
-    for (let busIndex = 0; busIndex < totalBuses; busIndex++) {
-      for (let seat = 1; seat <= totalSeats; seat++) {
-        const key = `${busIndex}-${seat}`;
+      for (let busIndex = 0; busIndex < totalBuses; busIndex++) {
+        for (let seat = 1; seat <= totalSeats; seat++) {
+          const key = `${busIndex}-${seat}`;
 
-        const isBooked = bookedSeats.some(
-          b => b.busIndex === busIndex && b.seat === seat.toString()
-        );
+          const isBooked = bookedSeats.some(
+            (b) => b.busIndex === busIndex && b.seat === seat.toString(),
+          );
 
-        if (!isBooked && !selectedSeats.includes(key)) {
-          setSelectedSeats(prev => [...prev, key]);
-          return;
+          if (!isBooked && !selectedSeats.includes(key)) {
+            setSelectedSeats((prev) => [...prev, key]);
+            return;
+          }
         }
       }
     }
-  }
-};
+  };
 
   const removePassenger = (index: number) => {
     if (isSubmitting) return;
@@ -394,16 +412,16 @@ const addPassenger = () => {
   };
 
   const validatePassengerDetails = () => {
-  return passengers.every(
-    (p) =>
-      p.name.trim() &&
-      p.age &&
-      ["male", "female", "other"].includes(p.gender) &&
-      ["aadhar", "pan"].includes(p.idProof) &&
-      p.idProofNumber.trim() &&
-      p.phoneNumber.trim() &&
-      /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(p.email) // ✅ ADD
-  );
+    return passengers.every(
+      (p) =>
+        p.name.trim() &&
+        p.age &&
+        ["male", "female", "other"].includes(p.gender) &&
+        ["aadhar", "pan"].includes(p.idProof) &&
+        p.idProofNumber.trim() &&
+        p.phoneNumber.trim() &&
+        /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(p.email), // ✅ ADD
+    );
   };
 
   const handleGoBack = () => {
@@ -460,148 +478,145 @@ const addPassenger = () => {
     setSelectedRoomCount((prev) => Math.max(1, prev - 1));
   };
 
-const handlePayment = async (
-  paymentDetail: any,
-  amountToPay: number,
-  totalAmount: number
-) => {
-  return new Promise<void>((resolve, reject) => {
-    // Safety check
-    if (!passengers.length || !passengers[0]?.phoneNumber) {
-      toast.error("Please add at least one passenger with a phone number.");
-      setIsSubmitting(false);
-      reject(new Error("Missing passenger contact"));
-      return;
-    }
+  const handlePayment = async (
+    paymentDetail: any,
+    amountToPay: number,
+    totalAmount: number,
+  ) => {
+    return new Promise<void>((resolve, reject) => {
+      // Safety check
+      if (!passengers.length || !passengers[0]?.phoneNumber) {
+        toast.error("Please add at least one passenger with a phone number.");
+        setIsSubmitting(false);
+        reject(new Error("Missing passenger contact"));
+        return;
+      }
 
-    const options = {
-      key: RAZORPAY_API_KEY,
-      amount: paymentDetail.amount, // paise
-      currency: paymentDetail.currency,
-      name: "Sunshine Holiday Packages",
-      description: `Booking for ${trip?.location || "Trip"} on ${
-        selectedDate ? formatDateToString(selectedDate) : ""
-      }`,
-      order_id: paymentDetail.id,
+      const options = {
+        key: RAZORPAY_API_KEY,
+        amount: paymentDetail.amount, // paise
+        currency: paymentDetail.currency,
+        name: "Sunshine Holiday Packages",
+        description: `Booking for ${trip?.location || "Trip"} on ${
+          selectedDate ? formatDateToString(selectedDate) : ""
+        }`,
+        order_id: paymentDetail.id,
 
-      handler: async () => {
-        try {
-          // -------------------------------
-          // 🟢 TRANSFORM SEATS (IMPORTANT)
-          // -------------------------------
-          const formattedSeats =
-            selectedDate?.seats === 20 || selectedDate?.seats === 32
-              ? selectedSeats.map((s) => {
-                  const [busIndex, seat] = s.split("-");
-                  return {
-                    seat,
-                    busIndex: Number(busIndex),
-                  };
-                })
-              : passengers.map(() => ({
-                  seat: "N/A",
-                  busIndex: 0,
-                }));
+        handler: async () => {
+          try {
+            // -------------------------------
+            // 🟢 TRANSFORM SEATS (IMPORTANT)
+            // -------------------------------
+            const formattedSeats =
+              selectedDate?.seats === 20 || selectedDate?.seats === 32
+                ? selectedSeats.map((s) => {
+                    const [busIndex, seat] = s.split("-");
+                    return {
+                      seat,
+                      busIndex: Number(busIndex),
+                    };
+                  })
+                : passengers.map(() => ({
+                    seat: "N/A",
+                    busIndex: 0,
+                  }));
 
-          // -------------------------------
-          // 💰 PAYMENT CALCULATION
-          // -------------------------------
-          const advancePaymentPercentage =
-            trip?.advancePaymentPercentage || 50;
+            // -------------------------------
+            // 💰 PAYMENT CALCULATION
+            // -------------------------------
+            const advancePaymentPercentage =
+              trip?.advancePaymentPercentage || 50;
 
-          const advancePaid =
-            paymentOption === "advance" ? amountToPay : totalAmount;
+            const advancePaid =
+              paymentOption === "advance" ? amountToPay : totalAmount;
 
-          const remainingBalance =
-            paymentOption === "advance"
-              ? totalAmount - advancePaid
-              : 0;
+            const remainingBalance =
+              paymentOption === "advance" ? totalAmount - advancePaid : 0;
 
-          const paymentStatus =
-            paymentOption === "advance" ? "advance" : "full";
+            const paymentStatus =
+              paymentOption === "advance" ? "advance" : "full";
 
-          // -------------------------------
-          // 📦 BOOKING PAYLOAD
-          // -------------------------------
-          const bookingPayload = {
-            tripId,
-            selectedPackage: selectedPackage?._id || null,
-            selectedRoomChoice: selectedRoomChoice?._id || null,
-            roomCount: selectedRoomChoice ? selectedRoomCount : 0,
-            price: totalAmount,
-            advancePaid,
-            remainingBalance,
-            paymentStatus,
-            selectedDate: formatDateToString(selectedDate),
-            passengers,
-            selectedSeats: formattedSeats,
-          };
+            // -------------------------------
+            // 📦 BOOKING PAYLOAD
+            // -------------------------------
+            const bookingPayload = {
+              tripId,
+              selectedPackage: selectedPackage?._id || null,
+              selectedRoomChoice: selectedRoomChoice?._id || null,
+              roomCount: selectedRoomChoice ? selectedRoomCount : 0,
+              price: totalAmount,
+              advancePaid,
+              remainingBalance,
+              paymentStatus,
+              selectedDate: formatDateToString(selectedDate),
+              passengers,
+              selectedSeats: formattedSeats,
+            };
 
-          // Final sanity check
-          if (!bookingPayload.selectedSeats.length) {
-            throw new Error("No seats selected");
+            // Final sanity check
+            if (!bookingPayload.selectedSeats.length) {
+              throw new Error("No seats selected");
+            }
+
+            // -------------------------------
+            // 🚀 CREATE BOOKING
+            // -------------------------------
+            await createBooking(bookingPayload).unwrap();
+
+            toast.success("Trip booked successfully 🎉");
+            navigate("/trips");
+            resolve();
+          } catch (err: any) {
+            console.error("Booking creation failed:", err);
+            toast.error(
+              err?.data?.message ||
+                err?.message ||
+                "Booking failed. Please try again.",
+            );
+            setIsSubmitting(false);
+            reject(err);
           }
-
-          // -------------------------------
-          // 🚀 CREATE BOOKING
-          // -------------------------------
-          await createBooking(bookingPayload).unwrap();
-
-          toast.success("Trip booked successfully 🎉");
-          navigate("/trips");
-          resolve();
-        } catch (err: any) {
-          console.error("Booking creation failed:", err);
-          toast.error(
-            err?.data?.message ||
-              err?.message ||
-              "Booking failed. Please try again."
-          );
-          setIsSubmitting(false);
-          reject(err);
-        }
-      },
-
-      prefill: {
-        name: passengers[0]?.name || "Guest",
-        contact: passengers[0]?.phoneNumber?.replace(/\D/g, "") || "",
-      },
-
-      notes: {
-        trip_id: tripId,
-        selected_date: formatDateToString(selectedDate),
-        passenger_count: passengers.length,
-      },
-
-      theme: {
-        color: "#3399cc",
-      },
-
-      modal: {
-        ondismiss: () => {
-          toast.info("Payment cancelled");
-          setIsSubmitting(false);
-          reject(new Error("Payment cancelled"));
         },
-      },
-    };
 
-    // @ts-ignore
-    const razorpay = new window.Razorpay(options);
+        prefill: {
+          name: passengers[0]?.name || "Guest",
+          contact: passengers[0]?.phoneNumber?.replace(/\D/g, "") || "",
+        },
 
-    razorpay.on("payment.failed", (response: any) => {
-      console.error("Payment failed:", response);
-      toast.error(
-        response.error?.description || "Payment failed. Please try again."
-      );
-      setIsSubmitting(false);
-      reject(response);
+        notes: {
+          trip_id: tripId,
+          selected_date: formatDateToString(selectedDate),
+          passenger_count: passengers.length,
+        },
+
+        theme: {
+          color: "#3399cc",
+        },
+
+        modal: {
+          ondismiss: () => {
+            toast.info("Payment cancelled");
+            setIsSubmitting(false);
+            reject(new Error("Payment cancelled"));
+          },
+        },
+      };
+
+      // @ts-ignore
+      const razorpay = new window.Razorpay(options);
+
+      razorpay.on("payment.failed", (response: any) => {
+        console.error("Payment failed:", response);
+        toast.error(
+          response.error?.description || "Payment failed. Please try again.",
+        );
+        setIsSubmitting(false);
+        reject(response);
+      });
+
+      razorpay.open();
     });
-
-    razorpay.open();
-  });
-};
-
+  };
 
   const handleProceed = async () => {
     if (isSubmitting) return;
@@ -617,7 +632,7 @@ const handlePayment = async (
       if (selectedPackage || selectedRoomChoice) {
         if (selectedSeats.length !== passengers.length) {
           toast.error(
-            "Number of selected seats must match number of passengers."
+            "Number of selected seats must match number of passengers.",
           );
           return;
         }
@@ -631,7 +646,7 @@ const handlePayment = async (
             idProofNumber: "",
             address: "",
             phoneNumber: "",
-          }))
+          })),
         );
       }
       setStep("passenger-details");
@@ -647,7 +662,7 @@ const handlePayment = async (
         selectedSeats.length !== passengers.length
       ) {
         toast.error(
-          "Number of selected seats must match number of passengers."
+          "Number of selected seats must match number of passengers.",
         );
         return;
       }
@@ -695,13 +710,13 @@ const handlePayment = async (
           await handlePayment(
             respPayment.paymentDetail,
             amountToPay,
-            finalAmount
+            finalAmount,
           );
         }
       } catch (error: any) {
         console.error("Payment error:", error);
         toast.error(
-          error.message || error.data?.message || "Payment processing failed."
+          error.message || error.data?.message || "Payment processing failed.",
         );
         setIsSubmitting(false);
       }
@@ -741,7 +756,7 @@ const handlePayment = async (
     selectedPackage || selectedRoomChoice
       ? Math.min(
           totalSeats - bookedSeats.length,
-          selectedPackage?.personCount || 0
+          selectedPackage?.personCount || 0,
         )
       : totalSeats - bookedSeats.length;
   return (
@@ -868,6 +883,12 @@ const handlePayment = async (
               selectedDate={selectedDate}
               onProceed={handleProceed}
               disabled={isSubmitting}
+              /** ✅ NEW */
+              acceptedTerms={acceptedTerms}
+              setAcceptedTerms={setAcceptedTerms}
+              showTermsModal={showTermsModal}
+              setShowTermsModal={setShowTermsModal}
+              termsContent={termsData?.terms?.content || ""}
             />
           </div>
         </div>
@@ -899,8 +920,8 @@ const Seat = ({
               isBooked
                 ? "bg-gray-300 cursor-not-allowed"
                 : isSelected
-                ? "bg-blue-600 text-white hover:bg-blue-600"
-                : "bg-white hover:bg-blue-50 text-gray-600"
+                  ? "bg-blue-600 text-white hover:bg-blue-600"
+                  : "bg-white hover:bg-blue-50 text-gray-600"
             }`}
         >
           <Armchair
@@ -909,8 +930,8 @@ const Seat = ({
               isBooked
                 ? "text-gray-400"
                 : isSelected
-                ? "text-white"
-                : "text-gray-600"
+                  ? "text-white"
+                  : "text-gray-600"
             }`}
           />
         </Button>
@@ -940,16 +961,16 @@ const SeatLayout = ({
   disabled = false,
 }: SeatLayoutProps) => {
   const [isTwoSeaterLayout, setIsTwoSeaterLayout] = useState(
-    totalSeats !== 20 ? true : false
+    totalSeats !== 20 ? true : false,
   );
   console.log(`isTwoSeaterLayout: ${totalSeats}`);
   const [showLayoutModal, setShowLayoutModal] = useState(false);
   const [currentBus, setCurrentBus] = useState(0);
 
   const isBlockBooking = selectedSeats.includes("block");
-const bookedSeatsForBus = bookedSeats
-  .filter((b) => b.busIndex === currentBus)
-  .map((b) => b.seat);
+  const bookedSeatsForBus = bookedSeats
+    .filter((b) => b.busIndex === currentBus)
+    .map((b) => b.seat);
 
   const isCurrentBusFull = bookedSeatsForBus.length >= totalSeats;
 
@@ -1034,10 +1055,10 @@ const bookedSeatsForBus = bookedSeats
       }`}
     >
       {isCurrentBusFull && (
-  <p className="text-green-600 text-sm mb-3 text-center">
-    This bus is fully booked. Moving to next bus…
-  </p>
-)}
+        <p className="text-green-600 text-sm mb-3 text-center">
+          This bus is fully booked. Moving to next bus…
+        </p>
+      )}
 
       <div className="mb-6 flex justify-between items-center">
         <div className="flex gap-4">
@@ -1089,42 +1110,43 @@ const bookedSeatsForBus = bookedSeats
                 {seatId ? (
                   <Seat
                     id={seatId}
-          isBooked={bookedSeatsForBus.includes(seatId)}
-isSelected={selectedSeats.includes(`${currentBus}-${seatId}`)}
-
+                    isBooked={bookedSeatsForBus.includes(seatId)}
+                    isSelected={selectedSeats.includes(
+                      `${currentBus}-${seatId}`,
+                    )}
                     onSelect={() => handleSeatClick(seatId)}
                   />
                 ) : (
                   <div className="w-10 h-16"></div>
                 )}
               </div>
-            ))
+            )),
           )}
-          
         </div>
       </div>
       <div className="flex justify-between items-center mb-4">
-  <Button
-    onClick={() => setCurrentBus(b => Math.max(0, b - 1))}
-    disabled={currentBus === 0}
-    variant="outline"
-  >
-    Previous Bus
-  </Button>
+        <Button
+          onClick={() => setCurrentBus((b) => Math.max(0, b - 1))}
+          disabled={currentBus === 0}
+          variant="outline"
+        >
+          Previous Bus
+        </Button>
 
-  <span className="font-semibold">
-    Bus {currentBus + 1} of {numberOfBuses}
-  </span>
+        <span className="font-semibold">
+          Bus {currentBus + 1} of {numberOfBuses}
+        </span>
 
-  <Button
-    onClick={() => setCurrentBus(b => Math.min(numberOfBuses - 1, b + 1))}
-    disabled={currentBus === numberOfBuses - 1}
-    variant="outline"
-  >
-    Next Bus
-  </Button>
-</div>
-
+        <Button
+          onClick={() =>
+            setCurrentBus((b) => Math.min(numberOfBuses - 1, b + 1))
+          }
+          disabled={currentBus === numberOfBuses - 1}
+          variant="outline"
+        >
+          Next Bus
+        </Button>
+      </div>
     </div>
   );
 };
@@ -1159,7 +1181,7 @@ const PassengerForm = ({
     idProof: false,
     idProofNumber: false,
     phoneNumber: false,
-    email:false,
+    email: false,
   });
 
   const [errorMessages, setErrorMessages] = useState({
@@ -1169,94 +1191,93 @@ const PassengerForm = ({
     idProof: "",
     idProofNumber: "",
     phoneNumber: "",
-    email:"",
+    email: "",
   });
 
-const handleChange = (
-  e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
-) => {
-  const { name, value } = e.target;
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
+  ) => {
+    const { name, value } = e.target;
 
-  const trimmedValue = value.trim();
+    const trimmedValue = value.trim();
 
-  const updatedData: PassengerData = {
-    ...passengers[index],
-    [name]: trimmedValue,
+    const updatedData: PassengerData = {
+      ...passengers[index],
+      [name]: trimmedValue,
+    };
+
+    onChange(index, updatedData);
+
+    // ---------------------------
+    // 🧪 VALIDATIONS
+    // ---------------------------
+    let hasError = false;
+    let errorMessage = "";
+
+    // Empty check
+    if (trimmedValue === "") {
+      hasError = true;
+      errorMessage = `Please enter ${name.replace(/([A-Z])/g, " $1")}`;
+    }
+
+    // Gender validation
+    if (
+      name === "gender" &&
+      trimmedValue &&
+      !["male", "female", "other"].includes(trimmedValue)
+    ) {
+      hasError = true;
+      errorMessage = "Please select a valid gender";
+    }
+
+    // ID proof validation
+    if (
+      name === "idProof" &&
+      trimmedValue &&
+      !["aadhar", "pan"].includes(trimmedValue)
+    ) {
+      hasError = true;
+      errorMessage = "Please select a valid ID proof type";
+    }
+
+    // Age validation
+    if (name === "age" && trimmedValue) {
+      const ageNumber = Number(trimmedValue);
+      if (isNaN(ageNumber) || ageNumber <= 0 || ageNumber > 150) {
+        hasError = true;
+        errorMessage = "Please enter a valid age";
+      }
+    }
+
+    // Phone number validation (10–15 digits)
+    if (name === "phoneNumber" && trimmedValue) {
+      if (!/^\d{10,15}$/.test(trimmedValue)) {
+        hasError = true;
+        errorMessage = "Please enter a valid phone number";
+      }
+    }
+
+    // Email validation
+    if (name === "email" && trimmedValue) {
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedValue)) {
+        hasError = true;
+        errorMessage = "Please enter a valid email address";
+      }
+    }
+
+    // ---------------------------
+    // 🛑 SET ERRORS
+    // ---------------------------
+    setErrors((prev) => ({
+      ...prev,
+      [name]: hasError,
+    }));
+
+    setErrorMessages((prev) => ({
+      ...prev,
+      [name]: errorMessage,
+    }));
   };
-
-  onChange(index, updatedData);
-
-  // ---------------------------
-  // 🧪 VALIDATIONS
-  // ---------------------------
-  let hasError = false;
-  let errorMessage = "";
-
-  // Empty check
-  if (trimmedValue === "") {
-    hasError = true;
-    errorMessage = `Please enter ${name.replace(/([A-Z])/g, " $1")}`;
-  }
-
-  // Gender validation
-  if (
-    name === "gender" &&
-    trimmedValue &&
-    !["male", "female", "other"].includes(trimmedValue)
-  ) {
-    hasError = true;
-    errorMessage = "Please select a valid gender";
-  }
-
-  // ID proof validation
-  if (
-    name === "idProof" &&
-    trimmedValue &&
-    !["aadhar", "pan"].includes(trimmedValue)
-  ) {
-    hasError = true;
-    errorMessage = "Please select a valid ID proof type";
-  }
-
-  // Age validation
-  if (name === "age" && trimmedValue) {
-    const ageNumber = Number(trimmedValue);
-    if (isNaN(ageNumber) || ageNumber <= 0 || ageNumber > 150) {
-      hasError = true;
-      errorMessage = "Please enter a valid age";
-    }
-  }
-
-  // Phone number validation (10–15 digits)
-  if (name === "phoneNumber" && trimmedValue) {
-    if (!/^\d{10,15}$/.test(trimmedValue)) {
-      hasError = true;
-      errorMessage = "Please enter a valid phone number";
-    }
-  }
-
-  // Email validation
-  if (name === "email" && trimmedValue) {
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedValue)) {
-      hasError = true;
-      errorMessage = "Please enter a valid email address";
-    }
-  }
-
-  // ---------------------------
-  // 🛑 SET ERRORS
-  // ---------------------------
-  setErrors((prev) => ({
-    ...prev,
-    [name]: hasError,
-  }));
-
-  setErrorMessages((prev) => ({
-    ...prev,
-    [name]: errorMessage,
-  }));
-};
-
 
   const hasBoardingPoints =
     tripDetails.boardingPoints && tripDetails.boardingPoints.length > 0;
@@ -1424,24 +1445,23 @@ const handleChange = (
           )}
         </div>
         <div>
-  <label className="block text-sm font-medium text-gray-700 mb-1">
-    Email Address
-  </label>
-  <input
-    type="email"
-    name="email"
-    value={passengers[index]?.email || ""}
-    onChange={handleChange}
-    className={`w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${
-      errors.email ? "border-red-500" : ""
-    }`}
-    required
-  />
-  {errors.email && (
-    <p className="text-red-500 text-xs">{errorMessages.email}</p>
-  )}
-</div>
-
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Email Address
+          </label>
+          <input
+            type="email"
+            name="email"
+            value={passengers[index]?.email || ""}
+            onChange={handleChange}
+            className={`w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${
+              errors.email ? "border-red-500" : ""
+            }`}
+            required
+          />
+          {errors.email && (
+            <p className="text-red-500 text-xs">{errorMessages.email}</p>
+          )}
+        </div>
       </div>
     </motion.div>
   );
@@ -1471,6 +1491,11 @@ const BookingSummary = ({
   numberOfBuses,
   totalCapacity,
   bookedSeats,
+  acceptedTerms,
+  setAcceptedTerms,
+  showTermsModal,
+  setShowTermsModal,
+  termsContent,
 }: BookingSummaryProps) => {
   const totalSeats = selectedDate?.seats || 0;
   console.log("Total Seats:", totalSeats);
@@ -1565,7 +1590,7 @@ const BookingSummary = ({
             onChange={(e) => {
               if (disabled) return;
               const selected = validDates.find(
-                (date) => formatDateWithSeats(date) === e.target.value
+                (date) => formatDateWithSeats(date) === e.target.value,
               );
               if (selected) setSelectedData(selected);
             }}
@@ -1614,7 +1639,7 @@ const BookingSummary = ({
                           After: ₹
                           {Math.round(
                             pkg.price *
-                              (1 - tripDetails.discountPercentage / 100)
+                              (1 - tripDetails.discountPercentage / 100),
                           ).toLocaleString("en-IN")}
                         </span>
                         <br />
@@ -1724,30 +1749,31 @@ const BookingSummary = ({
       </div>
 
       <div className="border-t border-gray-200 pt-4 mb-6">
-        
-    {isSeatSelection && (
-  <div className="flex justify-between mb-2">
-    <span>Selected Seats</span>
-  <span>
-    {selectedSeats.length === 0
-  ? "None"
-  : Object.entries(
-      selectedSeats.reduce((acc: Record<number, number[]>, seat) => {
-        const [busIndex, seatNo] = seat.split("-").map(Number);
-        if (!acc[busIndex]) acc[busIndex] = [];
-        acc[busIndex].push(seatNo);
-        return acc;
-      }, {})
-    )
-      .map(
-        ([busIndex, seats]) =>
-          `Bus ${Number(busIndex) + 1}: ${seats.sort((a, b) => a - b).join(", ")}`
-      )
-      .join(" | ")}
-
-  </span>
-  </div>
-)}
+        {isSeatSelection && (
+          <div className="flex justify-between mb-2">
+            <span>Selected Seats</span>
+            <span>
+              {selectedSeats.length === 0
+                ? "None"
+                : Object.entries(
+                    selectedSeats.reduce(
+                      (acc: Record<number, number[]>, seat) => {
+                        const [busIndex, seatNo] = seat.split("-").map(Number);
+                        if (!acc[busIndex]) acc[busIndex] = [];
+                        acc[busIndex].push(seatNo);
+                        return acc;
+                      },
+                      {},
+                    ),
+                  )
+                    .map(
+                      ([busIndex, seats]) =>
+                        `Bus ${Number(busIndex) + 1}: ${seats.sort((a, b) => a - b).join(", ")}`,
+                    )
+                    .join(" | ")}
+            </span>
+          </div>
+        )}
 
         <div className="flex justify-between mb-2">
           <span>Number of Passengers</span>
@@ -1798,16 +1824,35 @@ const BookingSummary = ({
             <span>
               ₹
               {(finalAmount * (advancePaymentPercentage / 100)).toLocaleString(
-                "en-IN"
+                "en-IN",
               )}
             </span>
           </div>
         )}
       </div>
+      <div className="flex items-start gap-2 mb-4">
+        <input
+          type="checkbox"
+          checked={acceptedTerms}
+          onChange={(e) => setAcceptedTerms(e.target.checked)}
+          disabled={disabled || loading}
+          className="mt-1"
+        />
 
+        <p className="text-sm text-gray-700">
+          I agree to{" "}
+          <span
+            className="text-blue-600 cursor-pointer underline"
+            onClick={() => setShowTermsModal(true)}
+          >
+            Terms & Conditions
+          </span>
+        </p>
+      </div>
       <Button
         onClick={() => !disabled && onProceed()}
         disabled={
+          !acceptedTerms || // 🔒 NEW
           (isSeatSelection &&
             selectedSeats.length === 0 &&
             step === "select-seats") ||
@@ -1832,6 +1877,11 @@ const BookingSummary = ({
           ? "Passenger Details"
           : "Payment"}
       </Button>
+      <TermsModal
+        open={showTermsModal}
+        onClose={() => setShowTermsModal(false)}
+        content={termsContent}
+      />
     </motion.div>
   );
 };

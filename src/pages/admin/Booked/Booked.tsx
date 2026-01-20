@@ -60,7 +60,7 @@ const BookedPage = () => {
 const generateSalesPDF = () => {
   if (!salesData) return;
 
-  // ✅ Landscape PDF
+  /* ================= PDF SETUP ================= */
   const doc = new jsPDF({
     orientation: "landscape",
     unit: "mm",
@@ -98,12 +98,22 @@ const generateSalesPDF = () => {
     14,
     59
   );
+  doc.text(
+    `Total Paid: Rs ${salesData.totalPaidAmount?.toFixed(2) ?? "0.00"}`,
+    14,
+    66
+  );
+  doc.text(
+    `Total Remaining: Rs ${salesData.totalRemainingAmount?.toFixed(2) ?? "0.00"}`,
+    14,
+    73
+  );
 
   /* ================= TABLE DATA ================= */
-  const rows: any[] = [];
+  const rows = [];
 
-  salesData.bookings.forEach((booking: any) => {
-    booking.passengers.forEach((p: any) => {
+  salesData.bookings.forEach((booking) => {
+    booking.passengers.forEach((p) => {
       rows.push([
         p?.name || "N/A",
         p?.email || "N/A",
@@ -113,34 +123,42 @@ const generateSalesPDF = () => {
         p?.idProof || "N/A",
         p?.idProofNumber || "N/A",
         booking?.tripName || "N/A",
-        `Rs ${booking?.tripPrice?.toFixed(2) ?? "0.00"}`,
+
+        `Rs ${booking?.payment?.totalPrice?.toFixed(2) ?? "0.00"}`,
+        `Rs ${booking?.payment?.paidAmount?.toFixed(2) ?? "0.00"}`,
+        `Rs ${booking?.payment?.remainingAmount?.toFixed(2) ?? "0.00"}`,
+        booking?.payment?.paymentStatus?.toUpperCase() || "N/A",
       ]);
     });
   });
 
   /* ================= TABLE ================= */
   autoTable(doc, {
-    startY: 68,
-    head: [
-      [
-        "Name",
-        "Email",
-        "Phone",
-        "Age",
-        "Gender",
-        "ID Proof",
-        "ID Number",
-        "Trip Name",
-        "Price",
-      ],
-    ],
-    body: rows,
+    startY: 80,
+    margin: { left: 8, right: 8 }, // ✅ prevents clipping
+    tableWidth: "auto",
 
+    head: [[
+      "Name",
+      "Email",
+      "Phone",
+      "Age",
+      "Gender",
+      "ID Proof",
+      "ID Number",
+      "Trip Name",
+      "Total Price",
+      "Paid",
+      "Remaining",
+      "Status",
+    ]],
+
+    body: rows,
     theme: "grid",
 
     styles: {
-      fontSize: 9,
-      cellPadding: 4,
+      fontSize: 8,
+      cellPadding: 3,
       overflow: "linebreak",
       valign: "middle",
     },
@@ -149,24 +167,40 @@ const generateSalesPDF = () => {
       fillColor: [37, 99, 235],
       textColor: 255,
       halign: "center",
-      fontSize: 10,
+      fontSize: 9,
     },
 
     columnStyles: {
-      0: { cellWidth: 35 }, // Name
-      1: { cellWidth: 50 }, // Email
-      2: { cellWidth: 32 }, // Phone
-      3: { cellWidth: 15, halign: "center" }, // Age
-      4: { cellWidth: 22, halign: "center" }, // Gender
-      5: { cellWidth: 25 }, // ID Proof
-      6: { cellWidth: 32 }, // ID Number
-      7: { cellWidth: 40 }, // Trip Name
-      8: { cellWidth: 20, halign: "right" }, // Price
+      0: { cellWidth: 26 }, // Name
+      1: { cellWidth: 40 }, // Email
+      2: { cellWidth: 28 }, // Phone
+      3: { cellWidth: 10, halign: "center" }, // Age
+      4: { cellWidth: 18, halign: "center" }, // Gender
+      5: { cellWidth: 20 }, // ID Proof
+      6: { cellWidth: 28 }, // ID Number
+      7: { cellWidth: 34 }, // Trip Name
+      8: { cellWidth: 20, halign: "right" }, // Total Price
+      9: { cellWidth: 20, halign: "right" }, // Paid
+      10:{ cellWidth: 22, halign: "right" }, // Remaining ✅ FIXED
+      11:{ cellWidth: 22, halign: "center" }, // Status
+    },
+
+    didDrawPage: () => {
+      doc.setFontSize(9);
+      doc.text(
+        `Generated on ${new Date().toLocaleString()}`,
+        pageWidth - 14,
+        doc.internal.pageSize.getHeight() - 8,
+        { align: "right" }
+      );
     },
   });
 
+  /* ================= SAVE ================= */
   doc.save(`Sales_Report_${salesData.date}.pdf`);
 };
+
+
 
 
 

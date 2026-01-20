@@ -286,6 +286,7 @@ const formattedSeats =
         selectedDate: formatDateToString(selectedDate),
         passengers: [],
         price: finalAmount,
+        isadminBooking: true,
       }).unwrap();
 
       toast.success("Trip booked successfully");
