@@ -3,6 +3,18 @@ import { motion } from "framer-motion";
 import { PassengerData } from "./components/PassengerForm";
 import { fadeInUp } from "../../utils/animations";
 import { useLocation, useNavigate } from "react-router-dom";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+import logoUrl from "@/asserts/favicon.png";
+
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import {
   useGettripsIDQuery,
   useSelectedDateBookingQuery,
@@ -148,6 +160,128 @@ const BookingPage = () => {
   const [paymentOption, setPaymentOption] = useState<"full" | "advance">(
     "full",
   );
+const [invoiceModalOpen, setInvoiceModalOpen] = useState(false);
+const [invoiceGenerating, setInvoiceGenerating] = useState(false);
+const [invoiceError, setInvoiceError] = useState<string | null>(null);
+const [invoiceFilename, setInvoiceFilename] = useState<string>("");
+const [invoiceBlobUrl, setInvoiceBlobUrl] = useState<string | null>(null);
+
+// Convert local image url to base64 for jsPDF
+const toDataUrl = async (url: string): Promise<string> => {
+  const res = await fetch(url);
+  const blob = await res.blob();
+  return await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+};
+
+// Create PDF blob url + auto download
+const generateInvoicePDF = async ({
+  bookingId,
+  paymentStatus,
+  totalAmount,
+  amountPaid,
+  remaining,
+  selectedSeatsFormatted,
+}: {
+  bookingId: string;
+  paymentStatus: string;
+  totalAmount: number;
+  amountPaid: number;
+  remaining: number;
+  selectedSeatsFormatted: string;
+}) => {
+  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+
+  // Logo (safe)
+  try {
+    const base64 = await toDataUrl(logoUrl);
+    doc.addImage(base64, "PNG", 10, 8, 25, 12);
+  } catch {
+    // ignore if logo fails
+  }
+
+  // Title
+  doc.setFontSize(16);
+  doc.text("Sunshine Holiday Packages", pageWidth / 2, 16, { align: "center" });
+  doc.setFontSize(10);
+  doc.text("Invoice / Booking Receipt", pageWidth / 2, 22, { align: "center" });
+
+  const bookingShort = bookingId ? `${bookingId.substring(0, 8)}...` : "—";
+
+  const tripNamePDF = trip?.location || "Trip";
+  const destinationPDF = trip?.category || "N/A";
+  const travelDatePDF = selectedDate ? formatDateToString(selectedDate) : "N/A";
+
+  let y = 32;
+  doc.setFontSize(11);
+  doc.text(`Booking ID: ${bookingShort}`, 14, y); y += 7;
+  doc.text(`Trip: ${tripNamePDF}`, 14, y); y += 7;
+  doc.text(`Category/Destination: ${destinationPDF}`, 14, y); y += 7;
+  doc.text(`Travel Date: ${travelDatePDF}`, 14, y); y += 10;
+
+  // Passenger summary table
+  autoTable(doc, {
+    startY: y,
+    head: [["Passenger", "Phone", "Email", "Seat(s)"]],
+    body: passengers.map((p, idx) => [
+      p?.name || "—",
+      p?.phoneNumber || "—",
+      p?.email || "—",
+      // show seat per passenger if seat selection
+      (totalSeats === 20 || totalSeats === 32)
+        ? (selectedSeats[idx]
+            ? (() => {
+                const [busIdx, seat] = selectedSeats[idx].split("-");
+                return `Bus ${Number(busIdx) + 1} - ${seat}`;
+              })()
+            : "—")
+        : `Passenger ${idx + 1}`,
+    ]),
+    theme: "grid",
+    styles: { fontSize: 9, cellPadding: 2.5, valign: "middle" },
+  });
+
+  const afterPassengersY = (doc as any).lastAutoTable.finalY + 8;
+
+  // Payment info table
+  autoTable(doc, {
+    startY: afterPassengersY,
+    head: [["Payment Info", "Value"]],
+    body: [
+      ["Selected Seats", selectedSeatsFormatted || "—"],
+      ["Total Amount", `rs ${Number(totalAmount || 0).toLocaleString("en-IN")}`],
+      ["Paid", `rs ${Number(amountPaid || 0).toLocaleString("en-IN")}`],
+      ["Remaining", `rs ${Number(remaining || 0).toLocaleString("en-IN")}`],
+      ["Payment Status", String(paymentStatus || "pending").toUpperCase()],
+      ["Generated On", new Date().toLocaleString()],
+    ],
+    theme: "grid",
+    styles: { fontSize: 10, cellPadding: 3, valign: "middle" },
+    columnStyles: { 0: { cellWidth: 55 }, 1: { cellWidth: 120 } },
+  });
+
+  doc.setFontSize(9);
+  doc.text(`Thank you for booking with us!`, 14, pageHeight - 12);
+
+  // Create blob url for manual download
+  const blob = doc.output("blob");
+  const url = URL.createObjectURL(blob);
+
+  // filename
+  const safeName = String(passengers?.[0]?.name || "Passenger").replace(/\s+/g, "_");
+  const filename = `Invoice_${bookingId?.substring(0, 8) || "BOOK"}_${safeName}.pdf`;
+
+  // Auto download
+  doc.save(filename);
+
+  return { url, filename };
+};
 
   // Date formatting functions
   const formatDateToString = (dateInput: StartDate | string | Date): string => {
@@ -564,8 +698,59 @@ const BookingPage = () => {
             await createBooking(bookingPayload).unwrap();
 
             toast.success("Trip booked successfully 🎉");
-            navigate("/trips");
-            resolve();
+            
+// Open modal and generate invoice
+setInvoiceModalOpen(true);
+setInvoiceGenerating(true);
+setInvoiceError(null);
+
+try {
+  // seats string (group by bus)
+  const selectedSeatsFormatted =
+    (selectedDate?.seats === 20 || selectedDate?.seats === 32)
+      ? Object.entries(
+          selectedSeats.reduce((acc: Record<number, string[]>, seatKey) => {
+            const [busIndex, seat] = seatKey.split("-");
+            const b = Number(busIndex);
+            if (!acc[b]) acc[b] = [];
+            acc[b].push(seat);
+            return acc;
+          }, {})
+        )
+          .map(([busIndex, seats]) => `Bus ${Number(busIndex) + 1}: ${seats.join(", ")}`)
+          .join(" | ")
+      : "N/A";
+
+  // payment numbers
+  const advancePaid =
+    paymentOption === "advance" ? amountToPay : totalAmount;
+  const remainingBalance =
+    paymentOption === "advance" ? totalAmount - advancePaid : 0;
+  const paymentStatus =
+    paymentOption === "advance" ? "advance" : "full";
+
+  // ✅ generate invoice pdf + auto download
+  const { url, filename } = await generateInvoicePDF({
+    bookingId: String(paymentDetail?.id || "BOOKING"),
+    paymentStatus,
+    totalAmount,
+    amountPaid: advancePaid,
+    remaining: remainingBalance,
+    selectedSeatsFormatted,
+  });
+
+  // store for manual download
+  setInvoiceBlobUrl(url);
+  setInvoiceFilename(filename);
+
+  setInvoiceGenerating(false);
+} catch (e: any) {
+  console.error("Invoice generate error:", e);
+  setInvoiceError("Invoice generation failed. You can still continue.");
+  setInvoiceGenerating(false);
+}
+            // navigate("/trips");
+            // resolve();
           } catch (err: any) {
             console.error("Booking creation failed:", err);
             toast.error(
@@ -751,6 +936,7 @@ const BookingPage = () => {
     advancePaymentPercentage: trip.advancePaymentPercentage,
   };
 
+
   const totalSeats = selectedDate?.seats || Number(tripDetails.busSize);
   const maxAvailableSeats =
     selectedPackage || selectedRoomChoice
@@ -795,6 +981,64 @@ const BookingPage = () => {
               : `Enter details for up to ${maxAvailableSeats} passenger(s)`}
           </p>
         </motion.div>
+<Dialog open={invoiceModalOpen} onOpenChange={(v) => !invoiceGenerating && setInvoiceModalOpen(v)}>
+  <DialogContent className="sm:max-w-md">
+    <DialogHeader>
+      <DialogTitle>
+        {invoiceGenerating ? "Generating Invoice..." : "Invoice Ready ✅"}
+      </DialogTitle>
+      <DialogDescription>
+        {invoiceGenerating
+          ? "Please stay on this screen until your invoice is generated and downloaded."
+          : "Your invoice has been generated. If auto-download didn’t work, use the manual download button."}
+      </DialogDescription>
+    </DialogHeader>
+
+    {invoiceError && (
+      <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md p-3">
+        {invoiceError}
+      </div>
+    )}
+
+    <DialogFooter className="flex flex-col sm:flex-row gap-2 sm:justify-end">
+      {/* Manual download */}
+      <Button
+        type="button"
+        variant="outline"
+        disabled={!invoiceBlobUrl || invoiceGenerating}
+        onClick={() => {
+          if (!invoiceBlobUrl) return;
+          const a = document.createElement("a");
+          a.href = invoiceBlobUrl;
+          a.download = invoiceFilename || "invoice.pdf";
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+        }}
+      >
+        Manual Download
+      </Button>
+
+      {/* Continue */}
+      <Button
+        type="button"
+        disabled={invoiceGenerating}
+        onClick={() => {
+          setInvoiceModalOpen(false);
+          // cleanup blob url
+          if (invoiceBlobUrl) {
+            URL.revokeObjectURL(invoiceBlobUrl);
+            setInvoiceBlobUrl(null);
+          }
+          // Navigate after invoice step
+          navigate("/trips");
+        }}
+      >
+        Continue
+      </Button>
+    </DialogFooter>
+  </DialogContent>
+</Dialog>
 
         <div className="grid md:grid-cols-3 gap-8">
           <div className="md:col-span-2">
