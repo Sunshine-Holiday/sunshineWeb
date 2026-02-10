@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Calendar as BigCalendar, dateFnsLocalizer } from "react-big-calendar";
 import { format as formatDate, parse, startOfWeek, getDay } from "date-fns";
 import "react-big-calendar/lib/css/react-big-calendar.css";
@@ -30,15 +30,22 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
+// =====================
+// CALENDAR LOCALIZER
+// =====================
 const locales = { "en-US": enUS };
 const localizer = dateFnsLocalizer({
   format: (date, formatStr) => formatDate(date, formatStr, { locale: enUS }),
-  parse: (dateStr, formatStr) => parse(dateStr, formatStr, new Date(), { locale: enUS }),
+  parse: (dateStr, formatStr) =>
+    parse(dateStr, formatStr, new Date(), { locale: enUS }),
   startOfWeek,
   getDay,
   locales,
 });
 
+// =====================
+// TYPES
+// =====================
 interface BoardingPoint {
   location: string;
   time: string;
@@ -46,10 +53,16 @@ interface BoardingPoint {
   maplink: string;
 }
 
+interface VehicleInput {
+  instructorName: string;
+  vehicleNumber: string;
+}
+
 interface StartDate {
   date: Date;
   seats: number | "block";
   numberOfBusesAvailable: number;
+  vehicles: VehicleInput[]; // ✅ NEW
 }
 
 interface Package {
@@ -86,6 +99,9 @@ interface FormErrors {
   [key: string]: string;
 }
 
+// =====================
+// AMENITIES
+// =====================
 const availableAmenities = [
   { icon: AudioLines, name: "Music and Fun" },
   { icon: Wifi, name: "Free WiFi" },
@@ -94,23 +110,59 @@ const availableAmenities = [
   { icon: Power, name: "Charging Points" },
 ];
 
+// =====================
+// HELPERS
+// =====================
 const formatDateToString = (date: Date): string => {
   return formatDate(date, "dd-MM-yyyy");
 };
 
-const AdminTripForm: React.FC = () => {
-  const [numberOfBuses, setNumberOfBuses] = useState<number | "">("");
-const [numberOfBusesError, setNumberOfBusesError] = useState<string>("");
-const validateBuses = (value: number | "") => {
-  if (value === "") return "Number of buses is required";
-  if (!Number.isInteger(value) || value <= 0)
-    return "Enter a valid number of buses";
-  return "";
+const normalizeToMidnight = (date: Date) => {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  return d;
 };
+
+const clampPositiveInt = (v: number, fallback = 1) => {
+  if (!Number.isFinite(v)) return fallback;
+  const n = Math.trunc(v);
+  return n > 0 ? n : fallback;
+};
+
+// =====================
+// COMPONENT
+// =====================
+const AdminTripForm: React.FC = () => {
+  // ✅ buses count
+  const [numberOfBuses, setNumberOfBuses] = useState<number | "">("");
+  const [numberOfBusesError, setNumberOfBusesError] = useState<string>("");
+
+  const validateBuses = (value: number | "") => {
+    if (value === "") return "Number of buses is required";
+    if (!Number.isInteger(value) || value <= 0) return "Enter a valid number of buses";
+    return "";
+  };
+
+  // ✅ NEW: vehicles input list (depends on numberOfBuses)
+  const [vehiclesInputs, setVehiclesInputs] = useState<VehicleInput[]>([]);
+  const [vehiclesError, setVehiclesError] = useState<string>("");
+
+  const validateVehicles = (buses: number | "", list: VehicleInput[]) => {
+    if (buses === "" || buses <= 0) return "Please enter number of buses first";
+    if (!Array.isArray(list) || list.length !== buses) return `Please add ${buses} vehicle(s)`;
+
+    for (let i = 0; i < list.length; i++) {
+      const v = list[i];
+      if (!v.instructorName?.trim()) return `Instructor name is required for Bus #${i + 1}`;
+      if (!v.vehicleNumber?.trim()) return `Vehicle number is required for Bus #${i + 1}`;
+    }
+    return "";
+  };
 
   const [createTrips] = useCreatetripsMutation();
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+
   const [tripDetails, setTripDetails] = useState<TripDetails>({
     title: "",
     location: "",
@@ -131,8 +183,11 @@ const validateBuses = (value: number | "") => {
   const [errors, setErrors] = useState<FormErrors>({});
   const [touched, setTouched] = useState<{ [key: string]: boolean }>({});
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+
+  // modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+
   const [selectedSeats, setSelectedSeats] = useState<number | "block" | null>(null);
   const [seatSelectionType, setSeatSelectionType] = useState<"fixed" | "block" | null>(null);
   const [blockSeats, setBlockSeats] = useState<string>("");
@@ -148,7 +203,16 @@ const validateBuses = (value: number | "") => {
     ],
   };
 
-  const quillFormats = ["header", "bold", "italic", "underline", "strike", "list", "bullet", "link"];
+  const quillFormats = [
+    "header",
+    "bold",
+    "italic",
+    "underline",
+    "strike",
+    "list",
+    "bullet",
+    "link",
+  ];
 
   const handleChange = (field: keyof TripDetails, value: string | number | any) => {
     setTripDetails({ ...tripDetails, [field]: value });
@@ -198,24 +262,31 @@ const validateBuses = (value: number | "") => {
         if (!tripDetails.category) newErrors.category = "Category is required";
         break;
       case "amenities":
-        if (tripDetails.amenities.length === 0) newErrors.amenities = "At least one amenity is required";
+        if (tripDetails.amenities.length === 0)
+          newErrors.amenities = "At least one amenity is required";
         break;
       case "file":
         if (!tripDetails.file) newErrors.file = "Banner image is required";
         break;
       case "price":
-        if (tripDetails.packages.length === 0 && (!tripDetails.price || tripDetails.price <= 0)) {
+        if (
+          tripDetails.packages.length === 0 &&
+          (!tripDetails.price || tripDetails.price <= 0)
+        ) {
           newErrors.price = "Price is required when no packages are provided";
         }
         break;
       case "packages":
         if (tripDetails.packages.length === 0 && !tripDetails.price) {
-          newErrors.packages = "At least one package is required if no single price is provided";
+          newErrors.packages =
+            "At least one package is required if no single price is provided";
         } else {
           tripDetails.packages.forEach((pkg, index) => {
             if (!pkg.title) newErrors[`package-title-${index}`] = "Package title is required";
-            if (!pkg.personCount || pkg.personCount <= 0) newErrors[`package-personCount-${index}`] = "Valid person count is required";
-            if (!pkg.price || pkg.price <= 0) newErrors[`package-price-${index}`] = "Valid price is required";
+            if (!pkg.personCount || pkg.personCount <= 0)
+              newErrors[`package-personCount-${index}`] = "Valid person count is required";
+            if (!pkg.price || pkg.price <= 0)
+              newErrors[`package-price-${index}`] = "Valid price is required";
           });
         }
         break;
@@ -230,7 +301,8 @@ const validateBuses = (value: number | "") => {
       case "advancePaymentPercentage":
         if (
           tripDetails.advancePaymentPercentage !== undefined &&
-          (tripDetails.advancePaymentPercentage < 0 || tripDetails.advancePaymentPercentage > 100)
+          (tripDetails.advancePaymentPercentage < 0 ||
+            tripDetails.advancePaymentPercentage > 100)
         ) {
           newErrors.advancePaymentPercentage = "Advance payment must be between 0 and 100";
         }
@@ -257,7 +329,10 @@ const validateBuses = (value: number | "") => {
   const handleAddBoardingPoint = () => {
     setTripDetails({
       ...tripDetails,
-      boardingPoints: [...tripDetails.boardingPoints, { location: "", time: "", details: "", maplink: "" }],
+      boardingPoints: [
+        ...tripDetails.boardingPoints,
+        { location: "", time: "", details: "", maplink: "" },
+      ],
     });
     setErrors({ ...errors, boardingPoints: "" });
   };
@@ -266,11 +341,18 @@ const validateBuses = (value: number | "") => {
     const updatedPoints = tripDetails.boardingPoints.filter((_, i) => i !== index);
     setTripDetails({ ...tripDetails, boardingPoints: updatedPoints });
     if (updatedPoints.length === 0) {
-      setErrors({ ...errors, boardingPoints: "Boarding points must have at least one entry" });
+      setErrors({
+        ...errors,
+        boardingPoints: "Boarding points must have at least one entry",
+      });
     }
   };
 
-  const handleBoardingPointChange = (index: number, field: keyof BoardingPoint, value: string) => {
+  const handleBoardingPointChange = (
+    index: number,
+    field: keyof BoardingPoint,
+    value: string
+  ) => {
     const updatedPoints = tripDetails.boardingPoints.map((point, i) =>
       i === index ? { ...point, [field]: value } : point
     );
@@ -280,7 +362,10 @@ const validateBuses = (value: number | "") => {
   const handleAddPackage = () => {
     setTripDetails({
       ...tripDetails,
-      packages: [...tripDetails.packages, { title: "", description: "", personCount: 0, price: 0 }],
+      packages: [
+        ...tripDetails.packages,
+        { title: "", description: "", personCount: 0, price: 0 },
+      ],
       price: 0,
     });
     setErrors({ ...errors, packages: "", price: "" });
@@ -290,12 +375,19 @@ const validateBuses = (value: number | "") => {
     const updatedPackages = tripDetails.packages.filter((_, i) => i !== index);
     setTripDetails({ ...tripDetails, packages: updatedPackages });
     if (updatedPackages.length === 0) {
-      setErrors({ ...errors, packages: "At least one package is required if no single price is provided" });
+      setErrors({
+        ...errors,
+        packages: "At least one package is required if no single price is provided",
+      });
     }
     validateField("price");
   };
 
-  const handlePackageChange = (index: number, field: keyof Package, value: string | number) => {
+  const handlePackageChange = (
+    index: number,
+    field: keyof Package,
+    value: string | number
+  ) => {
     const updatedPackages = tripDetails.packages.map((pkg, i) =>
       i === index ? { ...pkg, [field]: value } : pkg
     );
@@ -306,7 +398,10 @@ const validateBuses = (value: number | "") => {
   const handleAddRoomChoice = () => {
     setTripDetails({
       ...tripDetails,
-      roomChoices: [...tripDetails.roomChoices, { description: "", roomCount: 0, price: 0 }],
+      roomChoices: [
+        ...tripDetails.roomChoices,
+        { description: "", roomCount: 0, price: 0 },
+      ],
     });
   };
 
@@ -315,7 +410,11 @@ const validateBuses = (value: number | "") => {
     setTripDetails({ ...tripDetails, roomChoices: updatedRoomChoices });
   };
 
-  const handleRoomChoiceChange = (index: number, field: keyof RoomChoice, value: string | number) => {
+  const handleRoomChoiceChange = (
+    index: number,
+    field: keyof RoomChoice,
+    value: string | number
+  ) => {
     const updatedRoomChoices = tripDetails.roomChoices.map((room, i) =>
       i === index ? { ...room, [field]: value } : room
     );
@@ -323,77 +422,175 @@ const validateBuses = (value: number | "") => {
     validateField("roomChoices");
   };
 
+  // =====================
+  // DATE SELECTION
+  // =====================
   const handleDateSelection = (date: Date) => {
-    const normalizedDate = new Date(date.setHours(0, 0, 0, 0));
+    const normalizedDate = normalizeToMidnight(date);
+
     const existingDate = tripDetails.startDates.find(
-      (d) => new Date(d.date).getTime() === normalizedDate.getTime()
+      (d) => normalizeToMidnight(d.date).getTime() === normalizedDate.getTime()
     );
+
+    // If already exists -> remove
     if (existingDate) {
       setTripDetails({
         ...tripDetails,
         startDates: tripDetails.startDates.filter(
-          (d) => new Date(d.date).getTime() !== normalizedDate.getTime()
+          (d) => normalizeToMidnight(d.date).getTime() !== normalizedDate.getTime()
         ),
       });
-    } else {
-      setSelectedDate(normalizedDate);
-      setSelectedSeats(null);
-      setSeatSelectionType(null);
-      setBlockSeats("");
-      setBlockSeatsError("");
-      setIsModalOpen(true);
-    }
-  };
-
-const handleModalSubmit = () => {
-  const busError = validateBuses(numberOfBuses);
-  if (busError) {
-    setNumberOfBusesError(busError);
-    return;
-  }
-
-  if (!selectedDate) return;
-
-  let finalSeats: number | "block" | null = null;
-
-  if (seatSelectionType === "block") {
-    const error = validateBlockSeats(blockSeats);
-    if (error) {
-      setBlockSeatsError(error);
       return;
     }
-    finalSeats = parseInt(blockSeats);
-  } else {
-    finalSeats = selectedSeats;
-  }
 
-  if (finalSeats === null) return;
+    // else open modal
+    setSelectedDate(normalizedDate);
+    setSelectedSeats(null);
+    setSeatSelectionType(null);
+    setBlockSeats("");
+    setBlockSeatsError("");
 
-  const newStartDate: StartDate = {
-    date: selectedDate,
-    seats: finalSeats,
-    numberOfBusesAvailable: Number(numberOfBuses),
+    setNumberOfBuses("");
+    setNumberOfBusesError("");
+
+    setVehiclesInputs([]);
+    setVehiclesError("");
+
+    setIsModalOpen(true);
   };
 
-  const newDates = [...tripDetails.startDates, newStartDate].sort(
-    (a, b) => a.date.getTime() - b.date.getTime()
-  );
+  // =====================
+  // ✅ NEW: when buses change, auto create inputs
+  // =====================
+  useEffect(() => {
+    if (numberOfBuses === "") {
+      setVehiclesInputs([]);
+      setVehiclesError("");
+      return;
+    }
 
-  setTripDetails({ ...tripDetails, startDates: newDates });
-  setErrors({ ...errors, startDates: "" });
+    const err = validateBuses(numberOfBuses);
+    setNumberOfBusesError(err);
 
-  // Reset modal state
-  setIsModalOpen(false);
-  setSelectedDate(null);
-  setSelectedSeats(null);
-  setSeatSelectionType(null);
-  setBlockSeats("");
-  setBlockSeatsError("");
-  setNumberOfBuses("");
-  setNumberOfBusesError("");
-};
+    if (err) {
+      setVehiclesInputs([]);
+      setVehiclesError("");
+      return;
+    }
 
+    const buses = clampPositiveInt(numberOfBuses);
 
+    setVehiclesInputs((prev) => {
+      const next = [...prev];
+
+      // extend
+      while (next.length < buses) {
+        next.push({ instructorName: "", vehicleNumber: "" });
+      }
+
+      // shrink
+      if (next.length > buses) {
+        next.splice(buses);
+      }
+
+      return next;
+    });
+
+    // re-validate vehicles live
+    setVehiclesError((prevErr) => {
+      const vErr = validateVehicles(buses, vehiclesInputs.length === buses ? vehiclesInputs : []);
+      return vErr || "";
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [numberOfBuses]);
+
+  const handleVehicleChange = (index: number, field: keyof VehicleInput, value: string) => {
+    setVehiclesInputs((prev) => {
+      const next = prev.map((v, i) => (i === index ? { ...v, [field]: value } : v));
+      if (numberOfBuses !== "") {
+        const vErr = validateVehicles(numberOfBuses, next);
+        setVehiclesError(vErr);
+      } else {
+        setVehiclesError("");
+      }
+      return next;
+    });
+  };
+
+  const resetModalState = () => {
+    setIsModalOpen(false);
+    setSelectedDate(null);
+
+    setSelectedSeats(null);
+    setSeatSelectionType(null);
+    setBlockSeats("");
+    setBlockSeatsError("");
+
+    setNumberOfBuses("");
+    setNumberOfBusesError("");
+
+    setVehiclesInputs([]);
+    setVehiclesError("");
+  };
+
+  // =====================
+  // ✅ MODAL SUBMIT
+  // =====================
+  const handleModalSubmit = () => {
+    // validate buses
+    const busError = validateBuses(numberOfBuses);
+    if (busError) {
+      setNumberOfBusesError(busError);
+      return;
+    }
+
+    // validate vehicles
+    const vErr = validateVehicles(numberOfBuses, vehiclesInputs);
+    if (vErr) {
+      setVehiclesError(vErr);
+      return;
+    }
+
+    if (!selectedDate) return;
+
+    let finalSeats: number | "block" | null = null;
+
+    if (seatSelectionType === "block") {
+      const error = validateBlockSeats(blockSeats);
+      if (error) {
+        setBlockSeatsError(error);
+        return;
+      }
+      finalSeats = parseInt(blockSeats);
+    } else {
+      finalSeats = selectedSeats;
+    }
+
+    if (finalSeats === null) return;
+
+    const newStartDate: StartDate = {
+      date: selectedDate,
+      seats: finalSeats,
+      numberOfBusesAvailable: Number(numberOfBuses),
+      vehicles: vehiclesInputs.map((v) => ({
+        instructorName: v.instructorName.trim(),
+        vehicleNumber: v.vehicleNumber.trim(),
+      })),
+    };
+
+    const newDates = [...tripDetails.startDates, newStartDate].sort(
+      (a, b) => a.date.getTime() - b.date.getTime()
+    );
+
+    setTripDetails({ ...tripDetails, startDates: newDates });
+    setErrors({ ...errors, startDates: "" });
+
+    resetModalState();
+  };
+
+  // =====================
+  // FORM VALIDATION
+  // =====================
   const validateForm = () => {
     const requiredFields = ["title", "location", "description", "category", "file", "price"];
     let newErrors: FormErrors = {};
@@ -411,6 +608,29 @@ const handleModalSubmit = () => {
       isValid = false;
     }
 
+    // ✅ validate each start date has vehicles count = numberOfBusesAvailable
+    tripDetails.startDates.forEach((d, idx) => {
+      if (!d.numberOfBusesAvailable || d.numberOfBusesAvailable <= 0) {
+        newErrors[`startDates-buses-${idx}`] = "Buses count must be > 0";
+        isValid = false;
+      }
+      if (!Array.isArray(d.vehicles) || d.vehicles.length !== d.numberOfBusesAvailable) {
+        newErrors[`startDates-vehicles-${idx}`] = `Date ${formatDateToString(d.date)} must have ${d.numberOfBusesAvailable} vehicle(s)`;
+        isValid = false;
+      } else {
+        d.vehicles.forEach((v, vi) => {
+          if (!v.instructorName?.trim()) {
+            newErrors[`startDates-${idx}-instructor-${vi}`] = `Instructor name missing for ${formatDateToString(d.date)} Bus #${vi + 1}`;
+            isValid = false;
+          }
+          if (!v.vehicleNumber?.trim()) {
+            newErrors[`startDates-${idx}-vehicle-${vi}`] = `Vehicle number missing for ${formatDateToString(d.date)} Bus #${vi + 1}`;
+            isValid = false;
+          }
+        });
+      }
+    });
+
     if (tripDetails.packages.length === 0 && (!tripDetails.price || tripDetails.price <= 0)) {
       newErrors.price = "Price is required when no packages are provided";
       isValid = false;
@@ -418,8 +638,10 @@ const handleModalSubmit = () => {
 
     tripDetails.packages.forEach((pkg, index) => {
       if (!pkg.title) newErrors[`package-title-${index}`] = "Package title is required";
-      if (!pkg.personCount || pkg.personCount <= 0) newErrors[`package-personCount-${index}`] = "Valid person count is required";
-      if (!pkg.price || pkg.price <= 0) newErrors[`package-price-${index}`] = "Valid price is required";
+      if (!pkg.personCount || pkg.personCount <= 0)
+        newErrors[`package-personCount-${index}`] = "Valid person count is required";
+      if (!pkg.price || pkg.price <= 0)
+        newErrors[`package-price-${index}`] = "Valid price is required";
     });
 
     tripDetails.roomChoices.forEach((room, index) => {
@@ -449,11 +671,15 @@ const handleModalSubmit = () => {
     return isValid && Object.keys(newErrors).length === 0;
   };
 
+  // =====================
+  // SAVE
+  // =====================
   const handleSave = async () => {
     if (!validateForm()) {
       toast.error("Please fill in all required fields.");
       return;
     }
+
     setLoading(true);
     try {
       const formData = new FormData();
@@ -461,6 +687,8 @@ const handleModalSubmit = () => {
       formData.append("location", tripDetails.location);
       formData.append("duration", tripDetails.duration);
       formData.append("description", tripDetails.description);
+
+      // ✅ Include buses + vehicles per date
       formData.append(
         "startDates",
         JSON.stringify(
@@ -468,19 +696,27 @@ const handleModalSubmit = () => {
             date: formatDateToString(d.date),
             seats: d.seats,
             numberOfBusesAvailable: d.numberOfBusesAvailable,
+            vehicles: d.vehicles, // ✅ NEW
           }))
         )
       );
+
       formData.append("price", tripDetails.price.toString());
       formData.append("category", tripDetails.category);
       formData.append("amenities", JSON.stringify(tripDetails.amenities));
       formData.append("boardingPoints", JSON.stringify(tripDetails.boardingPoints));
       formData.append("packages", JSON.stringify(tripDetails.packages));
       formData.append("roomChoices", JSON.stringify(tripDetails.roomChoices));
+
       if (tripDetails.file) formData.append("file", tripDetails.file);
+
       if (tripDetails.advancePaymentPercentage !== undefined) {
-        formData.append("advancePaymentPercentage", tripDetails.advancePaymentPercentage.toString());
+        formData.append(
+          "advancePaymentPercentage",
+          tripDetails.advancePaymentPercentage.toString()
+        );
       }
+
       if (tripDetails.discountPercentage !== undefined) {
         formData.append("discountPercentage", tripDetails.discountPercentage.toString());
       }
@@ -498,7 +734,25 @@ const handleModalSubmit = () => {
 
   const today = new Date();
 
-  const inputClassName = (field: string) => `w-full ${touched[field] && errors[field] ? "border-red-500" : ""}`;
+  const inputClassName = (field: string) =>
+    `w-full ${touched[field] && errors[field] ? "border-red-500" : ""}`;
+
+  // calendar events (safe normalize)
+  const calendarEvents = useMemo(() => {
+    return tripDetails.startDates.map((d, index) => {
+      const start = normalizeToMidnight(d.date);
+      const end = normalizeToMidnight(d.date);
+      const seatsLabel = d.seats === "block" ? "Block" : `${d.seats} Seats`;
+      const busesLabel = `${d?.numberOfBusesAvailable || 0} Bus(es)`;
+
+      return {
+        id: index,
+        start,
+        end,
+        title: `${formatDateToString(d.date)} • ${seatsLabel} • ${busesLabel}`,
+      };
+    });
+  }, [tripDetails.startDates]);
 
   return (
     <div className="min-h-screen bg-gray-100 py-8">
@@ -507,6 +761,7 @@ const handleModalSubmit = () => {
           <h1 className="text-3xl font-bold text-gray-900 mb-6">Create New Trip</h1>
 
           <div className="space-y-8">
+            {/* ===================== BANNER ===================== */}
             <div>
               <h2 className="text-xl font-semibold mb-4">Upload Trip Banner *</h2>
               <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
@@ -520,12 +775,21 @@ const handleModalSubmit = () => {
                 <Label htmlFor="banner-upload" className="cursor-pointer block">
                   {imagePreview ? (
                     <div className="relative">
-                      <img src={imagePreview} alt="Banner preview" className="max-h-48 mx-auto rounded-lg" />
+                      <img
+                        src={imagePreview}
+                        alt="Banner preview"
+                        className="max-h-48 mx-auto rounded-lg"
+                      />
                       <p className="mt-2 text-sm text-gray-600">Click to change image</p>
                     </div>
                   ) : (
                     <div>
-                      <svg className="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                      <svg
+                        className="mx-auto h-12 w-12 text-gray-400"
+                        stroke="currentColor"
+                        fill="none"
+                        viewBox="0 0 48 48"
+                      >
                         <path
                           d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02"
                           strokeWidth="2"
@@ -533,15 +797,20 @@ const handleModalSubmit = () => {
                           strokeLinejoin="round"
                         />
                       </svg>
-                      <p className="mt-1 text-sm text-gray-600">Drag and drop or click to upload a banner (PNG, JPG, JPEG)</p>
+                      <p className="mt-1 text-sm text-gray-600">
+                        Drag and drop or click to upload a banner (PNG, JPG, JPEG)
+                      </p>
                       <p className="mt-1 text-xs text-gray-500">Maximum file size: 5MB</p>
                     </div>
                   )}
                 </Label>
               </div>
-              {touched.file && errors.file && <p className="mt-2 text-sm text-red-500">{errors.file}</p>}
+              {touched.file && errors.file && (
+                <p className="mt-2 text-sm text-red-500">{errors.file}</p>
+              )}
             </div>
 
+            {/* ===================== BASIC FIELDS ===================== */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="title">Trip Title *</Label>
@@ -553,8 +822,11 @@ const handleModalSubmit = () => {
                   onBlur={() => handleBlur("title")}
                   className={inputClassName("title")}
                 />
-                {touched.title && errors.title && <p className="mt-1 text-sm text-red-500">{errors.title}</p>}
+                {touched.title && errors.title && (
+                  <p className="mt-1 text-sm text-red-500">{errors.title}</p>
+                )}
               </div>
+
               <div>
                 <Label htmlFor="location">Location *</Label>
                 <Input
@@ -565,8 +837,11 @@ const handleModalSubmit = () => {
                   onBlur={() => handleBlur("location")}
                   className={inputClassName("location")}
                 />
-                {touched.location && errors.location && <p className="mt-1 text-sm text-red-500">{errors.location}</p>}
+                {touched.location && errors.location && (
+                  <p className="mt-1 text-sm text-red-500">{errors.location}</p>
+                )}
               </div>
+
               <div>
                 <Label htmlFor="category">Category *</Label>
                 <Select
@@ -583,8 +858,11 @@ const handleModalSubmit = () => {
                     <SelectItem value="Domestic Tours">Domestic Tours</SelectItem>
                   </SelectContent>
                 </Select>
-                {touched.category && errors.category && <p className="mt-1 text-sm text-red-500">{errors.category}</p>}
+                {touched.category && errors.category && (
+                  <p className="mt-1 text-sm text-red-500">{errors.category}</p>
+                )}
               </div>
+
               <div>
                 <Label htmlFor="price">Price *</Label>
                 <Input
@@ -596,8 +874,11 @@ const handleModalSubmit = () => {
                   onBlur={() => handleBlur("price")}
                   className={inputClassName("price")}
                 />
-                {touched.price && errors.price && <p className="mt-1 text-sm text-red-500">{errors.price}</p>}
+                {touched.price && errors.price && (
+                  <p className="mt-1 text-sm text-red-500">{errors.price}</p>
+                )}
               </div>
+
               <div>
                 <Label htmlFor="advancePaymentPercentage">Advance Payment Percentage</Label>
                 <Input
@@ -618,6 +899,7 @@ const handleModalSubmit = () => {
                   <p className="mt-1 text-sm text-red-500">{errors.advancePaymentPercentage}</p>
                 )}
               </div>
+
               <div>
                 <Label htmlFor="discountPercentage">Discount Percentage</Label>
                 <Input
@@ -640,6 +922,7 @@ const handleModalSubmit = () => {
               </div>
             </div>
 
+            {/* ===================== DESCRIPTION ===================== */}
             <div>
               <h2 className="text-xl font-semibold mb-2">Trip Description *</h2>
               <ReactQuill
@@ -649,24 +932,22 @@ const handleModalSubmit = () => {
                 onBlur={() => handleBlur("description")}
                 modules={quillModules}
                 formats={quillFormats}
-                className={`border ${touched.description && errors.description ? "border-red-500" : "border-gray-300"} rounded-lg`}
+                className={`border ${
+                  touched.description && errors.description ? "border-red-500" : "border-gray-300"
+                } rounded-lg`}
                 style={{ height: "200px", marginBottom: "40px" }}
               />
-              {touched.description && errors.description && <p className="mt-1 text-sm text-red-500">{errors.description}</p>}
+              {touched.description && errors.description && (
+                <p className="mt-1 text-sm text-red-500">{errors.description}</p>
+              )}
             </div>
 
+            {/* ===================== CALENDAR ===================== */}
             <div>
               <h2 className="text-xl font-semibold mb-4">Select Trip Dates *</h2>
               <BigCalendar
                 localizer={localizer}
-                events={tripDetails.startDates.map((d, index) => ({
-                  id: index,
-                  start: new Date(d.date.setHours(0, 0, 0, 0)),
-                  end: new Date(d.date.setHours(0, 0, 0, 0)),
-              title: `${formatDateToString(d.date)} • ${
-  d.seats === "block" ? "Block" : `${d.seats} Seats`
-} • ${d?.numberOfBusesAvailable} Bus(es)`,
-                }))}
+                events={calendarEvents}
                 selectable
                 onSelectSlot={(slotInfo) => handleDateSelection(slotInfo.start)}
                 views={["month"]}
@@ -677,21 +958,40 @@ const handleModalSubmit = () => {
                 endAccessor="end"
                 min={today}
               />
+
               {errors.startDates && <p className="mt-2 text-sm text-red-500">{errors.startDates}</p>}
+
               {tripDetails.startDates.length > 0 && (
                 <div className="mt-4">
                   <h3 className="text-lg font-medium text-gray-700">Selected Dates:</h3>
-                  <ul className="mt-2 list-disc pl-5 text-gray-600">
+                  <ul className="mt-2 list-disc pl-5 text-gray-600 space-y-1">
                     {tripDetails.startDates.map((d, index) => (
-                      <li key={index}>{formatDateToString(d.date)} - {d.seats === "block" ? "Block" : `${d.seats} Seats`}</li>
+                      <li key={index}>
+                        {formatDateToString(d.date)} -{" "}
+                        {d.seats === "block" ? "Block" : `${d.seats} Seats`} -{" "}
+                        {d.numberOfBusesAvailable} Bus(es)
+                        {Array.isArray(d.vehicles) && d.vehicles.length > 0 ? (
+                          <div className="mt-1 text-sm text-gray-500">
+                            {d.vehicles.map((v, vi) => (
+                              <div key={vi}>
+                                Bus #{vi + 1}: {v.instructorName} • {v.vehicleNumber}
+                              </div>
+                            ))}
+                          </div>
+                        ) : null}
+                      </li>
                     ))}
                   </ul>
                 </div>
               )}
             </div>
 
+            {/* ===================== PACKAGES ===================== */}
             <div>
-              <h2 className="text-xl font-semibold mb-4">Packages {tripDetails.packages.length === 0 ? "" : "*"}</h2>
+              <h2 className="text-xl font-semibold mb-4">
+                Packages {tripDetails.packages.length === 0 ? "" : "*"}
+              </h2>
+
               {tripDetails.packages.map((pkg, index) => (
                 <div key={index} className="relative mb-6 p-4 bg-gray-50 rounded-lg">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -704,8 +1004,11 @@ const handleModalSubmit = () => {
                         onChange={(e) => handlePackageChange(index, "title", e.target.value)}
                         onBlur={() => validateField("packages")}
                       />
-                      {errors[`package-title-${index}`] && <p className="mt-1 text-sm text-red-500">{errors[`package-title-${index}`]}</p>}
+                      {errors[`package-title-${index}`] && (
+                        <p className="mt-1 text-sm text-red-500">{errors[`package-title-${index}`]}</p>
+                      )}
                     </div>
+
                     <div>
                       <Label htmlFor={`package-personCount-${index}`}>Person Count *</Label>
                       <Input
@@ -713,11 +1016,18 @@ const handleModalSubmit = () => {
                         type="number"
                         placeholder="e.g., 4"
                         value={pkg.personCount || ""}
-                        onChange={(e) => handlePackageChange(index, "personCount", parseInt(e.target.value) || 0)}
+                        onChange={(e) =>
+                          handlePackageChange(index, "personCount", parseInt(e.target.value) || 0)
+                        }
                         onBlur={() => validateField("packages")}
                       />
-                      {errors[`package-personCount-${index}`] && <p className="mt-1 text-sm text-red-500">{errors[`package-personCount-${index}`]}</p>}
+                      {errors[`package-personCount-${index}`] && (
+                        <p className="mt-1 text-sm text-red-500">
+                          {errors[`package-personCount-${index}`]}
+                        </p>
+                      )}
                     </div>
+
                     <div>
                       <Label htmlFor={`package-price-${index}`}>Price *</Label>
                       <Input
@@ -725,11 +1035,16 @@ const handleModalSubmit = () => {
                         type="number"
                         placeholder="e.g., 7900"
                         value={pkg.price || ""}
-                        onChange={(e) => handlePackageChange(index, "price", parseInt(e.target.value) || 0)}
+                        onChange={(e) =>
+                          handlePackageChange(index, "price", parseInt(e.target.value) || 0)
+                        }
                         onBlur={() => validateField("packages")}
                       />
-                      {errors[`package-price-${index}`] && <p className="mt-1 text-sm text-red-500">{errors[`package-price-${index}`]}</p>}
+                      {errors[`package-price-${index}`] && (
+                        <p className="mt-1 text-sm text-red-500">{errors[`package-price-${index}`]}</p>
+                      )}
                     </div>
+
                     <div>
                       <Label htmlFor={`package-description-${index}`}>Description</Label>
                       <Input
@@ -740,6 +1055,7 @@ const handleModalSubmit = () => {
                       />
                     </div>
                   </div>
+
                   <Button
                     variant="destructive"
                     size="icon"
@@ -750,10 +1066,14 @@ const handleModalSubmit = () => {
                   </Button>
                 </div>
               ))}
+
               {errors.packages && <p className="mt-2 text-sm text-red-500">{errors.packages}</p>}
-              <Button onClick={handleAddPackage} className="mt-2">Add Package</Button>
+              <Button onClick={handleAddPackage} className="mt-2">
+                Add Package
+              </Button>
             </div>
 
+            {/* ===================== ROOM CHOICES ===================== */}
             <div>
               <h2 className="text-xl font-semibold mb-4">Room Choices</h2>
               {tripDetails.roomChoices.map((room, index) => (
@@ -765,11 +1085,16 @@ const handleModalSubmit = () => {
                         id={`room-description-${index}`}
                         placeholder="e.g., 1 room"
                         value={room.description}
-                        onChange={(e) => handleRoomChoiceChange(index, "description", e.target.value)}
+                        onChange={(e) =>
+                          handleRoomChoiceChange(index, "description", e.target.value)
+                        }
                         onBlur={() => validateField("roomChoices")}
                       />
-                      {errors[`room-description-${index}`] && <p className="mt-1 text-sm text-red-500">{errors[`room-description-${index}`]}</p>}
+                      {errors[`room-description-${index}`] && (
+                        <p className="mt-1 text-sm text-red-500">{errors[`room-description-${index}`]}</p>
+                      )}
                     </div>
+
                     <div>
                       <Label htmlFor={`room-roomCount-${index}`}>Room Count</Label>
                       <Input
@@ -777,11 +1102,16 @@ const handleModalSubmit = () => {
                         type="number"
                         placeholder="e.g., 1"
                         value={room.roomCount || ""}
-                        onChange={(e) => handleRoomChoiceChange(index, "roomCount", parseInt(e.target.value) || 0)}
+                        onChange={(e) =>
+                          handleRoomChoiceChange(index, "roomCount", parseInt(e.target.value) || 0)
+                        }
                         onBlur={() => validateField("roomChoices")}
                       />
-                      {errors[`room-roomCount-${index}`] && <p className="mt-1 text-sm text-red-500">{errors[`room-roomCount-${index}`]}</p>}
+                      {errors[`room-roomCount-${index}`] && (
+                        <p className="mt-1 text-sm text-red-500">{errors[`room-roomCount-${index}`]}</p>
+                      )}
                     </div>
+
                     <div>
                       <Label htmlFor={`room-price-${index}`}>Price</Label>
                       <Input
@@ -789,12 +1119,17 @@ const handleModalSubmit = () => {
                         type="number"
                         placeholder="e.g., 2000"
                         value={room.price || ""}
-                        onChange={(e) => handleRoomChoiceChange(index, "price", parseInt(e.target.value) || 0)}
+                        onChange={(e) =>
+                          handleRoomChoiceChange(index, "price", parseInt(e.target.value) || 0)
+                        }
                         onBlur={() => validateField("roomChoices")}
                       />
-                      {errors[`room-price-${index}`] && <p className="mt-1 text-sm text-red-500">{errors[`room-price-${index}`]}</p>}
+                      {errors[`room-price-${index}`] && (
+                        <p className="mt-1 text-sm text-red-500">{errors[`room-price-${index}`]}</p>
+                      )}
                     </div>
                   </div>
+
                   <Button
                     variant="destructive"
                     size="icon"
@@ -805,9 +1140,12 @@ const handleModalSubmit = () => {
                   </Button>
                 </div>
               ))}
-              <Button onClick={handleAddRoomChoice} className="mt-2">Add Room Choice</Button>
+              <Button onClick={handleAddRoomChoice} className="mt-2">
+                Add Room Choice
+              </Button>
             </div>
 
+            {/* ===================== AMENITIES ===================== */}
             <div>
               <h2 className="text-xl font-semibold mb-4">Amenities *</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
@@ -831,9 +1169,12 @@ const handleModalSubmit = () => {
                   </div>
                 ))}
               </div>
-              {touched.amenities && errors.amenities && <p className="mt-2 text-sm text-red-500">{errors.amenities}</p>}
+              {touched.amenities && errors.amenities && (
+                <p className="mt-2 text-sm text-red-500">{errors.amenities}</p>
+              )}
             </div>
 
+            {/* ===================== BOARDING POINTS ===================== */}
             <div>
               <h2 className="text-xl font-semibold mb-4">Boarding Points *</h2>
               {tripDetails.boardingPoints.map((boardingPoint, index) => (
@@ -845,18 +1186,24 @@ const handleModalSubmit = () => {
                         id={`location-${index}`}
                         placeholder="Pick Up Location"
                         value={boardingPoint.location}
-                        onChange={(e) => handleBoardingPointChange(index, "location", e.target.value)}
+                        onChange={(e) =>
+                          handleBoardingPointChange(index, "location", e.target.value)
+                        }
                       />
                     </div>
+
                     <div>
                       <Label htmlFor={`maplink-${index}`}>Map Link (URL)</Label>
                       <Input
                         id={`maplink-${index}`}
                         placeholder="Map Link (URL)"
                         value={boardingPoint.maplink}
-                        onChange={(e) => handleBoardingPointChange(index, "maplink", e.target.value)}
+                        onChange={(e) =>
+                          handleBoardingPointChange(index, "maplink", e.target.value)
+                        }
                       />
                     </div>
+
                     <div>
                       <Label htmlFor={`time-${index}`}>Pick Up Time</Label>
                       <Input
@@ -866,16 +1213,20 @@ const handleModalSubmit = () => {
                         onChange={(e) => handleBoardingPointChange(index, "time", e.target.value)}
                       />
                     </div>
+
                     <div>
                       <Label htmlFor={`details-${index}`}>Pick Up Details</Label>
                       <Input
                         id={`details-${index}`}
                         placeholder="Pick Up Details"
                         value={boardingPoint.details}
-                        onChange={(e) => handleBoardingPointChange(index, "details", e.target.value)}
+                        onChange={(e) =>
+                          handleBoardingPointChange(index, "details", e.target.value)
+                        }
                       />
                     </div>
                   </div>
+
                   {tripDetails.boardingPoints.length > 1 && (
                     <Button
                       variant="destructive"
@@ -888,35 +1239,43 @@ const handleModalSubmit = () => {
                   )}
                 </div>
               ))}
-              {errors.boardingPoints && <p className="mt-2 text-sm text-red-500">{errors.boardingPoints}</p>}
-              <Button onClick={handleAddBoardingPoint} className="mt-2">Add Boarding Point</Button>
+              {errors.boardingPoints && (
+                <p className="mt-2 text-sm text-red-500">{errors.boardingPoints}</p>
+              )}
+              <Button onClick={handleAddBoardingPoint} className="mt-2">
+                Add Boarding Point
+              </Button>
             </div>
 
-            <Button
-              onClick={handleSave}
-              disabled={loading}
-              className="w-full flex items-center justify-center"
-            >
+            {/* ===================== SAVE ===================== */}
+            <Button onClick={handleSave} disabled={loading} className="w-full flex items-center justify-center">
               {loading ? <FaSpinner className="animate-spin h-5 w-5" /> : "Save Trip"}
             </Button>
           </div>
         </div>
 
+        {/* ===================== MODAL ===================== */}
         <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Select Seats for {selectedDate && formatDateToString(selectedDate)}</DialogTitle>
+              <DialogTitle>
+                Select Seats for {selectedDate && formatDateToString(selectedDate)}
+              </DialogTitle>
             </DialogHeader>
+
+            {/* Seats */}
             <RadioGroup
-              value={seatSelectionType || ""}
+              value={seatSelectionType === "block" ? "block" : selectedSeats ? String(selectedSeats) : ""}
               onValueChange={(value) => {
-                setSeatSelectionType(value as "fixed" | "block");
                 setSelectedSeats(null);
                 setBlockSeats("");
                 setBlockSeatsError("");
-                if (value === "20" || value === "32") {
-                  setSelectedSeats(parseInt(value));
+
+                if (value === "block") {
+                  setSeatSelectionType("block");
+                } else {
                   setSeatSelectionType("fixed");
+                  setSelectedSeats(parseInt(value));
                 }
               }}
               className="space-y-4"
@@ -934,6 +1293,7 @@ const handleModalSubmit = () => {
                 <Label htmlFor="seats-block">Block (Custom seat count)</Label>
               </div>
             </RadioGroup>
+
             {seatSelectionType === "block" && (
               <div className="mt-4">
                 <Label htmlFor="block-seats">Number of Seats to Block</Label>
@@ -951,41 +1311,87 @@ const handleModalSubmit = () => {
                 {blockSeatsError && <p className="mt-1 text-sm text-red-500">{blockSeatsError}</p>}
               </div>
             )}
+
+            {/* Buses */}
             <div className="mt-4">
-  <Label htmlFor="numberOfBuses">Number of Buses Available</Label>
-  <Input
-    id="numberOfBuses"
-    type="number"
-    placeholder="e.g., 2"
-    value={numberOfBuses}
-    onChange={(e) => {
-      const value = e.target.value === "" ? "" : parseInt(e.target.value);
-      setNumberOfBuses(value);
-      setNumberOfBusesError(validateBuses(value));
-    }}
-    className={numberOfBusesError ? "border-red-500" : ""}
-  />
-  {numberOfBusesError && (
-    <p className="mt-1 text-sm text-red-500">{numberOfBusesError}</p>
-  )}
-</div>
+              <Label htmlFor="numberOfBuses">Number of Buses Available</Label>
+              <Input
+                id="numberOfBuses"
+                type="number"
+                placeholder="e.g., 2"
+                value={numberOfBuses}
+                onChange={(e) => {
+                  const value = e.target.value === "" ? "" : parseInt(e.target.value);
+                  setNumberOfBuses(value);
+                  setNumberOfBusesError(validateBuses(value));
+
+                  // vehicles will auto resize in useEffect
+                }}
+                className={numberOfBusesError ? "border-red-500" : ""}
+              />
+              {numberOfBusesError && <p className="mt-1 text-sm text-red-500">{numberOfBusesError}</p>}
+            </div>
+
+            {/* ✅ NEW: Vehicles inputs based on buses */}
+            {numberOfBuses !== "" && !numberOfBusesError && vehiclesInputs.length > 0 && (
+              <div className="mt-5 space-y-4">
+                <div className="text-sm font-medium text-gray-800">
+                  Enter Instructor + Vehicle Number (Total: {numberOfBuses})
+                </div>
+
+                {vehiclesInputs.map((v, idx) => (
+                  <div key={idx} className="rounded-lg border p-3 bg-gray-50">
+                    <div className="text-sm font-semibold text-gray-700 mb-2">
+                      Bus #{idx + 1}
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <Label htmlFor={`instructor-${idx}`}>Instructor Name</Label>
+                        <Input
+                          id={`instructor-${idx}`}
+                          placeholder="e.g., Ramesh"
+                          value={v.instructorName}
+                          onChange={(e) => handleVehicleChange(idx, "instructorName", e.target.value)}
+                        />
+                      </div>
+
+                      <div>
+                        <Label htmlFor={`vehicle-${idx}`}>Vehicle Number</Label>
+                        <Input
+                          id={`vehicle-${idx}`}
+                          placeholder="e.g., TN09CQ4102"
+                          value={v.vehicleNumber}
+                          onChange={(e) => handleVehicleChange(idx, "vehicleNumber", e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+
+                {vehiclesError && <p className="text-sm text-red-500">{vehiclesError}</p>}
+              </div>
+            )}
 
             <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setIsModalOpen(false);
-                  setSelectedSeats(null);
-                  setSeatSelectionType(null);
-                  setBlockSeats("");
-                  setBlockSeatsError("");
-                }}
-              >
+              <Button variant="outline" onClick={resetModalState}>
                 Cancel
               </Button>
+
               <Button
                 onClick={handleModalSubmit}
-                disabled={seatSelectionType === "block" ? !!blockSeatsError || !blockSeats : !selectedSeats}
+                disabled={
+                  // seats validation
+                  (seatSelectionType === "block" ? !!blockSeatsError || !blockSeats : !selectedSeats) ||
+                  // buses validation
+                  !!numberOfBusesError ||
+                  numberOfBuses === "" ||
+                  // vehicles validation
+                  !!vehiclesError ||
+                  (numberOfBuses !== "" &&
+                    !numberOfBusesError &&
+                    vehiclesInputs.length !== Number(numberOfBuses))
+                }
               >
                 Confirm
               </Button>

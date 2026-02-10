@@ -33,12 +33,20 @@ import { Armchair, Calendar, MapPin } from "lucide-react";
 import TermsModal from "@/components/TermsModal";
 const INITIAL_STEP = "select-seats";
 
+interface Vehicle {
+  instructorName: string;
+  vehicleNumber: string;
+  _id?: string;
+}
+
 interface StartDate {
   date: string;
   seats: number;
-  numberOfBusesAvailable?: number;
+  numberOfBusesAvailable?: number | string;
+  vehicles?: Vehicle[]; // ✅ IMPORTANT
   _id?: string;
 }
+
 
 interface Package {
   _id: string;
@@ -177,6 +185,39 @@ const toDataUrl = async (url: string): Promise<string> => {
     reader.readAsDataURL(blob);
   });
 };
+const buildBusSeatVehicleSummary = (
+  selectedSeats: string[],
+  selectedDate: StartDate | null,
+) => {
+  if (!selectedDate) return "N/A";
+
+  const vehicles = selectedDate.vehicles || [];
+
+  // group seats by busIndex
+  const grouped = selectedSeats.reduce((acc: Record<number, string[]>, key) => {
+    const [busIndexStr, seat] = key.split("-");
+    const busIndex = Number(busIndexStr);
+    if (!acc[busIndex]) acc[busIndex] = [];
+    acc[busIndex].push(seat);
+    return acc;
+  }, {});
+
+  // format per bus
+  return Object.entries(grouped)
+    .sort(([a], [b]) => Number(a) - Number(b))
+    .map(([busIndexStr, seats]) => {
+      const busIndex = Number(busIndexStr);
+      const v = vehicles[busIndex];
+
+      const instructor = v?.instructorName || "—";
+      const vehicleNo = v?.vehicleNumber || "—";
+
+      return `Bus ${busIndex + 1} (Vehicle: ${vehicleNo}, Instructor: ${instructor}) Seats: ${seats
+        .sort((x, y) => Number(x) - Number(y))
+        .join(", ")}`;
+    })
+    .join(" | ");
+};
 
 // Create PDF blob url + auto download
 const generateInvoicePDF = async ({
@@ -250,21 +291,22 @@ const generateInvoicePDF = async ({
   const afterPassengersY = (doc as any).lastAutoTable.finalY + 8;
 
   // Payment info table
-  autoTable(doc, {
-    startY: afterPassengersY,
-    head: [["Payment Info", "Value"]],
-    body: [
-      ["Selected Seats", selectedSeatsFormatted || "—"],
-      ["Total Amount", `rs ${Number(totalAmount || 0).toLocaleString("en-IN")}`],
-      ["Paid", `rs ${Number(amountPaid || 0).toLocaleString("en-IN")}`],
-      ["Remaining", `rs ${Number(remaining || 0).toLocaleString("en-IN")}`],
-      ["Payment Status", String(paymentStatus || "pending").toUpperCase()],
-      ["Generated On", new Date().toLocaleString()],
-    ],
-    theme: "grid",
-    styles: { fontSize: 10, cellPadding: 3, valign: "middle" },
-    columnStyles: { 0: { cellWidth: 55 }, 1: { cellWidth: 120 } },
-  });
+autoTable(doc, {
+  startY: afterPassengersY,
+  head: [["Payment Info", "Value"]],
+  body: [
+    ["Selected Seats / Bus Details", (selectedSeatsFormatted || "—").split(" | ").join("\n")],
+    ["Total Amount", `rs ${Number(totalAmount || 0).toLocaleString("en-IN")}`],
+    ["Paid", `rs ${Number(amountPaid || 0).toLocaleString("en-IN")}`],
+    ["Remaining", `rs ${Number(remaining || 0).toLocaleString("en-IN")}`],
+    ["Payment Status", String(paymentStatus || "pending").toUpperCase()],
+    ["Generated On", new Date().toLocaleString()],
+  ],
+  theme: "grid",
+  styles: { fontSize: 10, cellPadding: 3, valign: "middle", overflow: "linebreak" },
+  columnStyles: { 0: { cellWidth: 55 }, 1: { cellWidth: 120 } },
+});
+
 
   doc.setFontSize(9);
   doc.text(`Thank you for booking with us!`, 14, pageHeight - 12);
@@ -706,20 +748,11 @@ setInvoiceError(null);
 
 try {
   // seats string (group by bus)
-  const selectedSeatsFormatted =
-    (selectedDate?.seats === 20 || selectedDate?.seats === 32)
-      ? Object.entries(
-          selectedSeats.reduce((acc: Record<number, string[]>, seatKey) => {
-            const [busIndex, seat] = seatKey.split("-");
-            const b = Number(busIndex);
-            if (!acc[b]) acc[b] = [];
-            acc[b].push(seat);
-            return acc;
-          }, {})
-        )
-          .map(([busIndex, seats]) => `Bus ${Number(busIndex) + 1}: ${seats.join(", ")}`)
-          .join(" | ")
-      : "N/A";
+const selectedSeatsFormatted =
+  (selectedDate?.seats === 20 || selectedDate?.seats === 32)
+    ? buildBusSeatVehicleSummary(selectedSeats, selectedDate)
+    : "N/A";
+
 
   // payment numbers
   const advancePaid =
@@ -730,14 +763,14 @@ try {
     paymentOption === "advance" ? "advance" : "full";
 
   // ✅ generate invoice pdf + auto download
-  const { url, filename } = await generateInvoicePDF({
-    bookingId: String(paymentDetail?.id || "BOOKING"),
-    paymentStatus,
-    totalAmount,
-    amountPaid: advancePaid,
-    remaining: remainingBalance,
-    selectedSeatsFormatted,
-  });
+const { url, filename } = await generateInvoicePDF({
+  bookingId: String(paymentDetail?.id || "BOOKING"),
+  paymentStatus,
+  totalAmount,
+  amountPaid: advancePaid,
+  remaining: remainingBalance,
+  selectedSeatsFormatted, // ✅ now includes Bus + Vehicle + Instructor
+});
 
   // store for manual download
   setInvoiceBlobUrl(url);
@@ -1052,6 +1085,7 @@ try {
                 bookedSeats={bookedSeats}
                 seatPrice={tripDetails.baseSeatPrice}
                 disabled={isSubmitting}
+                  vehicles={selectedDate?.vehicles}
               />
             ) : (
               <div className="space-y-4">
@@ -1203,6 +1237,7 @@ const SeatLayout = ({
   totalSeats,
   numberOfBuses,
   disabled = false,
+  vehicles,
 }: SeatLayoutProps) => {
   const [isTwoSeaterLayout, setIsTwoSeaterLayout] = useState(
     totalSeats !== 20 ? true : false,
@@ -1210,6 +1245,7 @@ const SeatLayout = ({
   console.log(`isTwoSeaterLayout: ${totalSeats}`);
   const [showLayoutModal, setShowLayoutModal] = useState(false);
   const [currentBus, setCurrentBus] = useState(0);
+const v = vehicles?.[currentBus];
 
   const isBlockBooking = selectedSeats.includes("block");
   const bookedSeatsForBus = bookedSeats
@@ -1327,6 +1363,12 @@ const SeatLayout = ({
           })}
         </div>
       </div>
+<span className="font-semibold">
+  Bus {currentBus + 1} of {numberOfBuses}
+  <span className="ml-2 text-sm text-gray-600">
+    (Instructor: {v?.instructorName || "—"}, Vehicle: {v?.vehicleNumber || "—"})
+  </span>
+</span>
 
       <div className="flex flex-col items-center">
         <div className="my-3">
@@ -1754,6 +1796,13 @@ const BookingSummary = ({
     selectedRoomCount,
     numPassengers,
   });
+const getBusVehicle = (busIndex: number) => {
+  const v = selectedDate?.vehicles?.[busIndex];
+  return {
+    instructorName: v?.instructorName || "—",
+    vehicleNumber: v?.vehicleNumber || "—",
+  };
+};
 
   let basePrice = selectedPackage
     ? selectedPackage.price
@@ -1997,24 +2046,34 @@ const BookingSummary = ({
           <div className="flex justify-between mb-2">
             <span>Selected Seats</span>
             <span>
-              {selectedSeats.length === 0
-                ? "None"
-                : Object.entries(
-                    selectedSeats.reduce(
-                      (acc: Record<number, number[]>, seat) => {
-                        const [busIndex, seatNo] = seat.split("-").map(Number);
-                        if (!acc[busIndex]) acc[busIndex] = [];
-                        acc[busIndex].push(seatNo);
-                        return acc;
-                      },
-                      {},
-                    ),
-                  )
-                    .map(
-                      ([busIndex, seats]) =>
-                        `Bus ${Number(busIndex) + 1}: ${seats.sort((a, b) => a - b).join(", ")}`,
-                    )
-                    .join(" | ")}
+      {isSeatSelection && (
+  <div className="flex justify-between mb-2 gap-4">
+    <span className="shrink-0">Selected Seats</span>
+
+    <span className="text-right">
+      {selectedSeats.length === 0
+        ? "None"
+        : Object.entries(
+            selectedSeats.reduce((acc: Record<number, number[]>, seat) => {
+              const [busIndex, seatNo] = seat.split("-").map(Number);
+              if (!acc[busIndex]) acc[busIndex] = [];
+              acc[busIndex].push(seatNo);
+              return acc;
+            }, {})
+          )
+            .map(([busIndexStr, seats]) => {
+              const busIndex = Number(busIndexStr);
+              const { instructorName, vehicleNumber } = getBusVehicle(busIndex);
+
+              return `Bus ${busIndex + 1}: ${seats
+                .sort((a, b) => a - b)
+                .join(", ")} (Instructor: ${instructorName}, Vehicle: ${vehicleNumber})`;
+            })
+            .join(" | ")}
+    </span>
+  </div>
+)}
+
             </span>
           </div>
         )}
