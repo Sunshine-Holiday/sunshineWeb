@@ -56,6 +56,7 @@ interface BoardingPoint {
 interface VehicleInput {
   instructorName: string;
   vehicleNumber: string;
+  phoneNumber: string; // ✅ NEW
 }
 
 interface StartDate {
@@ -124,7 +125,7 @@ const EditTrips: React.FC = () => {
 
   const { data, isError, isLoading, error } = useGettripsIDQuery(
     { id },
-    { skip: !id }
+    { skip: !id },
   );
 
   const [editTrips] = useEditTripsMutation();
@@ -162,8 +163,12 @@ const EditTrips: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
 
-  const [selectedSeats, setSelectedSeats] = useState<number | "block" | null>(null);
-  const [seatSelectionType, setSeatSelectionType] = useState<"fixed" | "block" | null>(null);
+  const [selectedSeats, setSelectedSeats] = useState<number | "block" | null>(
+    null,
+  );
+  const [seatSelectionType, setSeatSelectionType] = useState<
+    "fixed" | "block" | null
+  >(null);
   const [blockSeats, setBlockSeats] = useState<string>("");
   const [blockSeatsError, setBlockSeatsError] = useState<string>("");
 
@@ -179,21 +184,31 @@ const EditTrips: React.FC = () => {
 
   const validateBuses = useCallback((value: number | "") => {
     if (value === "") return "Number of buses is required";
-    if (!Number.isInteger(value) || value <= 0) return "Enter a valid number of buses";
+    if (!Number.isInteger(value) || value <= 0)
+      return "Enter a valid number of buses";
     return "";
   }, []);
 
-  const validateVehicles = useCallback((buses: number | "", list: VehicleInput[]) => {
-    if (buses === "" || buses <= 0) return "Please enter number of buses first";
-    if (!Array.isArray(list) || list.length !== buses) return `Please add ${buses} vehicle(s)`;
+  const validateVehicles = useCallback(
+    (buses: number | "", list: VehicleInput[]) => {
+      if (buses === "" || buses <= 0)
+        return "Please enter number of buses first";
+      if (!Array.isArray(list) || list.length !== buses)
+        return `Please add ${buses} vehicle(s)`;
 
-    for (let i = 0; i < list.length; i++) {
-      const v = list[i];
-      if (!v.instructorName?.trim()) return `Instructor name is required for Bus #${i + 1}`;
-      if (!v.vehicleNumber?.trim()) return `Vehicle number is required for Bus #${i + 1}`;
-    }
-    return "";
-  }, []);
+      for (let i = 0; i < list.length; i++) {
+        const v = list[i];
+        if (!v.instructorName?.trim())
+          return `Instructor name is required for Bus #${i + 1}`;
+        if (!v.vehicleNumber?.trim())
+          return `Vehicle number is required for Bus #${i + 1}`;
+        if (!v.phoneNumber?.trim())
+          return `Phone number is required for Bus #${i + 1}`; // ✅ NEW
+      }
+      return "";
+    },
+    [],
+  );
 
   const resetModal = useCallback(() => {
     setIsModalOpen(false);
@@ -235,7 +250,7 @@ const EditTrips: React.FC = () => {
       const next = [...prev];
 
       while (next.length < buses) {
-        next.push({ instructorName: "", vehicleNumber: "" });
+        next.push({ instructorName: "", vehicleNumber: "", phoneNumber: "" }); // ✅ NEW
       }
 
       if (next.length > buses) {
@@ -259,9 +274,13 @@ const EditTrips: React.FC = () => {
               date: string;
               seats: number | "block";
               numberOfBusesAvailable?: number;
-              vehicles?: { instructorName?: string; vehicleNumber?: string }[];
+              vehicles?: {
+                instructorName?: string;
+                vehicleNumber?: string;
+                phoneNumber?: string;
+              }[];
             },
-            index: number
+            index: number,
           ) => {
             try {
               const parsedDate = parse(item.date, "dd-MM-yyyy", new Date());
@@ -273,10 +292,13 @@ const EditTrips: React.FC = () => {
               const buses = item.numberOfBusesAvailable ?? 1;
 
               // ✅ map vehicles if exists; else create empty placeholders
-              const vehiclesFromApi: VehicleInput[] = Array.isArray(item.vehicles)
+              const vehiclesFromApi: VehicleInput[] = Array.isArray(
+                item.vehicles,
+              )
                 ? item.vehicles.map((v) => ({
                     instructorName: (v?.instructorName || "").toString(),
                     vehicleNumber: (v?.vehicleNumber || "").toString(),
+                    phoneNumber: (v?.phoneNumber || "").toString(), // ✅ NEW
                   }))
                 : [];
 
@@ -290,7 +312,10 @@ const EditTrips: React.FC = () => {
 
               // if mismatch, fix length to buses
               const fixedVehicles = [...normalizedVehicles];
-              while (fixedVehicles.length < buses) fixedVehicles.push({ instructorName: "", vehicleNumber: "" });
+              while (fixedVehicles.length < buses)
+                fixedVehicles.push(
+                  { instructorName: "", vehicleNumber: "", phoneNumber: "" }, // ✅ NEW
+                );
               if (fixedVehicles.length > buses) fixedVehicles.splice(buses);
 
               return {
@@ -300,10 +325,13 @@ const EditTrips: React.FC = () => {
                 vehicles: fixedVehicles,
               } as StartDate;
             } catch (e) {
-              console.error(`Error parsing date at index ${index}: ${item.date}`, e);
+              console.error(
+                `Error parsing date at index ${index}: ${item.date}`,
+                e,
+              );
               return null as any;
             }
-          }
+          },
         )
         .filter(Boolean);
 
@@ -321,7 +349,8 @@ const EditTrips: React.FC = () => {
             ? data.trip.amenities
             : [],
         boardingPoints:
-          Array.isArray(data.trip.boardingPoints) && data.trip.boardingPoints.length > 0
+          Array.isArray(data.trip.boardingPoints) &&
+          data.trip.boardingPoints.length > 0
             ? data.trip.boardingPoints
             : [{ location: "", time: "", details: "", maplink: "" }],
         packages:
@@ -334,7 +363,8 @@ const EditTrips: React.FC = () => {
               }))
             : [],
         roomChoices:
-          Array.isArray(data.trip.roomChoices) && data.trip.roomChoices.length > 0
+          Array.isArray(data.trip.roomChoices) &&
+          data.trip.roomChoices.length > 0
             ? data.trip.roomChoices.map((room: any) => ({
                 description: room.description || "",
                 personCount: room.personCount || 0,
@@ -343,7 +373,8 @@ const EditTrips: React.FC = () => {
               }))
             : [],
         file: null,
-        advancePaymentPercentage: data.trip.advancePaymentPercentage ?? undefined,
+        advancePaymentPercentage:
+          data.trip.advancePaymentPercentage ?? undefined,
         discountPercentage: data.trip.discountPercentage ?? undefined,
       };
 
@@ -368,7 +399,16 @@ const EditTrips: React.FC = () => {
     ],
   };
 
-  const quillFormats = ["header", "bold", "italic", "underline", "strike", "list", "bullet", "link"];
+  const quillFormats = [
+    "header",
+    "bold",
+    "italic",
+    "underline",
+    "strike",
+    "list",
+    "bullet",
+    "link",
+  ];
 
   // =========================
   // FORM HANDLERS
@@ -380,26 +420,35 @@ const EditTrips: React.FC = () => {
     }
   }, []);
 
-  const handleImageUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const validTypes = ["image/png", "image/jpeg", "image/jpg"];
-      if (!validTypes.includes(file.type)) {
-        setErrors((prev) => ({ ...prev, file: "Please upload a PNG, JPG, or JPEG file" }));
-        return;
-      }
-      if (file.size > 5 * 1024 * 1024) {
-        setErrors((prev) => ({ ...prev, file: "File size must be less than 5MB" }));
-        return;
-      }
-      setTripDetails((prev) => ({ ...prev, file }));
-      setErrors((prev) => ({ ...prev, file: "" }));
+  const handleImageUpload = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (file) {
+        const validTypes = ["image/png", "image/jpeg", "image/jpg"];
+        if (!validTypes.includes(file.type)) {
+          setErrors((prev) => ({
+            ...prev,
+            file: "Please upload a PNG, JPG, or JPEG file",
+          }));
+          return;
+        }
+        if (file.size > 5 * 1024 * 1024) {
+          setErrors((prev) => ({
+            ...prev,
+            file: "File size must be less than 5MB",
+          }));
+          return;
+        }
+        setTripDetails((prev) => ({ ...prev, file }));
+        setErrors((prev) => ({ ...prev, file: "" }));
 
-      const reader = new FileReader();
-      reader.onloadend = () => setImagePreview(reader.result as string);
-      reader.readAsDataURL(file);
-    }
-  }, []);
+        const reader = new FileReader();
+        reader.onloadend = () => setImagePreview(reader.result as string);
+        reader.readAsDataURL(file);
+      }
+    },
+    [],
+  );
 
   const validateField = useCallback(
     (field: string) => {
@@ -413,22 +462,26 @@ const EditTrips: React.FC = () => {
             break;
 
           case "location":
-            if (!tripDetails.location) newErrors.location = "Location is required";
+            if (!tripDetails.location)
+              newErrors.location = "Location is required";
             else delete newErrors.location;
             break;
 
           case "description":
-            if (!tripDetails.description) newErrors.description = "Description is required";
+            if (!tripDetails.description)
+              newErrors.description = "Description is required";
             else delete newErrors.description;
             break;
 
           case "category":
-            if (!tripDetails.category) newErrors.category = "Category is required";
+            if (!tripDetails.category)
+              newErrors.category = "Category is required";
             else delete newErrors.category;
             break;
 
           case "amenities":
-            if (tripDetails.amenities.length === 0) newErrors.amenities = "At least one amenity is required";
+            if (tripDetails.amenities.length === 0)
+              newErrors.amenities = "At least one amenity is required";
             else delete newErrors.amenities;
             break;
 
@@ -437,7 +490,8 @@ const EditTrips: React.FC = () => {
               tripDetails.packages.length === 0 &&
               (!tripDetails.price || tripDetails.price <= 0)
             ) {
-              newErrors.price = "Price is required when no packages are provided";
+              newErrors.price =
+                "Price is required when no packages are provided";
             } else {
               delete newErrors.price;
             }
@@ -448,19 +502,24 @@ const EditTrips: React.FC = () => {
               tripDetails.packages.length === 0 &&
               (!tripDetails.price || tripDetails.price <= 0)
             ) {
-              newErrors.packages = "At least one package is required if no single price is provided";
+              newErrors.packages =
+                "At least one package is required if no single price is provided";
             } else {
               delete newErrors.packages;
               tripDetails.packages.forEach((pkg, index) => {
-                if (!pkg.title) newErrors[`package-title-${index}`] = "Package title is required";
+                if (!pkg.title)
+                  newErrors[`package-title-${index}`] =
+                    "Package title is required";
                 else delete newErrors[`package-title-${index}`];
 
                 if (!pkg.personCount || pkg.personCount <= 0)
-                  newErrors[`package-personCount-${index}`] = "Valid person count is required";
+                  newErrors[`package-personCount-${index}`] =
+                    "Valid person count is required";
                 else delete newErrors[`package-personCount-${index}`];
 
                 if (!pkg.price || pkg.price <= 0)
-                  newErrors[`package-price-${index}`] = "Valid price is required";
+                  newErrors[`package-price-${index}`] =
+                    "Valid price is required";
                 else delete newErrors[`package-price-${index}`];
               });
             }
@@ -468,12 +527,17 @@ const EditTrips: React.FC = () => {
 
           case "roomChoices":
             tripDetails.roomChoices.forEach((room, index) => {
-              if (room.description && (!room.personCount || room.personCount <= 0))
-                newErrors[`room-personCount-${index}`] = "Valid person count is required";
+              if (
+                room.description &&
+                (!room.personCount || room.personCount <= 0)
+              )
+                newErrors[`room-personCount-${index}`] =
+                  "Valid person count is required";
               else delete newErrors[`room-personCount-${index}`];
 
               if (room.description && (!room.roomCount || room.roomCount <= 0))
-                newErrors[`room-roomCount-${index}`] = "Valid room count is required";
+                newErrors[`room-roomCount-${index}`] =
+                  "Valid room count is required";
               else delete newErrors[`room-roomCount-${index}`];
 
               if (room.description && (!room.price || room.price <= 0))
@@ -485,9 +549,11 @@ const EditTrips: React.FC = () => {
           case "advancePaymentPercentage":
             if (
               tripDetails.advancePaymentPercentage !== undefined &&
-              (tripDetails.advancePaymentPercentage < 0 || tripDetails.advancePaymentPercentage > 100)
+              (tripDetails.advancePaymentPercentage < 0 ||
+                tripDetails.advancePaymentPercentage > 100)
             ) {
-              newErrors.advancePaymentPercentage = "Advance payment must be between 0 and 100";
+              newErrors.advancePaymentPercentage =
+                "Advance payment must be between 0 and 100";
             } else {
               delete newErrors.advancePaymentPercentage;
             }
@@ -496,9 +562,11 @@ const EditTrips: React.FC = () => {
           case "discountPercentage":
             if (
               tripDetails.discountPercentage !== undefined &&
-              (tripDetails.discountPercentage < 0 || tripDetails.discountPercentage > 100)
+              (tripDetails.discountPercentage < 0 ||
+                tripDetails.discountPercentage > 100)
             ) {
-              newErrors.discountPercentage = "Discount must be between 0 and 100";
+              newErrors.discountPercentage =
+                "Discount must be between 0 and 100";
             } else {
               delete newErrors.discountPercentage;
             }
@@ -508,7 +576,7 @@ const EditTrips: React.FC = () => {
         return newErrors;
       });
     },
-    [tripDetails]
+    [tripDetails],
   );
 
   const handleBlur = useCallback(
@@ -516,7 +584,7 @@ const EditTrips: React.FC = () => {
       setTouched((prev) => ({ ...prev, [field]: true }));
       validateField(field);
     },
-    [validateField]
+    [validateField],
   );
 
   // =========================
@@ -525,14 +593,19 @@ const EditTrips: React.FC = () => {
   const handleAddBoardingPoint = useCallback(() => {
     setTripDetails((prev) => ({
       ...prev,
-      boardingPoints: [...prev.boardingPoints, { location: "", time: "", details: "", maplink: "" }],
+      boardingPoints: [
+        ...prev.boardingPoints,
+        { location: "", time: "", details: "", maplink: "" },
+      ],
     }));
     setErrors((prev) => ({ ...prev, boardingPoints: "" }));
   }, []);
 
   const handleRemoveBoardingPoint = useCallback(
     (index: number) => {
-      const updatedPoints = tripDetails.boardingPoints.filter((_, i) => i !== index);
+      const updatedPoints = tripDetails.boardingPoints.filter(
+        (_, i) => i !== index,
+      );
       setTripDetails((prev) => ({ ...prev, boardingPoints: updatedPoints }));
       if (updatedPoints.length === 0) {
         setErrors((prev) => ({
@@ -541,23 +614,26 @@ const EditTrips: React.FC = () => {
         }));
       }
     },
-    [tripDetails.boardingPoints]
+    [tripDetails.boardingPoints],
   );
 
   const handleBoardingPointChange = useCallback(
     (index: number, field: keyof BoardingPoint, value: string) => {
       const updatedPoints = tripDetails.boardingPoints.map((point, i) =>
-        i === index ? { ...point, [field]: value } : point
+        i === index ? { ...point, [field]: value } : point,
       );
       setTripDetails((prev) => ({ ...prev, boardingPoints: updatedPoints }));
     },
-    [tripDetails.boardingPoints]
+    [tripDetails.boardingPoints],
   );
 
   const handleAddPackage = useCallback(() => {
     setTripDetails((prev) => ({
       ...prev,
-      packages: [...prev.packages, { title: "", description: "", personCount: 0, price: 0 }],
+      packages: [
+        ...prev.packages,
+        { title: "", description: "", personCount: 0, price: 0 },
+      ],
       price: 0,
     }));
     setErrors((prev) => ({ ...prev, packages: "", price: "" }));
@@ -565,54 +641,66 @@ const EditTrips: React.FC = () => {
 
   const handleRemovePackage = useCallback(
     (index: number) => {
-      const updatedPackages = tripDetails.packages.filter((_, i) => i !== index);
+      const updatedPackages = tripDetails.packages.filter(
+        (_, i) => i !== index,
+      );
       setTripDetails((prev) => ({ ...prev, packages: updatedPackages }));
       if (updatedPackages.length === 0) {
         setErrors((prev) => ({
           ...prev,
-          packages: "At least one package is required if no single price is provided",
+          packages:
+            "At least one package is required if no single price is provided",
         }));
       }
       validateField("price");
     },
-    [tripDetails.packages, validateField]
+    [tripDetails.packages, validateField],
   );
 
   const handlePackageChange = useCallback(
     (index: number, field: keyof Package, value: string | number) => {
       const updatedPackages = tripDetails.packages.map((pkg, i) =>
-        i === index ? { ...pkg, [field]: value } : pkg
+        i === index ? { ...pkg, [field]: value } : pkg,
       );
-      setTripDetails((prev) => ({ ...prev, packages: updatedPackages, price: 0 }));
+      setTripDetails((prev) => ({
+        ...prev,
+        packages: updatedPackages,
+        price: 0,
+      }));
       validateField("packages");
     },
-    [tripDetails.packages, validateField]
+    [tripDetails.packages, validateField],
   );
 
   const handleAddRoomChoice = useCallback(() => {
     setTripDetails((prev) => ({
       ...prev,
-      roomChoices: [...prev.roomChoices, { description: "", personCount: 0, roomCount: 0, price: 0 }],
+      roomChoices: [
+        ...prev.roomChoices,
+        { description: "", personCount: 0, roomCount: 0, price: 0 },
+      ],
     }));
   }, []);
 
   const handleRemoveRoomChoice = useCallback(
     (index: number) => {
-      const updatedRoomChoices = tripDetails.roomChoices.filter((_, i) => i !== index);
+      const updatedRoomChoices = tripDetails.roomChoices.filter(
+        (_, i) => i !== index,
+      );
       setTripDetails((prev) => ({ ...prev, roomChoices: updatedRoomChoices }));
     },
-    [tripDetails.roomChoices]
+    [tripDetails.roomChoices],
   );
 
   const handleRoomChoiceChange = useCallback(
     (index: number, field: keyof RoomChoice, value: string | number) => {
       const updatedRoomChoices = tripDetails.roomChoices.map((room, i) =>
-        i === index ? { ...room, [field]: value } : room
+        i === index ? { ...room, [field]: value } : room,
       );
       setTripDetails((prev) => ({ ...prev, roomChoices: updatedRoomChoices }));
       validateField("roomChoices");
     },
-    [tripDetails.roomChoices, validateField]
+    [tripDetails.roomChoices, validateField],
   );
 
   // =========================
@@ -623,14 +711,16 @@ const EditTrips: React.FC = () => {
       const normalizedDate = startOfDay(date);
 
       const existingDate = tripDetails.startDates.find(
-        (d) => d.date.getTime() === normalizedDate.getTime()
+        (d) => d.date.getTime() === normalizedDate.getTime(),
       );
 
       // click existing -> remove it
       if (existingDate) {
         setTripDetails((prev) => ({
           ...prev,
-          startDates: prev.startDates.filter((d) => d.date.getTime() !== normalizedDate.getTime()),
+          startDates: prev.startDates.filter(
+            (d) => d.date.getTime() !== normalizedDate.getTime(),
+          ),
         }));
         return;
       }
@@ -650,19 +740,21 @@ const EditTrips: React.FC = () => {
 
       setIsModalOpen(true);
     },
-    [tripDetails.startDates]
+    [tripDetails.startDates],
   );
 
   const handleVehicleChange = useCallback(
     (index: number, field: keyof VehicleInput, value: string) => {
       setVehiclesInputs((prev) => {
-        const next = prev.map((v, i) => (i === index ? { ...v, [field]: value } : v));
+        const next = prev.map((v, i) =>
+          i === index ? { ...v, [field]: value } : v,
+        );
         const vErr = validateVehicles(numberOfBuses, next);
         setVehiclesError(vErr);
         return next;
       });
     },
-    [numberOfBuses, validateVehicles]
+    [numberOfBuses, validateVehicles],
   );
 
   // =========================
@@ -705,11 +797,12 @@ const EditTrips: React.FC = () => {
       vehicles: vehiclesInputs.map((v) => ({
         instructorName: v.instructorName.trim(),
         vehicleNumber: v.vehicleNumber.trim(),
+        phoneNumber: v.phoneNumber.trim(), // ✅ NEW
       })),
     };
 
     const newDates = [...tripDetails.startDates, newStartDate].sort(
-      (a, b) => a.date.getTime() - b.date.getTime()
+      (a, b) => a.date.getTime() - b.date.getTime(),
     );
 
     setTripDetails((prev) => ({ ...prev, startDates: newDates }));
@@ -740,7 +833,8 @@ const EditTrips: React.FC = () => {
 
     requiredFields.forEach((field) => {
       if (!tripDetails[field as keyof TripDetails]) {
-        newErrors[field] = `${field.charAt(0).toUpperCase() + field.slice(1)} is required`;
+        newErrors[field] =
+          `${field.charAt(0).toUpperCase() + field.slice(1)} is required`;
         isValid = false;
       }
     });
@@ -776,21 +870,28 @@ const EditTrips: React.FC = () => {
       // }
     });
 
-    if (tripDetails.packages.length === 0 && (!tripDetails.price || tripDetails.price <= 0)) {
+    if (
+      tripDetails.packages.length === 0 &&
+      (!tripDetails.price || tripDetails.price <= 0)
+    ) {
       newErrors.price = "Price is required when no packages are provided";
       isValid = false;
     }
 
     tripDetails.packages.forEach((pkg, index) => {
-      if (!pkg.title) newErrors[`package-title-${index}`] = "Package title is required";
+      if (!pkg.title)
+        newErrors[`package-title-${index}`] = "Package title is required";
       if (!pkg.personCount || pkg.personCount <= 0)
-        newErrors[`package-personCount-${index}`] = "Valid person count is required";
-      if (!pkg.price || pkg.price <= 0) newErrors[`package-price-${index}`] = "Valid price is required";
+        newErrors[`package-personCount-${index}`] =
+          "Valid person count is required";
+      if (!pkg.price || pkg.price <= 0)
+        newErrors[`package-price-${index}`] = "Valid price is required";
     });
 
     tripDetails.roomChoices.forEach((room, index) => {
       if (room.description && (!room.personCount || room.personCount <= 0))
-        newErrors[`room-personCount-${index}`] = "Valid person count is required";
+        newErrors[`room-personCount-${index}`] =
+          "Valid person count is required";
       if (room.description && (!room.roomCount || room.roomCount <= 0))
         newErrors[`room-roomCount-${index}`] = "Valid room count is required";
       if (room.description && (!room.price || room.price <= 0))
@@ -799,15 +900,18 @@ const EditTrips: React.FC = () => {
 
     if (
       tripDetails.advancePaymentPercentage !== undefined &&
-      (tripDetails.advancePaymentPercentage < 0 || tripDetails.advancePaymentPercentage > 100)
+      (tripDetails.advancePaymentPercentage < 0 ||
+        tripDetails.advancePaymentPercentage > 100)
     ) {
-      newErrors.advancePaymentPercentage = "Advance payment must be between 0 and 100";
+      newErrors.advancePaymentPercentage =
+        "Advance payment must be between 0 and 100";
       isValid = false;
     }
 
     if (
       tripDetails.discountPercentage !== undefined &&
-      (tripDetails.discountPercentage < 0 || tripDetails.discountPercentage > 100)
+      (tripDetails.discountPercentage < 0 ||
+        tripDetails.discountPercentage > 100)
     ) {
       newErrors.discountPercentage = "Discount must be between 0 and 100";
       isValid = false;
@@ -846,24 +950,33 @@ const EditTrips: React.FC = () => {
             seats: d.seats,
             numberOfBusesAvailable: d.numberOfBusesAvailable,
             vehicles: d.vehicles, // ✅ NEW
-          }))
-        )
+          })),
+        ),
       );
 
       formData.append("category", tripDetails.category);
       formData.append("amenities", JSON.stringify(tripDetails.amenities));
-      formData.append("boardingPoints", JSON.stringify(tripDetails.boardingPoints));
+      formData.append(
+        "boardingPoints",
+        JSON.stringify(tripDetails.boardingPoints),
+      );
       formData.append("packages", JSON.stringify(tripDetails.packages));
       formData.append("roomChoices", JSON.stringify(tripDetails.roomChoices));
 
       if (tripDetails.file) formData.append("file", tripDetails.file);
 
       if (tripDetails.advancePaymentPercentage !== undefined) {
-        formData.append("advancePaymentPercentage", tripDetails.advancePaymentPercentage.toString());
+        formData.append(
+          "advancePaymentPercentage",
+          tripDetails.advancePaymentPercentage.toString(),
+        );
       }
 
       if (tripDetails.discountPercentage !== undefined) {
-        formData.append("discountPercentage", tripDetails.discountPercentage.toString());
+        formData.append(
+          "discountPercentage",
+          tripDetails.discountPercentage.toString(),
+        );
       }
 
       await editTrips(formData).unwrap();
@@ -899,11 +1012,18 @@ const EditTrips: React.FC = () => {
   // =========================
   // EARLY RETURNS
   // =========================
-  if (!id) return <div className="text-center py-10 text-red-500">Invalid trip ID</div>;
+  if (!id)
+    return (
+      <div className="text-center py-10 text-red-500">Invalid trip ID</div>
+    );
   if (isLoading) return <div className="text-center py-10">Loading...</div>;
   if (isError) {
     console.error("Error fetching trip details:", error);
-    return <div className="text-center py-10 text-red-500">Error loading trip details</div>;
+    return (
+      <div className="text-center py-10 text-red-500">
+        Error loading trip details
+      </div>
+    );
   }
 
   // =========================
@@ -930,12 +1050,23 @@ const EditTrips: React.FC = () => {
                 <Label htmlFor="banner-upload" className="cursor-pointer block">
                   {imagePreview ? (
                     <div className="relative">
-                      <img src={imagePreview} alt="Banner preview" className="max-h-48 mx-auto rounded-lg" />
-                      <p className="mt-2 text-sm text-gray-600">Click to change image</p>
+                      <img
+                        src={imagePreview}
+                        alt="Banner preview"
+                        className="max-h-48 mx-auto rounded-lg"
+                      />
+                      <p className="mt-2 text-sm text-gray-600">
+                        Click to change image
+                      </p>
                     </div>
                   ) : (
                     <div>
-                      <svg className="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                      <svg
+                        className="mx-auto h-12 w-12 text-gray-400"
+                        stroke="currentColor"
+                        fill="none"
+                        viewBox="0 0 48 48"
+                      >
                         <path
                           d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02"
                           strokeWidth="2"
@@ -944,16 +1075,20 @@ const EditTrips: React.FC = () => {
                         />
                       </svg>
                       <p className="mt-1 text-sm text-gray-600">
-                        Drag and drop or click to upload a new banner (PNG, JPG, JPEG)
+                        Drag and drop or click to upload a new banner (PNG, JPG,
+                        JPEG)
                       </p>
                       <p className="mt-1 text-xs text-gray-500">
-                        Maximum file size: 5MB (Leave empty to keep existing image)
+                        Maximum file size: 5MB (Leave empty to keep existing
+                        image)
                       </p>
                     </div>
                   )}
                 </Label>
               </div>
-              {touched.file && errors.file && <p className="mt-2 text-sm text-red-500">{errors.file}</p>}
+              {touched.file && errors.file && (
+                <p className="mt-2 text-sm text-red-500">{errors.file}</p>
+              )}
             </div>
 
             {/* Basic Fields */}
@@ -968,7 +1103,9 @@ const EditTrips: React.FC = () => {
                   onBlur={() => handleBlur("title")}
                   className={inputClassName("title")}
                 />
-                {touched.title && errors.title && <p className="mt-1 text-sm text-red-500">{errors.title}</p>}
+                {touched.title && errors.title && (
+                  <p className="mt-1 text-sm text-red-500">{errors.title}</p>
+                )}
               </div>
 
               <div>
@@ -978,11 +1115,15 @@ const EditTrips: React.FC = () => {
                   type="number"
                   placeholder="Price"
                   value={tripDetails.price || ""}
-                  onChange={(e) => handleChange("price", parseInt(e.target.value) || 0)}
+                  onChange={(e) =>
+                    handleChange("price", parseInt(e.target.value) || 0)
+                  }
                   onBlur={() => handleBlur("price")}
                   className={inputClassName("price")}
                 />
-                {touched.price && errors.price && <p className="mt-1 text-sm text-red-500">{errors.price}</p>}
+                {touched.price && errors.price && (
+                  <p className="mt-1 text-sm text-red-500">{errors.price}</p>
+                )}
               </div>
 
               <div>
@@ -995,7 +1136,9 @@ const EditTrips: React.FC = () => {
                   onBlur={() => handleBlur("location")}
                   className={inputClassName("location")}
                 />
-                {touched.location && errors.location && <p className="mt-1 text-sm text-red-500">{errors.location}</p>}
+                {touched.location && errors.location && (
+                  <p className="mt-1 text-sm text-red-500">{errors.location}</p>
+                )}
               </div>
 
               <div>
@@ -1011,14 +1154,20 @@ const EditTrips: React.FC = () => {
                   <SelectContent>
                     <SelectItem value="One Day Tours">One Day Tours</SelectItem>
                     <SelectItem value="Stay Package">Stay Package</SelectItem>
-                    <SelectItem value="Domestic Tours">Domestic Tours</SelectItem>
+                    <SelectItem value="Domestic Tours">
+                      Domestic Tours
+                    </SelectItem>
                   </SelectContent>
                 </Select>
-                {touched.category && errors.category && <p className="mt-1 text-sm text-red-500">{errors.category}</p>}
+                {touched.category && errors.category && (
+                  <p className="mt-1 text-sm text-red-500">{errors.category}</p>
+                )}
               </div>
 
               <div>
-                <Label htmlFor="advancePaymentPercentage">Advance Payment Percentage</Label>
+                <Label htmlFor="advancePaymentPercentage">
+                  Advance Payment Percentage
+                </Label>
                 <Input
                   id="advancePaymentPercentage"
                   type="number"
@@ -1027,15 +1176,20 @@ const EditTrips: React.FC = () => {
                   onChange={(e) =>
                     handleChange(
                       "advancePaymentPercentage",
-                      e.target.value === "" ? undefined : parseFloat(e.target.value)
+                      e.target.value === ""
+                        ? undefined
+                        : parseFloat(e.target.value),
                     )
                   }
                   onBlur={() => handleBlur("advancePaymentPercentage")}
                   className={inputClassName("advancePaymentPercentage")}
                 />
-                {touched.advancePaymentPercentage && errors.advancePaymentPercentage && (
-                  <p className="mt-1 text-sm text-red-500">{errors.advancePaymentPercentage}</p>
-                )}
+                {touched.advancePaymentPercentage &&
+                  errors.advancePaymentPercentage && (
+                    <p className="mt-1 text-sm text-red-500">
+                      {errors.advancePaymentPercentage}
+                    </p>
+                  )}
               </div>
 
               <div>
@@ -1048,14 +1202,18 @@ const EditTrips: React.FC = () => {
                   onChange={(e) =>
                     handleChange(
                       "discountPercentage",
-                      e.target.value === "" ? undefined : parseFloat(e.target.value)
+                      e.target.value === ""
+                        ? undefined
+                        : parseFloat(e.target.value),
                     )
                   }
                   onBlur={() => handleBlur("discountPercentage")}
                   className={inputClassName("discountPercentage")}
                 />
                 {touched.discountPercentage && errors.discountPercentage && (
-                  <p className="mt-1 text-sm text-red-500">{errors.discountPercentage}</p>
+                  <p className="mt-1 text-sm text-red-500">
+                    {errors.discountPercentage}
+                  </p>
                 )}
               </div>
             </div>
@@ -1071,18 +1229,24 @@ const EditTrips: React.FC = () => {
                 modules={quillModules}
                 formats={quillFormats}
                 className={`border ${
-                  touched.description && errors.description ? "border-red-500" : "border-gray-300"
+                  touched.description && errors.description
+                    ? "border-red-500"
+                    : "border-gray-300"
                 } rounded-lg`}
                 style={{ height: "200px", marginBottom: "40px" }}
               />
               {touched.description && errors.description && (
-                <p className="mt-1 text-sm text-red-500">{errors.description}</p>
+                <p className="mt-1 text-sm text-red-500">
+                  {errors.description}
+                </p>
               )}
             </div>
 
             {/* Calendar */}
             <div>
-              <h2 className="text-xl font-semibold mb-4">Select Trip Dates *</h2>
+              <h2 className="text-xl font-semibold mb-4">
+                Select Trip Dates *
+              </h2>
               <BigCalendar
                 localizer={localizer}
                 events={calendarEvents}
@@ -1097,11 +1261,15 @@ const EditTrips: React.FC = () => {
                 min={today}
               />
 
-              {errors.startDates && <p className="mt-2 text-sm text-red-500">{errors.startDates}</p>}
+              {errors.startDates && (
+                <p className="mt-2 text-sm text-red-500">{errors.startDates}</p>
+              )}
 
               {tripDetails.startDates.length > 0 && (
                 <div className="mt-4">
-                  <h3 className="text-lg font-medium text-gray-700">Selected Dates:</h3>
+                  <h3 className="text-lg font-medium text-gray-700">
+                    Selected Dates:
+                  </h3>
                   <ul className="mt-2 list-disc pl-5 text-gray-600 space-y-2">
                     {tripDetails.startDates
                       .slice()
@@ -1110,19 +1278,21 @@ const EditTrips: React.FC = () => {
                         <li key={index}>
                           <div>
                             {formatDateToString(d.date)} -{" "}
-                            {d.seats === "block" ? "Block" : `${d.seats} Seats`} -{" "}
-                            {d.numberOfBusesAvailable} Bus(es)
+                            {d.seats === "block" ? "Block" : `${d.seats} Seats`}{" "}
+                            - {d.numberOfBusesAvailable} Bus(es)
                           </div>
 
-                          {Array.isArray(d.vehicles) && d.vehicles.length > 0 && (
-                            <div className="mt-1 text-sm text-gray-500">
-                              {d.vehicles.map((v, vi) => (
-                                <div key={vi}>
-                                  Bus #{vi + 1}: {v.instructorName} • {v.vehicleNumber}
-                                </div>
-                              ))}
-                            </div>
-                          )}
+                          {Array.isArray(d.vehicles) &&
+                            d.vehicles.length > 0 && (
+                              <div className="mt-1 text-sm text-gray-500">
+                                {d.vehicles.map((v, vi) => (
+                                  <div key={vi}>
+                               Bus #{vi + 1}: {v.instructorName} • {v.vehicleNumber} • {v.phoneNumber}
+
+                                  </div>
+                                ))}
+                              </div>
+                            )}
                         </li>
                       ))}
                   </ul>
@@ -1136,36 +1306,53 @@ const EditTrips: React.FC = () => {
                 Packages {tripDetails.packages.length === 0 ? "" : "*"}
               </h2>
               {tripDetails.packages.map((pkg, index) => (
-                <div key={index} className="relative mb-6 p-4 bg-gray-50 rounded-lg">
+                <div
+                  key={index}
+                  className="relative mb-6 p-4 bg-gray-50 rounded-lg"
+                >
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <Label htmlFor={`package-title-${index}`}>Package Title *</Label>
+                      <Label htmlFor={`package-title-${index}`}>
+                        Package Title *
+                      </Label>
                       <Input
                         id={`package-title-${index}`}
                         placeholder="e.g., Family Package"
                         value={pkg.title}
-                        onChange={(e) => handlePackageChange(index, "title", e.target.value)}
+                        onChange={(e) =>
+                          handlePackageChange(index, "title", e.target.value)
+                        }
                         onBlur={() => validateField("packages")}
                       />
                       {errors[`package-title-${index}`] && (
-                        <p className="mt-1 text-sm text-red-500">{errors[`package-title-${index}`]}</p>
+                        <p className="mt-1 text-sm text-red-500">
+                          {errors[`package-title-${index}`]}
+                        </p>
                       )}
                     </div>
 
                     <div>
-                      <Label htmlFor={`package-personCount-${index}`}>Person Count *</Label>
+                      <Label htmlFor={`package-personCount-${index}`}>
+                        Person Count *
+                      </Label>
                       <Input
                         id={`package-personCount-${index}`}
                         type="number"
                         placeholder="e.g., 4"
                         value={pkg.personCount || ""}
                         onChange={(e) =>
-                          handlePackageChange(index, "personCount", parseInt(e.target.value) || 0)
+                          handlePackageChange(
+                            index,
+                            "personCount",
+                            parseInt(e.target.value) || 0,
+                          )
                         }
                         onBlur={() => validateField("packages")}
                       />
                       {errors[`package-personCount-${index}`] && (
-                        <p className="mt-1 text-sm text-red-500">{errors[`package-personCount-${index}`]}</p>
+                        <p className="mt-1 text-sm text-red-500">
+                          {errors[`package-personCount-${index}`]}
+                        </p>
                       )}
                     </div>
 
@@ -1177,22 +1364,36 @@ const EditTrips: React.FC = () => {
                         placeholder="e.g., 7900"
                         value={pkg.price || ""}
                         onChange={(e) =>
-                          handlePackageChange(index, "price", parseInt(e.target.value) || 0)
+                          handlePackageChange(
+                            index,
+                            "price",
+                            parseInt(e.target.value) || 0,
+                          )
                         }
                         onBlur={() => validateField("packages")}
                       />
                       {errors[`package-price-${index}`] && (
-                        <p className="mt-1 text-sm text-red-500">{errors[`package-price-${index}`]}</p>
+                        <p className="mt-1 text-sm text-red-500">
+                          {errors[`package-price-${index}`]}
+                        </p>
                       )}
                     </div>
 
                     <div>
-                      <Label htmlFor={`package-description-${index}`}>Description</Label>
+                      <Label htmlFor={`package-description-${index}`}>
+                        Description
+                      </Label>
                       <Input
                         id={`package-description-${index}`}
                         placeholder="Package Description"
                         value={pkg.description}
-                        onChange={(e) => handlePackageChange(index, "description", e.target.value)}
+                        onChange={(e) =>
+                          handlePackageChange(
+                            index,
+                            "description",
+                            e.target.value,
+                          )
+                        }
                       />
                     </div>
                   </div>
@@ -1208,7 +1409,9 @@ const EditTrips: React.FC = () => {
                 </div>
               ))}
 
-              {errors.packages && <p className="mt-2 text-sm text-red-500">{errors.packages}</p>}
+              {errors.packages && (
+                <p className="mt-2 text-sm text-red-500">{errors.packages}</p>
+              )}
               <Button onClick={handleAddPackage} className="mt-2">
                 Add Package
               </Button>
@@ -1218,53 +1421,82 @@ const EditTrips: React.FC = () => {
             <div>
               <h2 className="text-xl font-semibold mb-4">Room Choices</h2>
               {tripDetails.roomChoices.map((room, index) => (
-                <div key={index} className="relative mb-6 p-4 bg-gray-50 rounded-lg">
+                <div
+                  key={index}
+                  className="relative mb-6 p-4 bg-gray-50 rounded-lg"
+                >
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <Label htmlFor={`room-description-${index}`}>Room Description</Label>
+                      <Label htmlFor={`room-description-${index}`}>
+                        Room Description
+                      </Label>
                       <Input
                         id={`room-description-${index}`}
                         placeholder="e.g., 1 room 4 people"
                         value={room.description}
-                        onChange={(e) => handleRoomChoiceChange(index, "description", e.target.value)}
+                        onChange={(e) =>
+                          handleRoomChoiceChange(
+                            index,
+                            "description",
+                            e.target.value,
+                          )
+                        }
                         onBlur={() => validateField("roomChoices")}
                       />
                       {errors[`room-description-${index}`] && (
-                        <p className="mt-1 text-sm text-red-500">{errors[`room-description-${index}`]}</p>
+                        <p className="mt-1 text-sm text-red-500">
+                          {errors[`room-description-${index}`]}
+                        </p>
                       )}
                     </div>
 
                     <div>
-                      <Label htmlFor={`room-personCount-${index}`}>Person Count</Label>
+                      <Label htmlFor={`room-personCount-${index}`}>
+                        Person Count
+                      </Label>
                       <Input
                         id={`room-personCount-${index}`}
                         type="number"
                         placeholder="e.g., 4"
                         value={room.personCount || ""}
                         onChange={(e) =>
-                          handleRoomChoiceChange(index, "personCount", parseInt(e.target.value) || 0)
+                          handleRoomChoiceChange(
+                            index,
+                            "personCount",
+                            parseInt(e.target.value) || 0,
+                          )
                         }
                         onBlur={() => validateField("roomChoices")}
                       />
                       {errors[`room-personCount-${index}`] && (
-                        <p className="mt-1 text-sm text-red-500">{errors[`room-personCount-${index}`]}</p>
+                        <p className="mt-1 text-sm text-red-500">
+                          {errors[`room-personCount-${index}`]}
+                        </p>
                       )}
                     </div>
 
                     <div>
-                      <Label htmlFor={`room-roomCount-${index}`}>Room Count</Label>
+                      <Label htmlFor={`room-roomCount-${index}`}>
+                        Room Count
+                      </Label>
                       <Input
                         id={`room-roomCount-${index}`}
                         type="number"
                         placeholder="e.g., 1"
                         value={room.roomCount || ""}
                         onChange={(e) =>
-                          handleRoomChoiceChange(index, "roomCount", parseInt(e.target.value) || 0)
+                          handleRoomChoiceChange(
+                            index,
+                            "roomCount",
+                            parseInt(e.target.value) || 0,
+                          )
                         }
                         onBlur={() => validateField("roomChoices")}
                       />
                       {errors[`room-roomCount-${index}`] && (
-                        <p className="mt-1 text-sm text-red-500">{errors[`room-roomCount-${index}`]}</p>
+                        <p className="mt-1 text-sm text-red-500">
+                          {errors[`room-roomCount-${index}`]}
+                        </p>
                       )}
                     </div>
 
@@ -1276,12 +1508,18 @@ const EditTrips: React.FC = () => {
                         placeholder="e.g., 2000"
                         value={room.price || ""}
                         onChange={(e) =>
-                          handleRoomChoiceChange(index, "price", parseInt(e.target.value) || 0)
+                          handleRoomChoiceChange(
+                            index,
+                            "price",
+                            parseInt(e.target.value) || 0,
+                          )
                         }
                         onBlur={() => validateField("roomChoices")}
                       />
                       {errors[`room-price-${index}`] && (
-                        <p className="mt-1 text-sm text-red-500">{errors[`room-price-${index}`]}</p>
+                        <p className="mt-1 text-sm text-red-500">
+                          {errors[`room-price-${index}`]}
+                        </p>
                       )}
                     </div>
                   </div>
@@ -1306,19 +1544,27 @@ const EditTrips: React.FC = () => {
               <h2 className="text-xl font-semibold mb-4">Amenities *</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                 {availableAmenities.map((amenity) => (
-                  <div key={amenity.name} className="flex items-center space-x-2">
+                  <div
+                    key={amenity.name}
+                    className="flex items-center space-x-2"
+                  >
                     <Checkbox
                       id={amenity.name}
                       checked={tripDetails.amenities.includes(amenity.name)}
                       onCheckedChange={(checked) => {
                         const newAmenities = checked
                           ? [...tripDetails.amenities, amenity.name]
-                          : tripDetails.amenities.filter((a) => a !== amenity.name);
+                          : tripDetails.amenities.filter(
+                              (a) => a !== amenity.name,
+                            );
                         handleChange("amenities", newAmenities);
                         validateField("amenities");
                       }}
                     />
-                    <Label htmlFor={amenity.name} className="flex items-center space-x-2">
+                    <Label
+                      htmlFor={amenity.name}
+                      className="flex items-center space-x-2"
+                    >
                       <amenity.icon className="h-5 w-5 text-gray-600" />
                       <span>{amenity.name}</span>
                     </Label>
@@ -1334,15 +1580,26 @@ const EditTrips: React.FC = () => {
             <div>
               <h2 className="text-xl font-semibold mb-4">Boarding Points *</h2>
               {tripDetails.boardingPoints.map((boardingPoint, index) => (
-                <div key={index} className="relative mb-6 p-4 bg-gray-50 rounded-lg">
+                <div
+                  key={index}
+                  className="relative mb-6 p-4 bg-gray-50 rounded-lg"
+                >
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <Label htmlFor={`location-${index}`}>Pick Up Location</Label>
+                      <Label htmlFor={`location-${index}`}>
+                        Pick Up Location
+                      </Label>
                       <Input
                         id={`location-${index}`}
                         placeholder="Pick Up Location"
                         value={boardingPoint.location}
-                        onChange={(e) => handleBoardingPointChange(index, "location", e.target.value)}
+                        onChange={(e) =>
+                          handleBoardingPointChange(
+                            index,
+                            "location",
+                            e.target.value,
+                          )
+                        }
                       />
                     </div>
 
@@ -1352,7 +1609,13 @@ const EditTrips: React.FC = () => {
                         id={`maplink-${index}`}
                         placeholder="Map Link (URL)"
                         value={boardingPoint.maplink}
-                        onChange={(e) => handleBoardingPointChange(index, "maplink", e.target.value)}
+                        onChange={(e) =>
+                          handleBoardingPointChange(
+                            index,
+                            "maplink",
+                            e.target.value,
+                          )
+                        }
                       />
                     </div>
 
@@ -1362,17 +1625,31 @@ const EditTrips: React.FC = () => {
                         id={`time-${index}`}
                         type="time"
                         value={boardingPoint.time}
-                        onChange={(e) => handleBoardingPointChange(index, "time", e.target.value)}
+                        onChange={(e) =>
+                          handleBoardingPointChange(
+                            index,
+                            "time",
+                            e.target.value,
+                          )
+                        }
                       />
                     </div>
 
                     <div>
-                      <Label htmlFor={`details-${index}`}>Pick Up Details</Label>
+                      <Label htmlFor={`details-${index}`}>
+                        Pick Up Details
+                      </Label>
                       <Input
                         id={`details-${index}`}
                         placeholder="Pick Up Details"
                         value={boardingPoint.details}
-                        onChange={(e) => handleBoardingPointChange(index, "details", e.target.value)}
+                        onChange={(e) =>
+                          handleBoardingPointChange(
+                            index,
+                            "details",
+                            e.target.value,
+                          )
+                        }
                       />
                     </div>
                   </div>
@@ -1389,7 +1666,11 @@ const EditTrips: React.FC = () => {
                   )}
                 </div>
               ))}
-              {errors.boardingPoints && <p className="mt-2 text-sm text-red-500">{errors.boardingPoints}</p>}
+              {errors.boardingPoints && (
+                <p className="mt-2 text-sm text-red-500">
+                  {errors.boardingPoints}
+                </p>
+              )}
               <Button onClick={handleAddBoardingPoint} className="mt-2">
                 Add Boarding Point
               </Button>
@@ -1401,7 +1682,11 @@ const EditTrips: React.FC = () => {
               disabled={loading}
               className="w-full flex items-center justify-center"
             >
-              {loading ? <FaSpinner className="animate-spin h-5 w-5" /> : "Update Trip"}
+              {loading ? (
+                <FaSpinner className="animate-spin h-5 w-5" />
+              ) : (
+                "Update Trip"
+              )}
             </Button>
           </div>
         </div>
@@ -1412,13 +1697,20 @@ const EditTrips: React.FC = () => {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              Select Seats for {selectedDate && formatDateToString(selectedDate)}
+              Select Seats for{" "}
+              {selectedDate && formatDateToString(selectedDate)}
             </DialogTitle>
           </DialogHeader>
 
           {/* Seats */}
           <RadioGroup
-            value={seatSelectionType === "block" ? "block" : selectedSeats ? String(selectedSeats) : ""}
+            value={
+              seatSelectionType === "block"
+                ? "block"
+                : selectedSeats
+                  ? String(selectedSeats)
+                  : ""
+            }
             onValueChange={(value) => {
               setSelectedSeats(null);
               setBlockSeats("");
@@ -1461,7 +1753,9 @@ const EditTrips: React.FC = () => {
                 }}
                 className={blockSeatsError ? "border-red-500" : ""}
               />
-              {blockSeatsError && <p className="mt-1 text-sm text-red-500">{blockSeatsError}</p>}
+              {blockSeatsError && (
+                <p className="mt-1 text-sm text-red-500">{blockSeatsError}</p>
+              )}
             </div>
           )}
 
@@ -1474,7 +1768,8 @@ const EditTrips: React.FC = () => {
               placeholder="e.g., 2"
               value={numberOfBuses}
               onChange={(e) => {
-                const value = e.target.value === "" ? "" : parseInt(e.target.value);
+                const value =
+                  e.target.value === "" ? "" : parseInt(e.target.value);
                 setNumberOfBuses(value);
                 setNumberOfBusesError(validateBuses(value));
 
@@ -1486,49 +1781,84 @@ const EditTrips: React.FC = () => {
               }}
               className={numberOfBusesError ? "border-red-500" : ""}
             />
-            {numberOfBusesError && <p className="mt-1 text-sm text-red-500">{numberOfBusesError}</p>}
+            {numberOfBusesError && (
+              <p className="mt-1 text-sm text-red-500">{numberOfBusesError}</p>
+            )}
           </div>
 
           {/* ✅ Vehicles inputs (depends on buses) */}
-          {numberOfBuses !== "" && !numberOfBusesError && vehiclesInputs.length > 0 && (
-            <div className="mt-5 space-y-4">
-              <div className="text-sm font-medium text-gray-800">
-                Enter Instructor + Vehicle Number (Total: {numberOfBuses})
-              </div>
-
-              {vehiclesInputs.map((v, idx) => (
-                <div key={idx} className="rounded-lg border p-3 bg-gray-50">
-                  <div className="text-sm font-semibold text-gray-700 mb-2">
-                    Bus #{idx + 1}
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <Label htmlFor={`instructor-${idx}`}>Instructor Name</Label>
-                      <Input
-                        id={`instructor-${idx}`}
-                        placeholder="e.g., Ramesh"
-                        value={v.instructorName}
-                        onChange={(e) => handleVehicleChange(idx, "instructorName", e.target.value)}
-                      />
-                    </div>
-
-                    <div>
-                      <Label htmlFor={`vehicle-${idx}`}>Vehicle Number</Label>
-                      <Input
-                        id={`vehicle-${idx}`}
-                        placeholder="e.g., TN09CQ4102"
-                        value={v.vehicleNumber}
-                        onChange={(e) => handleVehicleChange(idx, "vehicleNumber", e.target.value)}
-                      />
-                    </div>
-                  </div>
+          {numberOfBuses !== "" &&
+            !numberOfBusesError &&
+            vehiclesInputs.length > 0 && (
+              <div className="mt-5 space-y-4">
+                <div className="text-sm font-medium text-gray-800">
+                  Enter Instructor + Vehicle Number (Total: {numberOfBuses})
                 </div>
-              ))}
 
-              {vehiclesError && <p className="text-sm text-red-500">{vehiclesError}</p>}
-            </div>
-          )}
+                {vehiclesInputs.map((v, idx) => (
+                  <div key={idx} className="rounded-lg border p-3 bg-gray-50">
+                    <div className="text-sm font-semibold text-gray-700 mb-2">
+                      Bus #{idx + 1}
+                    </div>
+<div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+
+                      <div>
+                        <Label htmlFor={`instructor-${idx}`}>
+                          Instructor Name
+                        </Label>
+                        <Input
+                          id={`instructor-${idx}`}
+                          placeholder="e.g., Ramesh"
+                          value={v.instructorName}
+                          onChange={(e) =>
+                            handleVehicleChange(
+                              idx,
+                              "instructorName",
+                              e.target.value,
+                            )
+                          }
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor={`phone-${idx}`}>Instructor Phone</Label>
+                        <Input
+                          id={`phone-${idx}`}
+                          placeholder="e.g., 9876543210"
+                          value={v.phoneNumber}
+                          onChange={(e) =>
+                            handleVehicleChange(
+                              idx,
+                              "phoneNumber",
+                              e.target.value,
+                            )
+                          }
+                        />
+                      </div>
+
+                      <div>
+                        <Label htmlFor={`vehicle-${idx}`}>Vehicle Number</Label>
+                        <Input
+                          id={`vehicle-${idx}`}
+                          placeholder="e.g., TN09CQ4102"
+                          value={v.vehicleNumber}
+                          onChange={(e) =>
+                            handleVehicleChange(
+                              idx,
+                              "vehicleNumber",
+                              e.target.value,
+                            )
+                          }
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+
+                {vehiclesError && (
+                  <p className="text-sm text-red-500">{vehiclesError}</p>
+                )}
+              </div>
+            )}
 
           <DialogFooter>
             <Button variant="outline" onClick={resetModal}>
@@ -1539,13 +1869,16 @@ const EditTrips: React.FC = () => {
               onClick={handleModalSubmit}
               disabled={
                 // seats validation
-                (seatSelectionType === "block" ? !!blockSeatsError || !blockSeats : !selectedSeats) ||
+                (seatSelectionType === "block"
+                  ? !!blockSeatsError || !blockSeats
+                  : !selectedSeats) ||
                 // buses validation
                 !!numberOfBusesError ||
                 numberOfBuses === "" ||
                 // vehicles validation
                 !!vehiclesError ||
-                (numberOfBuses !== "" && vehiclesInputs.length !== Number(numberOfBuses))
+                (numberOfBuses !== "" &&
+                  vehiclesInputs.length !== Number(numberOfBuses))
               }
             >
               Confirm

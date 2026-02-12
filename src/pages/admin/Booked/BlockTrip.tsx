@@ -9,7 +9,10 @@ import {
   useSelectedDateBookingQuery,
 } from "@/store/api/trips";
 import { toast } from "react-toastify";
-import { useCreatebookingMutation } from "@/store/api/booking";
+import {
+  useCreatebookingMutation,
+  useDeleteBookingMutation,
+} from "@/store/api/booking";
 import { useSelector } from "react-redux";
 import { selectCurrentUser } from "@/store/reducer/auth";
 import { FaSpinner } from "react-icons/fa";
@@ -62,10 +65,10 @@ const BookingPage = () => {
   const tripId = state?.trip?._id;
   const startDate: StartDate | undefined = state?.startDate;
   const navigate = useNavigate();
-
+  const [deleteblock] = useDeleteBookingMutation();
   // State variables
   const [selectedDate, setSelectedDate] = useState<string>(
-    startDate?.date || ""
+    startDate?.date || "",
   );
   const [selectedSeats, setSelectedSeats] = useState<string[]>([]);
   const [bookedSeats, setBookedSeats] = useState<string[]>([]);
@@ -116,11 +119,11 @@ const BookingPage = () => {
       trip_id: tripId,
       selectedDate: selectedDate ? formatDateForAPI(selectedDate) : "",
     },
-    { skip: !tripId || !selectedDate }
+    { skip: !tripId || !selectedDate },
   );
-console.log("Booking Data:", bookingData);
+  console.log("Booking Data:", bookingData);
   const [createBooking] = useCreatebookingMutation();
-const [currentBus, setCurrentBus] = useState(0);
+  const [currentBus, setCurrentBus] = useState(0);
 
   // Get totalSeats from startDate or trip
   const getTotalSeats = (): number | "block" | undefined => {
@@ -134,12 +137,11 @@ const [currentBus, setCurrentBus] = useState(0);
   const totalSeats = getTotalSeats();
 
   console.log("Total Seats:", totalSeats);
-const seatsPerBus =
-  typeof totalSeats === "number" ? totalSeats : 0;
+  const seatsPerBus = typeof totalSeats === "number" ? totalSeats : 0;
 
-const numberOfBuses =
-  trip?.startDates?.find(d => d.date === selectedDate)
-    ?.numberOfBusesAvailable || 1;
+  const numberOfBuses =
+    trip?.startDates?.find((d) => d.date === selectedDate)
+      ?.numberOfBusesAvailable || 1;
 
   // Effect to update showSeatLayout when totalSeats changes
   useEffect(() => {
@@ -164,7 +166,7 @@ const numberOfBuses =
 
     // Check if today is in valid dates
     const currentDate = validDates.find(
-      (item) => formatDateToString(item.date) === today
+      (item) => formatDateToString(item.date) === today,
     );
     if (currentDate) {
       setSelectedDate(currentDate.date);
@@ -203,24 +205,24 @@ const numberOfBuses =
     }
   }, [trip?.startDates, selectedDate]);
 
-useEffect(() => {
-  if (!bookingData?.selectedSeatsByBus) {
-    setBookedSeats([]);
-    return;
-  }
-
-  const mapped: string[] = [];
-
-  Object.entries(bookingData.selectedSeatsByBus).forEach(
-    ([busIndex, seats]: any) => {
-      seats.forEach((seat: string) => {
-        mapped.push(`${busIndex}-${seat}`);
-      });
+  useEffect(() => {
+    if (!bookingData?.selectedSeatsByBus) {
+      setBookedSeats([]);
+      return;
     }
-  );
 
-  setBookedSeats(mapped);
-}, [bookingData]);
+    const mapped: string[] = [];
+
+    Object.entries(bookingData.selectedSeatsByBus).forEach(
+      ([busIndex, seats]: any) => {
+        seats.forEach((seat: string) => {
+          mapped.push(`${busIndex}-${seat}`);
+        });
+      },
+    );
+
+    setBookedSeats(mapped);
+  }, [bookingData]);
 
   // Handlers
   const changeDate = (date: string) => {
@@ -228,21 +230,20 @@ useEffect(() => {
     setSelectedSeats([]); // Reset selected seats when date changes
   };
 
-const handleSeatSelect = (seatKey: string) => {
-  if (isSubmitting) return;
+  const handleSeatSelect = (seatKey: string) => {
+    if (isSubmitting) return;
 
-  if (bookedSeats.includes(seatKey)) {
-    toast.error("This seat is already booked");
-    return;
-  }
+    if (bookedSeats.includes(seatKey)) {
+      toast.error("This seat is already booked");
+      return;
+    }
 
-  setSelectedSeats(prev =>
-    prev.includes(seatKey)
-      ? prev.filter(s => s !== seatKey)
-      : [...prev, seatKey]
-  );
-};
-
+    setSelectedSeats((prev) =>
+      prev.includes(seatKey)
+        ? prev.filter((s) => s !== seatKey)
+        : [...prev, seatKey],
+    );
+  };
 
   const handleProceed = async () => {
     if (isSubmitting) return;
@@ -252,28 +253,49 @@ const handleSeatSelect = (seatKey: string) => {
       return;
     }
 
+    // ✅ For seat-layout trips, must pick seats
     if (showSeatLayout && selectedSeats.length === 0) {
       toast.error("Please select at least one seat.");
       return;
     }
 
     setIsSubmitting(true);
-const formattedSeats =
-  showSeatLayout
-    ? selectedSeats.map((s) => {
-        const [busIndex, seat] = s.split("-");
-        return {
-          seat,
-          busIndex: Number(busIndex),
-        };
-      })
-    : [
-        {
-          seat: "N/A",
-          busIndex: 0,
-        },
-      ];
 
+    // ✅ seats payload for backend (MULTI BUS supported)
+    const formattedSeats = showSeatLayout
+      ? selectedSeats.map((s) => {
+          const [busIndex, seat] = s.split("-");
+          return { seat, busIndex: Number(busIndex) };
+        })
+      : [{ seat: "N/A", busIndex: 0 }]; // block booking
+
+    // ✅ Backend REQUIRES passengers[] with valid fields — even for admin blocking
+    const adminName =
+      userDetails?.name ||
+      userDetails?.fullName ||
+      userDetails?.username ||
+      "Admin";
+    const adminEmail = userDetails?.email || "admin@blocked.local";
+    const adminPhone =
+      userDetails?.phoneNumber ||
+      userDetails?.phone ||
+      userDetails?.mobile ||
+      "9999999999";
+
+    // ✅ must be valid as per backend validation rules
+    const dummyPassengers = [
+      {
+        name: `${adminName} (Block)`,
+        age: 25, // required
+        gender: "male", // must be: "male" | "female" | "other"
+        idProof: "aadhar", // must be: "aadhar" | "pan"
+        idProofNumber: "000000000000", // required (string)
+        phoneNumber: String(adminPhone),
+        email: String(adminEmail),
+      },
+    ];
+
+    // ✅ amount calculation (keep your logic)
     const totalAmount =
       (showSeatLayout ? selectedSeats.length : 1) * Number(trip.price);
     const gst = totalAmount * 0.05;
@@ -282,22 +304,22 @@ const formattedSeats =
     try {
       const resp = await createBooking({
         tripId,
-    selectedSeats: formattedSeats,
-        selectedDate: formatDateToString(selectedDate),
-        passengers: [],
+        selectedSeats: formattedSeats,
+        selectedDate: formatDateToString(selectedDate), // DD-MM-YYYY
+        passengers: dummyPassengers, // ✅ FIX: not empty
         price: finalAmount,
         isadminBooking: true,
       }).unwrap();
 
-      toast.success("Trip booked successfully");
+      toast.success("Trip blocked / booked successfully");
       navigate("/admin/booked", {
-        state: {
-          bookingDetails: resp,
-        },
+        state: { bookingDetails: resp },
       });
     } catch (error) {
       console.error("Booking error:", error);
-      toast.error("Failed to process booking. Please try again.");
+      toast.error(
+        error?.data?.message || "Failed to process booking. Please try again.",
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -332,7 +354,7 @@ const formattedSeats =
     boardingPoints: trip.boardingPoints || [],
     busSize: trip.busSize || "20",
   };
-console.log("Trip Details:", trip);
+  console.log("Trip Details:", trip);
   return (
     <div className="">
       {isSubmitting && (
@@ -368,14 +390,14 @@ console.log("Trip Details:", trip);
           <div className="md:col-span-2">
             {showSeatLayout ? (
               <SeatLayout
-             totalSeats={totalSeats as number}
-  selectedSeats={selectedSeats}
-  onSeatSelect={handleSeatSelect}
-  bookedSeats={bookedSeats}
-  seatPrice={tripDetails.price}
-  currentBus={currentBus}
-  numberOfBuses={numberOfBuses}
-  onBusChange={setCurrentBus}
+                totalSeats={totalSeats as number}
+                selectedSeats={selectedSeats}
+                onSeatSelect={handleSeatSelect}
+                bookedSeats={bookedSeats}
+                seatPrice={tripDetails.price}
+                currentBus={currentBus}
+                numberOfBuses={numberOfBuses}
+                onBusChange={setCurrentBus}
               />
             ) : (
               <div className="text-center py-12 border border-dashed rounded-lg">
@@ -388,12 +410,12 @@ console.log("Trip Details:", trip);
               </div>
             )}
           </div>
-{selectedSeats.length === 1 && selectedSeats[0] === "N/A" && (
-  <div className="flex justify-between mb-2">
-    <span>Seat Type</span>
-    <span>Block Booking</span>
-  </div>
-)}
+          {selectedSeats.length === 1 && selectedSeats[0] === "N/A" && (
+            <div className="flex justify-between mb-2">
+              <span>Seat Type</span>
+              <span>Block Booking</span>
+            </div>
+          )}
 
           <div className="md:col-span-1">
             <BookingSummary

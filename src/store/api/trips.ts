@@ -105,6 +105,14 @@ export const TripsApiSlice = apiWithTag.injectEndpoints({
 
       invalidatesTags: ["trips"],
     }),
+       deleteBooking: builder.mutation<any, any>({
+      query: (id) => ({
+        url: `/api/v1/booking/delete/${id}`,
+        method: "DELETE",
+      }),
+
+      invalidatesTags: ["trips"],
+    }),
   }),
   overrideExisting: true,
 });
@@ -120,5 +128,6 @@ export const {
   useSpecial_sectionsQuery,
   useSpecial_sectionsIDQuery,
   useUpdateSpecialSectionMutation,
-  useDeleteSpecialSectionMutation
+  useDeleteSpecialSectionMutation,
+  useDeleteBookingMutation
 } = TripsApiSlice;
