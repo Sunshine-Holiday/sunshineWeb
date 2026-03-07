@@ -45,6 +45,7 @@ interface StartDate {
   seats: number;
   numberOfBusesAvailable?: number | string;
   vehicles?: Vehicle[]; // ✅ IMPORTANT
+  minSeatsPerBooking?: number; // ✅ ADD
   _id?: string;
 }
 
@@ -436,7 +437,7 @@ const BookingPage = () => {
 
     setBookedSeats(mappedBookedSeats);
   }, [bookingData]);
-
+  const minSeatsPerBooking = selectedDate?.minSeatsPerBooking || 1;
   const seatsPerBus = selectedDate?.seats || 0;
   const numberOfBuses = selectedDate?.numberOfBusesAvailable || 1;
   const totalCapacity = seatsPerBus * numberOfBuses;
@@ -867,110 +868,153 @@ const BookingPage = () => {
     });
   };
 
-  const handleProceed = async () => {
-    if (isSubmitting) return;
+const handleProceed = async () => {
+  if (isSubmitting) return;
 
-    if (
-      step === "select-seats" &&
-      (selectedDate?.seats === 20 || selectedDate?.seats === 32)
-    ) {
-      if (selectedSeats.length === 0) {
-        toast.error("Please select at least one seat.");
-        return;
-      }
-      if (selectedPackage || selectedRoomChoice) {
-        if (selectedSeats.length !== passengers.length) {
-          toast.error(
-            "Number of selected seats must match number of passengers.",
-          );
-          return;
-        }
-      } else {
-        setPassengers(
-          selectedSeats.map(() => ({
-            name: "",
-            age: "",
-            gender: "",
-            idProof: "",
-            idProofNumber: "",
-            address: "",
-            phoneNumber: "",
-          })),
-        );
-      }
-      setStep("passenger-details");
-    } else {
-      if (!validatePassengerDetails()) {
-        toast.error("Please fill in all passenger details with valid values.");
-        return;
-      }
+  const isSeatTrip = selectedDate?.seats === 20 || selectedDate?.seats === 32;
 
-      if (
-        (selectedPackage || selectedRoomChoice) &&
-        (selectedDate?.seats === 20 || selectedDate?.seats === 32) &&
-        selectedSeats.length !== passengers.length
-      ) {
+  // ---------------------------
+  // ✅ MINIMUM SEAT RULE
+  // ---------------------------
+  if (isSeatTrip && selectedSeats.length < minSeatsPerBooking) {
+    toast.error(
+      `You must select at least ${minSeatsPerBooking} seat(s) to continue.`,
+    );
+    return;
+  }
+
+  // ---------------------------
+  // ✅ PACKAGE SEAT RULE
+  // ---------------------------
+  if (selectedPackage && selectedSeats.length !== selectedPackage.personCount) {
+    toast.error(
+      `This package requires exactly ${selectedPackage.personCount} seat(s).`,
+    );
+    return;
+  }
+
+  // ---------------------------
+  // STEP 1 → SEAT SELECTION
+  // ---------------------------
+  if (step === "select-seats" && isSeatTrip) {
+    if (selectedPackage || selectedRoomChoice) {
+      if (selectedSeats.length !== passengers.length) {
         toast.error(
           "Number of selected seats must match number of passengers.",
         );
         return;
       }
-
-      setIsSubmitting(true);
-      try {
-        const numPassengers =
-          selectedDate?.seats === 20 || selectedDate?.seats === 32
-            ? selectedSeats.length
-            : passengers.length;
-        const baseSeatPrice = parseInt(trip?.price) || 1000;
-        let basePrice = selectedPackage
-          ? selectedPackage.price
-          : baseSeatPrice * numPassengers;
-
-        const hasDiscount =
-          trip?.discountPercentage !== undefined &&
-          trip.discountPercentage > 0 &&
-          trip.discountPercentage <= 100;
-        if (hasDiscount) {
-          basePrice = basePrice * (1 - trip.discountPercentage / 100);
-        }
-
-        const roomPrice = selectedRoomChoice
-          ? selectedRoomChoice.price * selectedRoomCount
-          : 0;
-        const totalPrice = basePrice + roomPrice;
-        const totalGst = totalPrice * 0.05;
-        const finalAmount = totalPrice + totalGst;
-        const advancePaymentPercentage = trip?.advancePaymentPercentage || 50;
-        const amountToPay =
-          paymentOption === "advance"
-            ? finalAmount * (advancePaymentPercentage / 100)
-            : finalAmount;
-
-        if (isNaN(totalPrice) || isNaN(totalGst) || isNaN(finalAmount)) {
-          throw new Error("Invalid amount calculation");
-        }
-
-        const respPayment = await createPayment({
-          amount: amountToPay,
-        }).unwrap();
-
-        if (respPayment.success) {
-          await handlePayment(
-            respPayment.paymentDetail,
-            amountToPay,
-            finalAmount,
-          );
-        }
-      } catch (error: any) {
-        console.error("Payment error:", error);
-        toast.error(
-          error.message || error.data?.message || "Payment processing failed.",
-        );
-        setIsSubmitting(false);
-      }
+    } else {
+      // auto create passengers based on seats
+      setPassengers(
+        selectedSeats.map(() => ({
+          name: "",
+          age: "",
+          gender: "",
+          idProof: "",
+          idProofNumber: "",
+          address: "",
+          phoneNumber: "",
+          email: "",
+        })),
+      );
     }
-  };
+
+    setStep("passenger-details");
+    return;
+  }
+
+  // ---------------------------
+  // STEP 2 → PASSENGER DETAILS
+  // ---------------------------
+  if (!validatePassengerDetails()) {
+    toast.error("Please fill in all passenger details with valid values.");
+    return;
+  }
+
+  if (
+    (selectedPackage || selectedRoomChoice) &&
+    isSeatTrip &&
+    selectedSeats.length !== passengers.length
+  ) {
+    toast.error("Number of selected seats must match number of passengers.");
+    return;
+  }
+
+  // ---------------------------
+  // 🚀 START PAYMENT PROCESS
+  // ---------------------------
+  setIsSubmitting(true);
+
+  try {
+    const numPassengers = isSeatTrip
+      ? selectedSeats.length
+      : passengers.length;
+
+    const baseSeatPrice = parseInt(trip?.price) || 1000;
+
+    let basePrice = selectedPackage
+      ? selectedPackage.price
+      : baseSeatPrice * numPassengers;
+
+    // ---------------------------
+    // DISCOUNT
+    // ---------------------------
+    const hasDiscount =
+      trip?.discountPercentage !== undefined &&
+      trip.discountPercentage > 0 &&
+      trip.discountPercentage <= 100;
+
+    if (hasDiscount) {
+      basePrice = basePrice * (1 - trip.discountPercentage / 100);
+    }
+
+    // ---------------------------
+    // ROOM PRICE
+    // ---------------------------
+    const roomPrice = selectedRoomChoice
+      ? selectedRoomChoice.price * selectedRoomCount
+      : 0;
+
+    const totalPrice = basePrice + roomPrice;
+    const totalGst = totalPrice * 0.05;
+    const finalAmount = totalPrice + totalGst;
+
+    const advancePaymentPercentage = trip?.advancePaymentPercentage || 50;
+
+    const amountToPay =
+      paymentOption === "advance"
+        ? finalAmount * (advancePaymentPercentage / 100)
+        : finalAmount;
+
+    if (isNaN(totalPrice) || isNaN(totalGst) || isNaN(finalAmount)) {
+      throw new Error("Invalid amount calculation");
+    }
+
+    // ---------------------------
+    // CREATE PAYMENT ORDER
+    // ---------------------------
+    const respPayment = await createPayment({
+      amount: amountToPay,
+    }).unwrap();
+
+    if (respPayment.success) {
+      await handlePayment(
+        respPayment.paymentDetail,
+        amountToPay,
+        finalAmount,
+      );
+    }
+  } catch (error: any) {
+    console.error("Payment error:", error);
+
+    toast.error(
+      error?.message || error?.data?.message || "Payment processing failed.",
+    );
+
+    setIsSubmitting(false);
+  }
+};
 
   if (tripLoading || (bookingLoading && selectedDate)) {
     return (
@@ -1820,6 +1864,7 @@ const BookingSummary = ({
   termsContent,
 }: BookingSummaryProps) => {
   const totalSeats = selectedDate?.seats || 0;
+  console.log("Booked Seats:", selectedDate);
   console.log("Total Seats:", totalSeats);
   const isSeatSelection = totalSeats === 20 || totalSeats === 32;
   const numPassengers = isSeatSelection
@@ -1912,6 +1957,11 @@ const BookingSummary = ({
             {tripDetails.from} → {tripDetails.to}
           </span>
         </div>
+        {selectedDate?.minSeatsPerBooking > 1 && (
+  <p className="text-sm text-orange-600 mb-2">
+    Minimum booking: {selectedDate.minSeatsPerBooking} seats
+  </p>
+)}
         <div className="flex items-center text-gray-600">
           <Calendar className="w-5 h-5 mr-2" />
           <select
@@ -2085,8 +2135,6 @@ const BookingSummary = ({
             <span>
               {isSeatSelection && (
                 <div className="flex justify-between mb-2 gap-4">
-
-
                   <span className="text-right">
                     {selectedSeats.length === 0
                       ? "None"
@@ -2105,13 +2153,10 @@ const BookingSummary = ({
                         )
                           .map(([busIndexStr, seats]) => {
                             const busIndex = Number(busIndexStr);
-                     
 
                             return `Bus ${busIndex + 1}: ${seats
                               .sort((a, b) => a - b)
-                              .join(
-                                ", ",
-                              )} `;
+                              .join(", ")} `;
                           })
                           .join(" | ")}
                   </span>
@@ -2198,10 +2243,10 @@ const BookingSummary = ({
       <Button
         onClick={() => !disabled && onProceed()}
         disabled={
-          !acceptedTerms || // 🔒 NEW
-          (isSeatSelection &&
-            selectedSeats.length === 0 &&
-            step === "select-seats") ||
+          !acceptedTerms ||
+         (isSeatSelection &&
+ selectedSeats.length < (selectedDate?.minSeatsPerBooking || 1) &&
+ step === "select-seats")||
           !selectedDate ||
           loading ||
           disabled

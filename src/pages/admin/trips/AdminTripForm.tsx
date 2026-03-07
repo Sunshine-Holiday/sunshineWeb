@@ -64,6 +64,8 @@ interface StartDate {
   seats: number | "block";
   numberOfBusesAvailable: number;
   vehicles: VehicleInput[]; // ✅ NEW
+    minSeatsPerBooking: number; // ✅ NEW
+
 }
 
 interface Package {
@@ -169,7 +171,12 @@ const AdminTripForm: React.FC = () => {
   const [createTrips] = useCreatetripsMutation();
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-
+const [minSeatsPerBooking, setMinSeatsPerBooking] = useState<number>(1);
+const [minSeatsError, setMinSeatsError] = useState<string>("");
+const validateMinSeats = (value: number) => {
+  if (!value || value < 1) return "Minimum seats must be at least 1";
+  return "";
+};
   const [tripDetails, setTripDetails] = useState<TripDetails>({
     title: "",
     location: "",
@@ -566,7 +573,8 @@ const AdminTripForm: React.FC = () => {
 
     setNumberOfBuses("");
     setNumberOfBusesError("");
-
+setMinSeatsPerBooking(1);
+setMinSeatsError("");
     setVehiclesInputs([]);
     setVehiclesError("");
   };
@@ -606,16 +614,17 @@ const AdminTripForm: React.FC = () => {
 
     if (finalSeats === null) return;
 
-    const newStartDate: StartDate = {
-      date: selectedDate,
-      seats: finalSeats,
-      numberOfBusesAvailable: Number(numberOfBuses),
-      vehicles: vehiclesInputs.map((v) => ({
-        instructorName: v.instructorName.trim(),
-        vehicleNumber: v.vehicleNumber.trim(),
-          phoneNumber: v.phoneNumber.trim(), // ✅ NEW
-      })),
-    };
+   const newStartDate: StartDate = {
+  date: selectedDate,
+  seats: finalSeats,
+  numberOfBusesAvailable: Number(numberOfBuses),
+  minSeatsPerBooking: minSeatsPerBooking, // ✅ NEW
+  vehicles: vehiclesInputs.map((v) => ({
+    instructorName: v.instructorName.trim(),
+    vehicleNumber: v.vehicleNumber.trim(),
+    phoneNumber: v.phoneNumber.trim(),
+  })),
+};
 
     const newDates = [...tripDetails.startDates, newStartDate].sort(
       (a, b) => a.date.getTime() - b.date.getTime(),
@@ -734,6 +743,7 @@ const AdminTripForm: React.FC = () => {
     }
 
     setErrors(newErrors);
+    console.log("Validation errors:", newErrors);
     return isValid && Object.keys(newErrors).length === 0;
   };
 
@@ -755,17 +765,18 @@ const AdminTripForm: React.FC = () => {
       formData.append("description", tripDetails.description);
 
       // ✅ Include buses + vehicles per date
-      formData.append(
-        "startDates",
-        JSON.stringify(
-          tripDetails.startDates.map((d) => ({
-            date: formatDateToString(d.date),
-            seats: d.seats,
-            numberOfBusesAvailable: d.numberOfBusesAvailable,
-            vehicles: d.vehicles, // ✅ NEW
-          })),
-        ),
-      );
+  formData.append(
+  "startDates",
+  JSON.stringify(
+    tripDetails.startDates.map((d) => ({
+      date: formatDateToString(d.date),
+      seats: d.seats,
+      numberOfBusesAvailable: d.numberOfBusesAvailable,
+      minSeatsPerBooking: d.minSeatsPerBooking, // ✅ NEW
+      vehicles: d.vehicles,
+    })),
+  ),
+);
 
       formData.append("price", tripDetails.price.toString());
       formData.append("category", tripDetails.category);
@@ -1551,7 +1562,27 @@ const AdminTripForm: React.FC = () => {
                 </p>
               )}
             </div>
+{/* Min Seats Per Booking */}
+<div className="mt-4">
+  <Label htmlFor="minSeats">Minimum Seats Per Booking</Label>
+  <Input
+    id="minSeats"
+    type="number"
+    placeholder="e.g., 2"
+    value={minSeatsPerBooking}
+    onChange={(e) => {
+      const value = parseInt(e.target.value) || 1;
+      setMinSeatsPerBooking(value);
+      
+      setMinSeatsError(validateMinSeats(value));
+    }}
+    className={minSeatsError ? "border-red-500" : ""}
+  />
 
+  {minSeatsError && (
+    <p className="mt-1 text-sm text-red-500">{minSeatsError}</p>
+  )}
+</div>
             {/* ✅ NEW: Vehicles inputs based on buses */}
             {numberOfBuses !== "" &&
               !numberOfBusesError &&

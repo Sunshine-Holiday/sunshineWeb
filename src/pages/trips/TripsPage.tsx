@@ -9,7 +9,7 @@ import { Plane, Search } from "lucide-react";
 
 const TripsPage = () => {
   const { data, isLoading, error } = useGettripsQuery({});
-  const [selectedCategory, setSelectedCategory] = useState("All");
+ const [selectedCategory, setSelectedCategory] = useState("One Day Tours");
   const [searchQuery, setSearchQuery] = useState("");
 
   /* ================= FILTERED TRIPS ================= */

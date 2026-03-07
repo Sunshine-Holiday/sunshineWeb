@@ -119,20 +119,7 @@ const Hero: React.FC = () => {
       <div className="absolute inset-0 z-10 flex flex-col items-center justify-center px-4">
         {/* Search box */}
         <div className="w-full max-w-xl">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-white/80" />
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              onFocus={() => setIsFocused(true)}
-              onBlur={() => {
-                // allow click on suggestion before closing
-                setTimeout(() => setIsFocused(false), 150);
-              }}
-              placeholder="Search trips by name or location..."
-              className="w-full pl-10 pr-4 py-3 rounded-xl bg-white/15 text-white placeholder:text-white/70 border border-white/20 backdrop-blur-md outline-none focus:ring-2 focus:ring-orange-400"
-            />
-          </div>
+
 
           {/* Suggestions dropdown */}
           <AnimatePresence>
