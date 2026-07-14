@@ -192,6 +192,7 @@ export const {
   useGetIDbookingQuery,
   useGetTripBookingStatsQuery,
   useGetTripBookingHistoryQuery,
+  useLazyGetTripBookingHistoryQuery,
   useRequestCancelBookingMutation,
   useGetuserAllprocessbookingQuery,
   useProcessRefundAmountMutation,
@@ -201,5 +202,5 @@ export const {
   useGetTripReviewsQuery,
   useUpdateBookingMutation,
   useUpdateReviewMutation,
-useDateWiseQuery,
+  useDateWiseQuery,
 } = BookingApiSlice;

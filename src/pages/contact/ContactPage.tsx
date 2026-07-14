@@ -3,8 +3,10 @@ import { motion } from 'framer-motion';
 import { ContactForm } from './ContactForm';
 import { ContactInfo } from './ContactInfo';
 import { fadeInUp } from '../../utils/animations';
+import { useTranslation } from 'react-i18next';
 
  const ContactPage = () => {
+  const { t } = useTranslation();
   return (
     <div className="min-h-screen bg-gray-50 pt-24 pb-16">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -15,10 +17,10 @@ import { fadeInUp } from '../../utils/animations';
           className="text-center mb-12"
         >
           <h1 className="text-4xl font-bold text-gray-900 mb-4">
-            Contact Us
+            {t("contact.title")}
           </h1>
           <p className="text-gray-600 max-w-2xl mx-auto">
-            Get in touch with our travel experts
+            {t("contact.subtitle")}
           </p>
         </motion.div>
 
@@ -28,7 +30,7 @@ import { fadeInUp } from '../../utils/animations';
             initial="initial"
             animate="animate"
           >
-            <h2 className="text-2xl font-semibold mb-6">Send us a Message</h2>
+            <h2 className="text-2xl font-semibold mb-6">{t("contact.sendMessage")}</h2>
             <ContactForm />
           </motion.div>
 
@@ -37,7 +39,7 @@ import { fadeInUp } from '../../utils/animations';
             initial="initial"
             animate="animate"
           >
-            <h2 className="text-2xl font-semibold mb-6">Contact Information</h2>
+            <h2 className="text-2xl font-semibold mb-6">{t("contact.info")}</h2>
             <ContactInfo />
           </motion.div>
         </div>

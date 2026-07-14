@@ -1,27 +1,29 @@
-
-import { Link } from 'react-router-dom';
+import { Link } from "react-router-dom";
 import logo from "../asserts/Sunshine.png";
-const  NotFound=()=> {
+import { useTranslation } from "react-i18next";
+
+const NotFound = () => {
+  const { t } = useTranslation();
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+    <div className="flex min-h-screen items-center justify-center bg-gray-50">
       <div className="text-center">
         <img
           src={logo}
-          alt="404 Electronics"
-          className="w-64 mx-auto mb-6 rounded-lg shadow-lg"
+          alt="404"
+          className="mx-auto mb-6 w-64 rounded-lg shadow-lg"
         />
-        <h1 className="text-5xl font-bold text-gray-800 mb-4">Oops! Page Not Found</h1>
-        <p className="text-lg text-gray-600 mb-6">
-          Sorry, we couldn't find the page you were looking for.
-        </p>
+        <h1 className="mb-4 text-5xl font-bold text-gray-800">
+          {t("notFound.title")}
+        </h1>
+        <p className="mb-6 text-lg text-gray-600">{t("notFound.subtitle")}</p>
         <Link
           to="/"
-          className="bg-blue-600 text-white px-6 py-3 rounded-lg text-xl hover:bg-blue-800 transition duration-300"
+          className="rounded-lg bg-orange-500 px-6 py-3 text-xl text-white transition duration-300 hover:bg-orange-600"
         >
-          Go Back to Home
+          {t("notFound.home")}
         </Link>
       </div>
     </div>
   );
-}
-export default NotFound
+};
+export default NotFound;

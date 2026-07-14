@@ -1,9 +1,9 @@
-
 import React, { useState, ChangeEvent, FormEvent } from "react";
 import { motion } from "framer-motion";
 import { scaleOnHover } from "../../utils/animations";
 import { useSendContactMutation } from "@/store/api/auth";
 import { toast } from "react-toastify";
+import { useTranslation } from "react-i18next";
 
 interface FormData {
   name: string;
@@ -12,6 +12,7 @@ interface FormData {
 }
 
 export const ContactForm: React.FC = () => {
+  const { t } = useTranslation();
   const [sendContact] = useSendContactMutation();
   const [loading, setLoading] = useState<boolean>(false);
   const [formData, setFormData] = useState<FormData>({
@@ -20,7 +21,9 @@ export const ContactForm: React.FC = () => {
     message: "",
   });
 
-  const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>): void => {
+  const handleChange = (
+    e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ): void => {
     const { id, value } = e.target;
     setFormData((prev) => ({
       ...prev,
@@ -31,16 +34,15 @@ export const ContactForm: React.FC = () => {
   const handleSubmit = async (e: FormEvent<HTMLFormElement>): Promise<void> => {
     e.preventDefault();
     setLoading(true);
-    console.log("Form Data:", formData);
     try {
       const resp = await sendContact(formData).unwrap();
       if (resp.success) {
-        toast.success("Message sent successfully!");
-        setFormData({ name: "", email: "", message: "" }); // Reset form
+        toast.success(t("contact.success"));
+        setFormData({ name: "", email: "", message: "" });
       }
     } catch (error) {
       console.error("Failed to send message:", error);
-      toast.error("Failed to send message. Please try again.");
+      toast.error(t("contact.failed"));
     } finally {
       setLoading(false);
     }
@@ -49,64 +51,62 @@ export const ContactForm: React.FC = () => {
   return (
     <form className="space-y-8" onSubmit={handleSubmit}>
       <div>
-        <label htmlFor="name" className="block text-base font-semibold text-gray-800">
-          Name
+        <label
+          htmlFor="name"
+          className="block text-base font-semibold text-gray-800"
+        >
+          {t("contact.name")}
         </label>
         <input
           type="text"
           id="name"
           value={formData.name}
           onChange={handleChange}
-          className="mt-2 block w-full rounded-lg border-gray-200 shadow-md focus:border-orange-500 focus:ring-orange-500 focus:ring-2 outline-none text-gray-800 px-4 py-3"
+          className="mt-2 block w-full rounded-lg border-gray-200 px-4 py-3 text-gray-800 shadow-md outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500"
         />
       </div>
       <div>
-        <label htmlFor="email" className="block text-base font-semibold text-gray-800">
-          Email
+        <label
+          htmlFor="email"
+          className="block text-base font-semibold text-gray-800"
+        >
+          {t("contact.email")}
         </label>
         <input
           type="email"
           id="email"
           value={formData.email}
           onChange={handleChange}
-          className="mt-2 block w-full rounded-lg border-gray-200 shadow-md focus:border-orange-500 focus:ring-orange-500 focus:ring-2 outline-none text-gray-800 px-4 py-3"
+          className="mt-2 block w-full rounded-lg border-gray-200 px-4 py-3 text-gray-800 shadow-md outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500"
         />
       </div>
       <div>
-        <label htmlFor="message" className="block text-base font-semibold text-gray-800">
-          Message
+        <label
+          htmlFor="message"
+          className="block text-base font-semibold text-gray-800"
+        >
+          {t("contact.message")}
         </label>
         <textarea
           id="message"
           rows={5}
           value={formData.message}
           onChange={handleChange}
-          className="mt-2 block w-full rounded-lg border-gray-200 shadow-md focus:border-orange-500 focus:ring-orange-500 focus:ring-2 outline-none text-gray-800 px-4 py-3"
+          className="mt-2 block w-full rounded-lg border-gray-200 px-4 py-3 text-gray-800 shadow-md outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500"
         />
       </div>
       <motion.button
         {...scaleOnHover}
         type="submit"
-        className={`w-full py-3 px-4 rounded-lg text-white font-medium shadow-md transition-all duration-200 ${
+        className={`w-full rounded-lg px-4 py-3 font-medium text-white shadow-md transition-all duration-200 ${
           loading
-            ? "bg-orange-300 cursor-not-allowed"
+            ? "cursor-not-allowed bg-orange-300"
             : "bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 hover:shadow-lg"
         }`}
         disabled={loading}
       >
-        {loading ? "Sending..." : "Send Message"}
+        {loading ? t("contact.sending") : t("contact.send")}
       </motion.button>
-
-      <style jsx>{`
-        input, textarea, button {
-          font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        }
-        label {
-          font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        }
-      `}</style>
     </form>
   );
 };
-
-export default ContactForm;

@@ -75,6 +75,7 @@ const BookingPage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [trip, setTrip] = useState<Trip | null>(null);
   const [showSeatLayout, setShowSeatLayout] = useState<boolean>(false);
+  const [blockReason, setBlockReason] = useState("");
 
   // Date formatting functions
   const formatDateToString = (dateInput: string | Date): string => {
@@ -139,9 +140,13 @@ const BookingPage = () => {
   console.log("Total Seats:", totalSeats);
   const seatsPerBus = typeof totalSeats === "number" ? totalSeats : 0;
 
-  const numberOfBuses =
-    trip?.startDates?.find((d) => d.date === selectedDate)
-      ?.numberOfBusesAvailable || 1;
+  const numberOfBuses = Math.max(
+    1,
+    Number(
+      trip?.startDates?.find((d) => d.date === selectedDate)
+        ?.numberOfBusesAvailable || 1,
+    ) || 1,
+  );
 
   // Effect to update showSeatLayout when totalSeats changes
   useEffect(() => {
@@ -224,10 +229,25 @@ const BookingPage = () => {
     setBookedSeats(mapped);
   }, [bookingData]);
 
+  // Auto-open first bus that still has free seats
+  useEffect(() => {
+    if (!showSeatLayout || !seatsPerBus || numberOfBuses <= 1) return;
+    for (let bus = 0; bus < numberOfBuses; bus++) {
+      const bookedOnBus = bookedSeats.filter((s) =>
+        s.startsWith(`${bus}-`),
+      ).length;
+      if (bookedOnBus < seatsPerBus) {
+        if (currentBus !== bus) setCurrentBus(bus);
+        return;
+      }
+    }
+  }, [bookedSeats, seatsPerBus, numberOfBuses, showSeatLayout, selectedDate]);
+
   // Handlers
   const changeDate = (date: string) => {
     setSelectedDate(date);
     setSelectedSeats([]); // Reset selected seats when date changes
+    setCurrentBus(0);
   };
 
   const handleSeatSelect = (seatKey: string) => {
@@ -256,6 +276,12 @@ const BookingPage = () => {
     // ✅ For seat-layout trips, must pick seats
     if (showSeatLayout && selectedSeats.length === 0) {
       toast.error("Please select at least one seat.");
+      return;
+    }
+
+    const reason = blockReason.trim();
+    if (reason.length < 3) {
+      toast.error("Please add a reason for blocking the seat(s).");
       return;
     }
 
@@ -309,6 +335,7 @@ const BookingPage = () => {
         passengers: dummyPassengers, // ✅ FIX: not empty
         price: finalAmount,
         isadminBooking: true,
+        blockReason: reason,
       }).unwrap();
 
       toast.success("Trip blocked / booked successfully");
@@ -427,6 +454,8 @@ const BookingPage = () => {
               selectedDate={selectedDate}
               onProceed={handleProceed}
               disabled={isSubmitting}
+              blockReason={blockReason}
+              onBlockReasonChange={setBlockReason}
             />
           </div>
         </div>

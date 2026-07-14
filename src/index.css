@@ -61,6 +61,62 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
+    font-family: Inter, "Noto Sans Devanagari", system-ui, -apple-system, sans-serif;
+  }
+
+  /* Better Marathi/Devanagari rendering */
+  html[lang="mr"] body {
+    font-family: "Noto Sans Devanagari", Inter, system-ui, sans-serif;
   }
 }
+
+@layer utilities {
+  .line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+}
+
+/* ========== Pinterest-style masonry gallery (orange theme) ========== */
+.pinterest-masonry {
+  display: flex;
+  width: auto;
+  margin-left: -8px;
+}
+
+.pinterest-masonry-column {
+  padding-left: 8px;
+  background-clip: padding-box;
+}
+
+.pinterest-masonry-column > .pinterest-pin {
+  margin-bottom: 12px;
+}
+
+@media (min-width: 640px) {
+  .pinterest-masonry {
+    margin-left: -14px;
+  }
+  .pinterest-masonry-column {
+    padding-left: 14px;
+  }
+  .pinterest-masonry-column > .pinterest-pin {
+    margin-bottom: 16px;
+  }
+}
+
+.pinterest-pin img {
+  display: block;
+  width: 100%;
+  height: auto;
+  vertical-align: middle;
+}
+
+.pinterest-pin:hover img {
+  will-change: transform;
+}
+
+

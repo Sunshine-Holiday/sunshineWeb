@@ -2,15 +2,34 @@ import React, { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import logo1 from "../../asserts/logo_sunshine.gif";
 import { fadeInUp, staggerChildren } from "../../utils/animations";
-import { TripFilters } from "../trips/TripFilters";
+import { TripFilters, TRIP_CATEGORIES } from "../trips/TripFilters";
 import { useGettripsQuery } from "@/store/api/trips";
 import { TripCard } from "./TripCard";
-import { Plane, Search } from "lucide-react";
+import { Search } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import { useSearchParams } from "react-router-dom";
 
 const TripsPage = () => {
+  const { t } = useTranslation();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { data, isLoading, error } = useGettripsQuery({});
- const [selectedCategory, setSelectedCategory] = useState("One Day Tours");
+  const categoryFromUrl = searchParams.get("category") || "";
+  const validCategory =
+    categoryFromUrl &&
+    (TRIP_CATEGORIES as readonly string[]).includes(categoryFromUrl)
+      ? categoryFromUrl
+      : categoryFromUrl
+        ? categoryFromUrl // allow dynamic categories from DB even if not in static list
+        : "One Day Tours";
+  const [selectedCategory, setSelectedCategory] = useState(validCategory);
   const [searchQuery, setSearchQuery] = useState("");
+
+  // Keep filter in sync when navigating via navbar ?category=
+  useEffect(() => {
+    if (categoryFromUrl) {
+      setSelectedCategory(categoryFromUrl);
+    }
+  }, [categoryFromUrl]);
 
   /* ================= FILTERED TRIPS ================= */
 
@@ -33,10 +52,20 @@ const TripsPage = () => {
 
   const filterTrips = (category: string) => {
     setSelectedCategory(category);
+    if (category === "All" || category === "One Day Tours") {
+      // Keep URL clean for defaults, still reflect filter
+      if (category === "All") {
+        setSearchParams({});
+      } else {
+        setSearchParams({ category });
+      }
+    } else {
+      setSearchParams({ category });
+    }
   };
 
   return (
-    <div className="min-h-screen bg-white pt-24 pb-16">
+    <div className="min-h-screen bg-white pt-28 pb-16 lg:pt-32">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* ================= HEADER ================= */}
         <motion.div
@@ -46,10 +75,10 @@ const TripsPage = () => {
           className="text-center mb-10"
         >
           <h1 className="text-5xl font-semibold text-gray-800 mb-4">
-            Discover Our Trips
+            {t("trips.title")}
           </h1>
           <p className="text-base font-medium text-gray-600 max-w-2xl mx-auto">
-            Choose from our carefully curated selection of adventures
+            {t("trips.subtitle")}
           </p>
         </motion.div>
 
@@ -59,7 +88,7 @@ const TripsPage = () => {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
             <input
               type="text"
-              placeholder="Search by destination or trip name..."
+              placeholder={t("trips.searchPlaceholder")}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-orange-400 focus:border-orange-400 outline-none transition"
@@ -80,7 +109,7 @@ const TripsPage = () => {
           </div>
         ) : error ? (
           <div className="text-center mt-8 text-red-500 font-medium">
-            Error loading trips.
+            {t("trips.loadError")}
           </div>
         ) : filteredTrips.length > 0 ? (
           <motion.div
@@ -103,10 +132,10 @@ const TripsPage = () => {
               className="w-48 mx-auto mb-6 rounded-lg border border-orange-200 shadow-md"
             />
             <div className="text-xl font-semibold text-gray-800">
-              No trips found.
+              {t("trips.noTrips")}
             </div>
             <p className="text-sm text-gray-500 mt-2">
-              Try changing filters or search keywords.
+              {t("trips.noTripsHint")}
             </p>
           </div>
         )}

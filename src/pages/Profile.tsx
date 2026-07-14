@@ -7,8 +7,10 @@ import UpdateProfile from "./UpdateProfile";
 import { useUpdateProfile_PicMutation } from "@/store/api/auth";
 import { toast } from "react-toastify";
 import { IMAGE_URL } from "@/store/store";
+import { useTranslation } from "react-i18next";
 
 const Profile: React.FC = () => {
+  const { t } = useTranslation();
   const [UpdateProfile_Pic] = useUpdateProfile_PicMutation();
   const user = useSelector(selectCurrentUser);
   const loading = useSelector(selectCurrentLoading);
@@ -65,7 +67,7 @@ const Profile: React.FC = () => {
     return (
       <div className="flex justify-center items-center min-h-screen bg-white">
         <h1 className="text-2xl font-semibold text-gray-800">
-          Please log in to view your profile.
+          {t("profile.pleaseLogin")}
         </h1>
       </div>
     );
@@ -123,16 +125,16 @@ const Profile: React.FC = () => {
             transition={{ delay: 0.2 }}
           >
             <h2 className="text-2xl font-semibold text-gray-800 mb-6">
-              Profile Details
+              {t("profile.title")}
             </h2>
             <div className="space-y-6">
               {[
-                { label: "Username", value: username },
-                { label: "Email", value: email },
-                { label: "Phone", value: phone || "Not provided" },
-                { label: "Address", value: address || "Not provided" },
+                { label: t("profile.username"), value: username },
+                { label: t("profile.email"), value: email },
+                { label: t("profile.phone"), value: phone || "—" },
+                { label: t("profile.address"), value: address || "—" },
                 {
-                  label: "Joined On",
+                  label: t("profile.memberSince"),
                   value: new Date(createdAt).toLocaleDateString("en-GB"),
                 },
               ].map((item, index) => (

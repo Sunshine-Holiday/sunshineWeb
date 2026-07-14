@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { FaPlus } from "react-icons/fa";
 import { fadeInUp, staggerChildren } from "../../utils/animations";
@@ -7,6 +7,7 @@ import { useNavigate } from "react-router-dom";
 import {
   useDeleteTripsMutation,
   useGettripsQuery,
+  useUpdateTripDisplayIndexMutation,
 } from "@/store/api/trips";
 import { TripCard } from "./components/trips/TripsCard";
 import { toast } from "react-toastify";
@@ -17,6 +18,9 @@ const TripsPage = () => {
 
   const { data = [], isLoading, error } = useGettripsQuery({});
   const [deleteTrips] = useDeleteTripsMutation();
+  const [updateDisplayIndex, { isLoading: isUpdatingIndex }] =
+    useUpdateTripDisplayIndexMutation();
+  const [updatingTripId, setUpdatingTripId] = useState<string | null>(null);
 
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
@@ -25,10 +29,20 @@ const TripsPage = () => {
   const [tripToDelete, setTripToDelete] = useState<any>(null);
   const [isAddMenuOpen, setIsAddMenuOpen] = useState(false);
 
-  /* ================= FILTERED TRIPS ================= */
+  /* ================= SORTED + FILTERED TRIPS ================= */
+
+  const sortedTrips = useMemo(() => {
+    const list = Array.isArray(data) ? [...data] : [];
+    return list.sort((a: any, b: any) => {
+      const ai = Number(a?.displayIndex) || 999999;
+      const bi = Number(b?.displayIndex) || 999999;
+      if (ai !== bi) return ai - bi;
+      return String(a?._id || "").localeCompare(String(b?._id || ""));
+    });
+  }, [data]);
 
   const filteredTrips = useMemo(() => {
-    return data.filter((trip: any) => {
+    return sortedTrips.filter((trip: any) => {
       const matchesCategory =
         selectedCategory === "All" || trip.category === selectedCategory;
 
@@ -38,7 +52,7 @@ const TripsPage = () => {
 
       return matchesCategory && matchesSearch;
     });
-  }, [data, selectedCategory, searchQuery]);
+  }, [sortedTrips, selectedCategory, searchQuery]);
 
   /* ================= HANDLERS ================= */
 
@@ -88,6 +102,29 @@ const TripsPage = () => {
     );
   };
 
+  const handleDisplayIndexChange = async (
+    tripId: string | number,
+    displayIndex: number
+  ) => {
+    setUpdatingTripId(String(tripId));
+    try {
+      await updateDisplayIndex({
+        id: String(tripId),
+        displayIndex,
+      }).unwrap();
+      toast.success(
+        `Preference set to #${displayIndex}. Other trips reordered.`
+      );
+    } catch (err: any) {
+      console.error(err);
+      toast.error(
+        err?.data?.message || "Failed to update trip preference"
+      );
+    } finally {
+      setUpdatingTripId(null);
+    }
+  };
+
   /* ================= RENDER ================= */
 
   return (
@@ -101,10 +138,11 @@ const TripsPage = () => {
           className="text-center mb-10"
         >
           <h1 className="text-4xl font-bold text-gray-900 mb-4">
-            Discover Our Trips
+            Manage Trips
           </h1>
           <p className="text-gray-600 max-w-2xl mx-auto">
-            Choose from our carefully curated selection of adventures
+            Set display preference (#1 shows first). Changing one trip
+            automatically reorders the rest.
           </p>
         </motion.div>
 
@@ -148,8 +186,13 @@ const TripsPage = () => {
               <motion.div key={trip._id} variants={fadeInUp}>
                 <TripCard
                   trip={trip}
+                  totalTrips={sortedTrips.length}
+                  updatingIndex={
+                    isUpdatingIndex && updatingTripId === String(trip._id)
+                  }
                   onDelete={() => confirmDelete(trip)}
                   onEdit={() => onEdit(trip)}
+                  onDisplayIndexChange={handleDisplayIndexChange}
                 />
               </motion.div>
             ))}

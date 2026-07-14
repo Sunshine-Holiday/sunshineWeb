@@ -1,6 +1,6 @@
 import React from "react";
 import { motion } from "framer-motion";
-import { Calendar, MapPin } from "lucide-react";
+import { Calendar, MapPin, StickyNote } from "lucide-react";
 import { fadeInUp } from "@/utils/animations";
 import { FaSpinner } from "react-icons/fa";
 import { format, parse, isValid } from "date-fns";
@@ -20,6 +20,9 @@ interface BookingSummaryProps {
   onProceed: () => void;
   loading: boolean;
   disabled?: boolean;
+  /** Required reason for blocking seats (admin) */
+  blockReason?: string;
+  onBlockReasonChange?: (value: string) => void;
 }
 
 export const BookingSummary = ({
@@ -31,10 +34,13 @@ export const BookingSummary = ({
   setSelectedData,
   onProceed,
   disabled = false,
+  blockReason = "",
+  onBlockReasonChange,
 }: BookingSummaryProps) => {
   const totalAmount = selectedSeats.length * seatPrice;
   const gst = totalAmount * 0.05; // 5% GST
   const finalAmount = totalAmount + gst;
+  const reasonOk = blockReason.trim().length >= 3;
 
   // Format date to "dd-MM-yyyy"
   const formatDateToString = (dateInput: string): string => {
@@ -137,11 +143,47 @@ export const BookingSummary = ({
         </div>
       </div>
 
+      {/* Block reason — required for all admin seat blocks */}
+      {onBlockReasonChange && (
+        <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50/70 p-4">
+          <label
+            htmlFor="block-reason"
+            className="mb-2 flex items-center gap-2 text-sm font-semibold text-amber-900"
+          >
+            <StickyNote className="h-4 w-4" />
+            Reason for blocking seat *
+          </label>
+          <textarea
+            id="block-reason"
+            rows={3}
+            value={blockReason}
+            onChange={(e) => onBlockReasonChange(e.target.value)}
+            disabled={disabled || loading}
+            placeholder="e.g. Reserved for VIP / maintenance / staff booking…"
+            className="w-full resize-y rounded-lg border border-amber-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none ring-orange-200 placeholder:text-slate-400 focus:ring-2 disabled:bg-gray-100"
+          />
+          <p className="mt-1.5 text-xs text-amber-800/80">
+            Required so every admin knows why these seats were blocked.
+          </p>
+          {blockReason.trim().length > 0 && blockReason.trim().length < 3 && (
+            <p className="mt-1 text-xs font-medium text-red-600">
+              Please enter at least 3 characters.
+            </p>
+          )}
+        </div>
+      )}
+
       <motion.button
         whileHover={{ scale: !disabled && !loading ? 1.02 : 1 }}
         whileTap={{ scale: !disabled && !loading ? 0.98 : 1 }}
         onClick={() => !disabled && onProceed()}
-        disabled={selectedSeats.length === 0 || loading || disabled || !validDates.length}
+        disabled={
+          selectedSeats.length === 0 ||
+          loading ||
+          disabled ||
+          !validDates.length ||
+          (onBlockReasonChange ? !reasonOk : false)
+        }
         className="w-full bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed relative"
       >
         {loading ? (

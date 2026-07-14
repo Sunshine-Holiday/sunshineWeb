@@ -33,6 +33,8 @@
     "draft-js": "^0.11.7",
     "embla-carousel-react": "^8.6.0",
     "framer-motion": "^11.0.8",
+    "i18next": "^26.3.6",
+    "i18next-browser-languagedetector": "^8.2.1",
     "input-otp": "^1.4.1",
     "jspdf": "^2.5.2",
     "jspdf-autotable": "^3.8.4",
@@ -43,6 +45,7 @@
     "react-dom": "^18.3.1",
     "react-draft-wysiwyg": "^1.15.0",
     "react-hook-form": "^7.54.2",
+    "react-i18next": "^17.0.9",
     "react-icons": "^5.5.0",
     "react-loading-skeleton": "^3.5.0",
     "react-masonry-css": "^1.0.16",
@@ -56,6 +59,7 @@
     "swiper": "^11.2.6",
     "tailwind-merge": "^2.6.0",
     "tailwindcss-animate": "^1.0.7",
+    "xlsx": "^0.18.5",
     "zod": "^3.24.1"
   },
   "devDependencies": {

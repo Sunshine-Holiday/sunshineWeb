@@ -4,7 +4,7 @@ import { format as formatDate, parse, startOfWeek, getDay } from "date-fns";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import { Wifi, Coffee, Snowflake, Power, AudioLines } from "lucide-react";
 import { enUS } from "date-fns/locale";
-import { useCreatetripsMutation } from "@/store/api/trips";
+import { useCreatetripsMutation, useGettripsQuery } from "@/store/api/trips";
 import { toast } from "react-toastify";
 import { FaSpinner, FaTrash } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
@@ -29,6 +29,8 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import BoardingPointsEditor from "@/components/admin/BoardingPointsEditor";
+import { getStateOptions } from "@/utils/tripDestinations";
 
 // =====================
 // CALENDAR LOCALIZER
@@ -84,6 +86,8 @@ interface RoomChoice {
 interface TripDetails {
   title: string;
   location: string;
+  /** Destination state for navbar / destination page filtering */
+  state: string;
   duration: string;
   description: string;
   startDates: StartDate[];
@@ -96,7 +100,17 @@ interface TripDetails {
   file?: File | null;
   advancePaymentPercentage?: number;
   discountPercentage?: number;
+  /** Details page content */
+  highlights: string[];
+  includes: string[];
+  mapLink: string;
+  cancellationPolicy: string;
+  faqs: { question: string; answer: string }[];
+  brochureImage?: string;
+  brochureFile?: string;
 }
+
+const OTHER_STATE = "__other__";
 
 interface FormErrors {
   [key: string]: string;
@@ -169,17 +183,31 @@ const AdminTripForm: React.FC = () => {
   };
 
   const [createTrips] = useCreatetripsMutation();
+  const { data: allTripsData } = useGettripsQuery({});
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  /** Wizard step: 1 = Basic, 2 = Dates & packages, 3 = Amenities & pickup */
+  const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
+  /** When user picks "Other", they type a custom state name */
+  const [customState, setCustomState] = useState("");
+  const [stateSelectValue, setStateSelectValue] = useState("");
 const [minSeatsPerBooking, setMinSeatsPerBooking] = useState<number>(1);
 const [minSeatsError, setMinSeatsError] = useState<string>("");
 const validateMinSeats = (value: number) => {
   if (!value || value < 1) return "Minimum seats must be at least 1";
   return "";
 };
+  const stateOptions = useMemo(() => {
+    const trips = Array.isArray(allTripsData)
+      ? allTripsData
+      : allTripsData?.data ?? [];
+    return getStateOptions(trips);
+  }, [allTripsData]);
+
   const [tripDetails, setTripDetails] = useState<TripDetails>({
     title: "",
     location: "",
+    state: "",
     duration: "",
     description: "",
     startDates: [],
@@ -192,6 +220,13 @@ const validateMinSeats = (value: number) => {
     file: null,
     advancePaymentPercentage: undefined,
     discountPercentage: undefined,
+    highlights: [""],
+    includes: [""],
+    mapLink: "",
+    cancellationPolicy: "",
+    faqs: [{ question: "", answer: "" }],
+    brochureImage: "",
+    brochureFile: "",
   });
 
   const [errors, setErrors] = useState<FormErrors>({});
@@ -279,6 +314,10 @@ const validateMinSeats = (value: number) => {
       case "location":
         if (!tripDetails.location) newErrors.location = "Location is required";
         break;
+      case "state":
+        if (!tripDetails.state)
+          newErrors.state = "State / destination is required";
+        break;
       case "description":
         if (!tripDetails.description)
           newErrors.description = "Description is required";
@@ -356,39 +395,11 @@ const validateMinSeats = (value: number) => {
     return "";
   };
 
-  const handleAddBoardingPoint = () => {
-    setTripDetails({
-      ...tripDetails,
-      boardingPoints: [
-        ...tripDetails.boardingPoints,
-        { location: "", time: "", details: "", maplink: "" },
-      ],
-    });
-    setErrors({ ...errors, boardingPoints: "" });
-  };
-
-  const handleRemoveBoardingPoint = (index: number) => {
-    const updatedPoints = tripDetails.boardingPoints.filter(
-      (_, i) => i !== index,
-    );
-    setTripDetails({ ...tripDetails, boardingPoints: updatedPoints });
-    if (updatedPoints.length === 0) {
-      setErrors({
-        ...errors,
-        boardingPoints: "Boarding points must have at least one entry",
-      });
+  const handleBoardingPointsChange = (points: BoardingPoint[]) => {
+    setTripDetails({ ...tripDetails, boardingPoints: points });
+    if (points.length > 0 && points.some((p) => p.location && p.time)) {
+      setErrors({ ...errors, boardingPoints: "" });
     }
-  };
-
-  const handleBoardingPointChange = (
-    index: number,
-    field: keyof BoardingPoint,
-    value: string,
-  ) => {
-    const updatedPoints = tripDetails.boardingPoints.map((point, i) =>
-      i === index ? { ...point, [field]: value } : point,
-    );
-    setTripDetails({ ...tripDetails, boardingPoints: updatedPoints });
   };
 
   const handleAddPackage = () => {
@@ -637,34 +648,180 @@ setMinSeatsError("");
   };
 
   // =====================
-  // FORM VALIDATION
+  // FORM VALIDATION (per step + full)
   // =====================
-  const validateForm = () => {
-    const requiredFields = [
-      "title",
-      "location",
-      "description",
-      "category",
-      "file",
-      "price",
-    ];
-    let newErrors: FormErrors = {};
+  const validateStep = (step: 1 | 2 | 3): boolean => {
+    const newErrors: FormErrors = {};
     let isValid = true;
 
-    requiredFields.forEach((field) => {
-      if (!tripDetails[field as keyof TripDetails]) {
-        newErrors[field] =
-          `${field.charAt(0).toUpperCase() + field.slice(1)} is required`;
+    if (step === 1) {
+      const requiredFields = [
+        "title",
+        "location",
+        "state",
+        "description",
+        "category",
+        "file",
+      ] as const;
+      requiredFields.forEach((field) => {
+        if (!tripDetails[field as keyof TripDetails]) {
+          newErrors[field] =
+            field === "state"
+              ? "State / destination is required"
+              : `${field.charAt(0).toUpperCase() + field.slice(1)} is required`;
+          isValid = false;
+        }
+      });
+      if (stateSelectValue === OTHER_STATE && !customState.trim()) {
+        newErrors.state = "Please enter a custom state / destination name";
         isValid = false;
       }
-    });
+      // Price required on step 1 only if no packages will be used —
+      // packages are step 2; still require either base price or leave for step 2
+      if (
+        tripDetails.advancePaymentPercentage !== undefined &&
+        (tripDetails.advancePaymentPercentage < 0 ||
+          tripDetails.advancePaymentPercentage > 100)
+      ) {
+        newErrors.advancePaymentPercentage =
+          "Advance payment must be between 0 and 100";
+        isValid = false;
+      }
+      if (
+        tripDetails.discountPercentage !== undefined &&
+        (tripDetails.discountPercentage < 0 ||
+          tripDetails.discountPercentage > 100)
+      ) {
+        newErrors.discountPercentage = "Discount must be between 0 and 100";
+        isValid = false;
+      }
+      // Mark touched so errors show
+      setTouched((prev) => ({
+        ...prev,
+        title: true,
+        location: true,
+        state: true,
+        description: true,
+        category: true,
+        file: true,
+      }));
+    }
+
+    if (step === 2) {
+      if (tripDetails.startDates.length === 0) {
+        newErrors.startDates = "At least one date with seats must be selected";
+        isValid = false;
+      }
+
+      tripDetails.startDates.forEach((d, idx) => {
+        if (!d.numberOfBusesAvailable || d.numberOfBusesAvailable <= 0) {
+          newErrors[`startDates-buses-${idx}`] = "Buses count must be > 0";
+          isValid = false;
+        }
+        if (
+          !Array.isArray(d.vehicles) ||
+          d.vehicles.length !== d.numberOfBusesAvailable
+        ) {
+          newErrors[`startDates-vehicles-${idx}`] =
+            `Date ${formatDateToString(d.date)} must have ${d.numberOfBusesAvailable} vehicle(s)`;
+          isValid = false;
+        } else {
+          d.vehicles.forEach((v, vi) => {
+            if (!v.instructorName?.trim()) {
+              newErrors[`startDates-${idx}-instructor-${vi}`] =
+                `Instructor name missing for ${formatDateToString(d.date)} Bus #${vi + 1}`;
+              isValid = false;
+            }
+            if (!v.vehicleNumber?.trim()) {
+              newErrors[`startDates-${idx}-vehicle-${vi}`] =
+                `Vehicle number missing for ${formatDateToString(d.date)} Bus #${vi + 1}`;
+              isValid = false;
+            }
+            if (!v.phoneNumber?.trim()) {
+              newErrors[`startDates-${idx}-phone-${vi}`] =
+                `Phone number missing for ${formatDateToString(d.date)} Bus #${vi + 1}`;
+              isValid = false;
+            }
+          });
+        }
+      });
+
+      if (
+        tripDetails.packages.length === 0 &&
+        (!tripDetails.price || tripDetails.price <= 0)
+      ) {
+        newErrors.price = "Price is required when no packages are provided";
+        isValid = false;
+      }
+
+      tripDetails.packages.forEach((pkg, index) => {
+        if (!pkg.title)
+          newErrors[`package-title-${index}`] = "Package title is required";
+        if (!pkg.personCount || pkg.personCount <= 0)
+          newErrors[`package-personCount-${index}`] =
+            "Valid person count is required";
+        if (!pkg.price || pkg.price <= 0)
+          newErrors[`package-price-${index}`] = "Valid price is required";
+      });
+
+      tripDetails.roomChoices.forEach((room, index) => {
+        if (room.description && (!room.roomCount || room.roomCount <= 0))
+          newErrors[`room-roomCount-${index}`] =
+            "Valid room count is required";
+        if (room.description && (!room.price || room.price <= 0))
+          newErrors[`room-price-${index}`] = "Valid price is required";
+      });
+    }
+
+    if (step === 3) {
+      if (!tripDetails.amenities || tripDetails.amenities.length === 0) {
+        newErrors.amenities = "Select at least one amenity";
+        isValid = false;
+      }
+      if (
+        !tripDetails.boardingPoints?.length ||
+        tripDetails.boardingPoints.every(
+          (p) => !p.location?.trim() || !p.time?.trim(),
+        )
+      ) {
+        newErrors.boardingPoints =
+          "At least one boarding point with location and time is required";
+        isValid = false;
+      }
+      setTouched((prev) => ({ ...prev, amenities: true }));
+    }
+
+    setErrors((prev) => ({ ...prev, ...newErrors }));
+    // Clear keys not in this step's newErrors for cleaner UX when re-validating
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+    } else {
+      setErrors({});
+    }
+    return isValid && Object.keys(newErrors).length === 0;
+  };
+
+  const validateForm = () => {
+    const newErrors: FormErrors = {};
+    let isValid = true;
+
+    (["title", "location", "state", "description", "category", "file"] as const).forEach(
+      (field) => {
+        if (!tripDetails[field as keyof TripDetails]) {
+          newErrors[field] =
+            field === "state"
+              ? "State / destination is required"
+              : `${field.charAt(0).toUpperCase() + field.slice(1)} is required`;
+          isValid = false;
+        }
+      },
+    );
 
     if (tripDetails.startDates.length === 0) {
       newErrors.startDates = "At least one date with seats must be selected";
       isValid = false;
     }
 
-    // ✅ validate each start date has vehicles count = numberOfBusesAvailable
     tripDetails.startDates.forEach((d, idx) => {
       if (!d.numberOfBusesAvailable || d.numberOfBusesAvailable <= 0) {
         newErrors[`startDates-buses-${idx}`] = "Buses count must be > 0";
@@ -742,9 +899,38 @@ setMinSeatsError("");
       isValid = false;
     }
 
+    if (!tripDetails.amenities || tripDetails.amenities.length === 0) {
+      newErrors.amenities = "Select at least one amenity";
+      isValid = false;
+    }
+
+    if (
+      !tripDetails.boardingPoints?.length ||
+      tripDetails.boardingPoints.every(
+        (p) => !p.location?.trim() || !p.time?.trim(),
+      )
+    ) {
+      newErrors.boardingPoints =
+        "At least one boarding point with location and time is required";
+      isValid = false;
+    }
+
     setErrors(newErrors);
-    console.log("Validation errors:", newErrors);
     return isValid && Object.keys(newErrors).length === 0;
+  };
+
+  const goNext = () => {
+    if (!validateStep(currentStep)) {
+      toast.error("Please complete the required fields before continuing.");
+      return;
+    }
+    setCurrentStep((s) => (s < 3 ? ((s + 1) as 1 | 2 | 3) : s));
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const goBack = () => {
+    setCurrentStep((s) => (s > 1 ? ((s - 1) as 1 | 2 | 3) : s));
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   // =====================
@@ -761,6 +947,13 @@ setMinSeatsError("");
       const formData = new FormData();
       formData.append("title", tripDetails.title);
       formData.append("location", tripDetails.location);
+      formData.append(
+        "state",
+        (stateSelectValue === OTHER_STATE
+          ? customState.trim()
+          : tripDetails.state
+        ).trim(),
+      );
       formData.append("duration", tripDetails.duration);
       formData.append("description", tripDetails.description);
 
@@ -787,6 +980,35 @@ setMinSeatsError("");
       );
       formData.append("packages", JSON.stringify(tripDetails.packages));
       formData.append("roomChoices", JSON.stringify(tripDetails.roomChoices));
+
+      // Details page extras
+      formData.append(
+        "highlights",
+        JSON.stringify(
+          tripDetails.highlights.map((h) => h.trim()).filter(Boolean),
+        ),
+      );
+      formData.append(
+        "includes",
+        JSON.stringify(
+          tripDetails.includes.map((h) => h.trim()).filter(Boolean),
+        ),
+      );
+      formData.append(
+        "faqs",
+        JSON.stringify(
+          tripDetails.faqs.filter((f) => f.question.trim() && f.answer.trim()),
+        ),
+      );
+      formData.append("mapLink", tripDetails.mapLink || "");
+      formData.append(
+        "cancellationPolicy",
+        tripDetails.cancellationPolicy || "",
+      );
+      if (tripDetails.brochureImage)
+        formData.append("brochureImage", tripDetails.brochureImage);
+      if (tripDetails.brochureFile)
+        formData.append("brochureFile", tripDetails.brochureFile);
 
       if (tripDetails.file) formData.append("file", tripDetails.file);
 
@@ -837,15 +1059,89 @@ setMinSeatsError("");
     });
   }, [tripDetails.startDates]);
 
+  const STEPS = [
+    { id: 1 as const, title: "Basic Info", desc: "Banner, title & details" },
+    { id: 2 as const, title: "Dates & Pricing", desc: "Calendar, packages" },
+    { id: 3 as const, title: "Amenities & Pickup", desc: "Facilities & boarding" },
+  ];
+
   return (
     <div className="min-h-screen bg-gray-100 py-8">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="bg-white rounded-xl shadow-lg p-6">
-          <h1 className="text-3xl font-bold text-gray-900 mb-6">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">
             Create New Trip
           </h1>
+          <p className="text-sm text-gray-500 mb-6">
+            Complete all 3 steps. You can go back anytime to edit previous
+            steps.
+          </p>
+
+          {/* ===================== STEP INDICATOR ===================== */}
+          <div className="mb-8">
+            <div className="flex items-center justify-between gap-2">
+              {STEPS.map((step, idx) => {
+                const active = currentStep === step.id;
+                const done = currentStep > step.id;
+                return (
+                  <React.Fragment key={step.id}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        // Allow free navigation only to completed/current steps
+                        if (step.id <= currentStep) {
+                          setCurrentStep(step.id);
+                          window.scrollTo({ top: 0, behavior: "smooth" });
+                        } else if (step.id === currentStep + 1) {
+                          goNext();
+                        }
+                      }}
+                      className="flex flex-1 flex-col items-center text-center group"
+                    >
+                      <div
+                        className={`flex h-10 w-10 items-center justify-center rounded-full border-2 text-sm font-bold transition ${
+                          done
+                            ? "border-orange-500 bg-orange-500 text-white"
+                            : active
+                              ? "border-orange-500 bg-orange-50 text-orange-600"
+                              : "border-gray-300 bg-white text-gray-400"
+                        }`}
+                      >
+                        {done ? "✓" : step.id}
+                      </div>
+                      <span
+                        className={`mt-2 text-xs font-semibold sm:text-sm ${
+                          active || done ? "text-orange-600" : "text-gray-400"
+                        }`}
+                      >
+                        {step.title}
+                      </span>
+                      <span className="hidden text-[11px] text-gray-400 sm:block">
+                        {step.desc}
+                      </span>
+                    </button>
+                    {idx < STEPS.length - 1 && (
+                      <div
+                        className={`mb-6 h-0.5 flex-1 max-w-[80px] ${
+                          currentStep > step.id
+                            ? "bg-orange-500"
+                            : "bg-gray-200"
+                        }`}
+                      />
+                    )}
+                  </React.Fragment>
+                );
+              })}
+            </div>
+            <p className="mt-3 text-center text-sm text-gray-600">
+              Step {currentStep} of 3 — {STEPS[currentStep - 1].title}
+            </p>
+          </div>
 
           <div className="space-y-8">
+            {/* ===================== STEP 1: BASIC INFO ===================== */}
+            {currentStep === 1 && (
+            <>
             {/* ===================== BANNER ===================== */}
             <div>
               <h2 className="text-xl font-semibold mb-4">
@@ -920,10 +1216,10 @@ setMinSeatsError("");
               </div>
 
               <div>
-                <Label htmlFor="location">Location *</Label>
+                <Label htmlFor="location">Pickup / Departure Location *</Label>
                 <Input
                   id="location"
-                  placeholder="Location"
+                  placeholder="e.g. Pune, Mumbai"
                   value={tripDetails.location}
                   onChange={(e) => handleChange("location", e.target.value)}
                   onBlur={() => handleBlur("location")}
@@ -931,6 +1227,56 @@ setMinSeatsError("");
                 />
                 {touched.location && errors.location && (
                   <p className="mt-1 text-sm text-red-500">{errors.location}</p>
+                )}
+              </div>
+
+              <div>
+                <Label htmlFor="state">State / Destination *</Label>
+                <Select
+                  value={stateSelectValue}
+                  onValueChange={(value) => {
+                    setStateSelectValue(value);
+                    handleBlur("state");
+                    if (value === OTHER_STATE) {
+                      handleChange("state", customState.trim());
+                    } else {
+                      setCustomState("");
+                      handleChange("state", value);
+                    }
+                  }}
+                  onOpenChange={() => handleBlur("state")}
+                >
+                  <SelectTrigger className={inputClassName("state")}>
+                    <SelectValue placeholder="Select state / destination" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-64">
+                    {stateOptions.map((s) => (
+                      <SelectItem key={s} value={s}>
+                        {s}
+                      </SelectItem>
+                    ))}
+                    <SelectItem value={OTHER_STATE}>Other (type new)</SelectItem>
+                  </SelectContent>
+                </Select>
+                {stateSelectValue === OTHER_STATE && (
+                  <Input
+                    className="mt-2"
+                    placeholder="Enter new state / destination name"
+                    value={customState}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setCustomState(v);
+                      handleChange("state", v.trim());
+                    }}
+                    onBlur={() => handleBlur("state")}
+                  />
+                )}
+                <p className="mt-1 text-xs text-gray-500">
+                  Used in Tour navbar filter and destination pages. Pick the
+                  trip destination (e.g. Mahabaleshwar), not departure city.
+                </p>
+                {touched.state && errors.state && (
+                  <p className="mt-1 text-sm text-red-500">{errors.state}</p>
                 )}
               </div>
 
@@ -949,6 +1295,9 @@ setMinSeatsError("");
                     <SelectItem value="Stay Package">Stay Package</SelectItem>
                     <SelectItem value="Domestic Tours">
                       Domestic Tours
+                    </SelectItem>
+                    <SelectItem value="Educational Tours">
+                      Educational Tours
                     </SelectItem>
                   </SelectContent>
                 </Select>
@@ -1052,7 +1401,12 @@ setMinSeatsError("");
                 </p>
               )}
             </div>
+            </>
+            )}
 
+            {/* ===================== STEP 2: DATES & PRICING ===================== */}
+            {currentStep === 2 && (
+            <>
             {/* ===================== CALENDAR ===================== */}
             <div>
               <h2 className="text-xl font-semibold mb-4">
@@ -1318,7 +1672,12 @@ setMinSeatsError("");
                 Add Room Choice
               </Button>
             </div>
+            </>
+            )}
 
+            {/* ===================== STEP 3: AMENITIES & PICKUP ===================== */}
+            {currentStep === 3 && (
+            <>
             {/* ===================== AMENITIES ===================== */}
             <div>
               <h2 className="text-xl font-semibold mb-4">Amenities *</h2>
@@ -1357,117 +1716,278 @@ setMinSeatsError("");
             </div>
 
             {/* ===================== BOARDING POINTS ===================== */}
+            <BoardingPointsEditor
+              boardingPoints={tripDetails.boardingPoints}
+              onChange={handleBoardingPointsChange}
+              error={errors.boardingPoints}
+            />
+
+            {/* Map link for details page */}
             <div>
-              <h2 className="text-xl font-semibold mb-4">Boarding Points *</h2>
-              {tripDetails.boardingPoints.map((boardingPoint, index) => (
-                <div
-                  key={index}
-                  className="relative mb-6 p-4 bg-gray-50 rounded-lg"
-                >
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor={`location-${index}`}>
-                        Pick Up Location
-                      </Label>
-                      <Input
-                        id={`location-${index}`}
-                        placeholder="Pick Up Location"
-                        value={boardingPoint.location}
-                        onChange={(e) =>
-                          handleBoardingPointChange(
-                            index,
-                            "location",
-                            e.target.value,
-                          )
-                        }
-                      />
-                    </div>
+              <Label htmlFor="mapLink">Tour map link (Google Maps)</Label>
+              <Input
+                id="mapLink"
+                placeholder="https://maps.google.com/..."
+                value={tripDetails.mapLink}
+                onChange={(e) =>
+                  setTripDetails({ ...tripDetails, mapLink: e.target.value })
+                }
+              />
+            </div>
 
-                    <div>
-                      <Label htmlFor={`maplink-${index}`}>Map Link (URL)</Label>
-                      <Input
-                        id={`maplink-${index}`}
-                        placeholder="Map Link (URL)"
-                        value={boardingPoint.maplink}
-                        onChange={(e) =>
-                          handleBoardingPointChange(
-                            index,
-                            "maplink",
-                            e.target.value,
-                          )
-                        }
-                      />
-                    </div>
-
-                    <div>
-                      <Label htmlFor={`time-${index}`}>Pick Up Time</Label>
-                      <Input
-                        id={`time-${index}`}
-                        type="time"
-                        value={boardingPoint.time}
-                        onChange={(e) =>
-                          handleBoardingPointChange(
-                            index,
-                            "time",
-                            e.target.value,
-                          )
-                        }
-                      />
-                    </div>
-
-                    <div>
-                      <Label htmlFor={`details-${index}`}>
-                        Pick Up Details
-                      </Label>
-                      <Input
-                        id={`details-${index}`}
-                        placeholder="Pick Up Details"
-                        value={boardingPoint.details}
-                        onChange={(e) =>
-                          handleBoardingPointChange(
-                            index,
-                            "details",
-                            e.target.value,
-                          )
-                        }
-                      />
-                    </div>
-                  </div>
-
-                  {tripDetails.boardingPoints.length > 1 && (
+            {/* Highlights */}
+            <div>
+              <h2 className="mb-2 text-xl font-semibold">
+                Highlights of the Trip
+              </h2>
+              <p className="mb-3 text-sm text-gray-500">
+                Point-wise highlights shown on the trip details page.
+              </p>
+              {tripDetails.highlights.map((h, i) => (
+                <div key={i} className="mb-2 flex gap-2">
+                  <Input
+                    placeholder={`Highlight ${i + 1}`}
+                    value={h}
+                    onChange={(e) => {
+                      const next = [...tripDetails.highlights];
+                      next[i] = e.target.value;
+                      setTripDetails({ ...tripDetails, highlights: next });
+                    }}
+                  />
+                  {tripDetails.highlights.length > 1 && (
                     <Button
-                      variant="destructive"
-                      size="icon"
-                      className="absolute top-2 right-2"
-                      onClick={() => handleRemoveBoardingPoint(index)}
+                      type="button"
+                      variant="outline"
+                      onClick={() =>
+                        setTripDetails({
+                          ...tripDetails,
+                          highlights: tripDetails.highlights.filter(
+                            (_, j) => j !== i,
+                          ),
+                        })
+                      }
                     >
-                      <FaTrash className="h-4 w-4" />
+                      <FaTrash className="h-3 w-3" />
                     </Button>
                   )}
                 </div>
               ))}
-              {errors.boardingPoints && (
-                <p className="mt-2 text-sm text-red-500">
-                  {errors.boardingPoints}
-                </p>
-              )}
-              <Button onClick={handleAddBoardingPoint} className="mt-2">
-                Add Boarding Point
+              <Button
+                type="button"
+                variant="outline"
+                className="mt-1"
+                onClick={() =>
+                  setTripDetails({
+                    ...tripDetails,
+                    highlights: [...tripDetails.highlights, ""],
+                  })
+                }
+              >
+                Add highlight
               </Button>
             </div>
 
-            {/* ===================== SAVE ===================== */}
-            <Button
-              onClick={handleSave}
-              disabled={loading}
-              className="w-full flex items-center justify-center"
-            >
-              {loading ? (
-                <FaSpinner className="animate-spin h-5 w-5" />
-              ) : (
-                "Save Trip"
-              )}
-            </Button>
+            {/* Includes */}
+            <div>
+              <h2 className="mb-2 text-xl font-semibold">
+                Trip Price Includes
+              </h2>
+              {tripDetails.includes.map((h, i) => (
+                <div key={i} className="mb-2 flex gap-2">
+                  <Input
+                    placeholder={`Include ${i + 1}`}
+                    value={h}
+                    onChange={(e) => {
+                      const next = [...tripDetails.includes];
+                      next[i] = e.target.value;
+                      setTripDetails({ ...tripDetails, includes: next });
+                    }}
+                  />
+                  {tripDetails.includes.length > 1 && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() =>
+                        setTripDetails({
+                          ...tripDetails,
+                          includes: tripDetails.includes.filter(
+                            (_, j) => j !== i,
+                          ),
+                        })
+                      }
+                    >
+                      <FaTrash className="h-3 w-3" />
+                    </Button>
+                  )}
+                </div>
+              ))}
+              <Button
+                type="button"
+                variant="outline"
+                className="mt-1"
+                onClick={() =>
+                  setTripDetails({
+                    ...tripDetails,
+                    includes: [...tripDetails.includes, ""],
+                  })
+                }
+              >
+                Add include item
+              </Button>
+            </div>
+
+            {/* FAQs */}
+            <div>
+              <h2 className="mb-2 text-xl font-semibold">FAQs</h2>
+              {tripDetails.faqs.map((faq, i) => (
+                <div
+                  key={i}
+                  className="relative mb-3 rounded-lg border border-gray-200 bg-gray-50 p-3"
+                >
+                  <Input
+                    className="mb-2"
+                    placeholder="Question"
+                    value={faq.question}
+                    onChange={(e) => {
+                      const next = [...tripDetails.faqs];
+                      next[i] = { ...next[i], question: e.target.value };
+                      setTripDetails({ ...tripDetails, faqs: next });
+                    }}
+                  />
+                  <Input
+                    placeholder="Answer"
+                    value={faq.answer}
+                    onChange={(e) => {
+                      const next = [...tripDetails.faqs];
+                      next[i] = { ...next[i], answer: e.target.value };
+                      setTripDetails({ ...tripDetails, faqs: next });
+                    }}
+                  />
+                  {tripDetails.faqs.length > 1 && (
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="icon"
+                      className="absolute right-2 top-2"
+                      onClick={() =>
+                        setTripDetails({
+                          ...tripDetails,
+                          faqs: tripDetails.faqs.filter((_, j) => j !== i),
+                        })
+                      }
+                    >
+                      <FaTrash className="h-3 w-3" />
+                    </Button>
+                  )}
+                </div>
+              ))}
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() =>
+                  setTripDetails({
+                    ...tripDetails,
+                    faqs: [
+                      ...tripDetails.faqs,
+                      { question: "", answer: "" },
+                    ],
+                  })
+                }
+              >
+                Add FAQ
+              </Button>
+            </div>
+
+            {/* Cancellation */}
+            <div>
+              <Label htmlFor="cancellationPolicy">Cancellation Policy</Label>
+              <textarea
+                id="cancellationPolicy"
+                rows={3}
+                className="mt-1 w-full rounded-md border border-input px-3 py-2 text-sm"
+                placeholder="Cancellation and refund rules..."
+                value={tripDetails.cancellationPolicy}
+                onChange={(e) =>
+                  setTripDetails({
+                    ...tripDetails,
+                    cancellationPolicy: e.target.value,
+                  })
+                }
+              />
+            </div>
+
+            {/* Brochure URLs (upload paths after manual upload, or full URL) */}
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <Label htmlFor="brochureImage">Brochure image path/URL</Label>
+                <Input
+                  id="brochureImage"
+                  placeholder="uploads/... or https://..."
+                  value={tripDetails.brochureImage || ""}
+                  onChange={(e) =>
+                    setTripDetails({
+                      ...tripDetails,
+                      brochureImage: e.target.value,
+                    })
+                  }
+                />
+              </div>
+              <div>
+                <Label htmlFor="brochureFile">Brochure download path/URL</Label>
+                <Input
+                  id="brochureFile"
+                  placeholder="uploads/brochure.pdf"
+                  value={tripDetails.brochureFile || ""}
+                  onChange={(e) =>
+                    setTripDetails({
+                      ...tripDetails,
+                      brochureFile: e.target.value,
+                    })
+                  }
+                />
+              </div>
+            </div>
+            </>
+            )}
+
+            {/* ===================== STEP NAVIGATION ===================== */}
+            <div className="flex flex-col-reverse gap-3 border-t border-gray-100 pt-6 sm:flex-row sm:items-center sm:justify-between">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={goBack}
+                disabled={currentStep === 1 || loading}
+                className="w-full sm:w-auto"
+              >
+                ← Back
+              </Button>
+
+              <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+                {currentStep < 3 ? (
+                  <Button
+                    type="button"
+                    onClick={goNext}
+                    disabled={loading}
+                    className="w-full bg-orange-500 hover:bg-orange-600 sm:w-auto"
+                  >
+                    Next →
+                  </Button>
+                ) : (
+                  <Button
+                    type="button"
+                    onClick={handleSave}
+                    disabled={loading}
+                    className="w-full bg-orange-500 hover:bg-orange-600 sm:min-w-[160px]"
+                  >
+                    {loading ? (
+                      <FaSpinner className="animate-spin h-5 w-5" />
+                    ) : (
+                      "Save Trip"
+                    )}
+                  </Button>
+                )}
+              </div>
+            </div>
           </div>
         </div>
 

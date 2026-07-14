@@ -78,6 +78,7 @@ import {
 
 import { toast } from "react-toastify";
 import { Skeleton } from "@/components/ui/skeleton";
+import { exportTripBookingsToExcel } from "@/utils/exportTripBookingsExcel";
 
 // PDF
 import jsPDF from "jspdf";
@@ -178,6 +179,28 @@ const BookingDetails = () => {
       return true;
     }) || [];
 
+  // ===================== EXCEL EXPORT =====================
+  const handleExportExcel = () => {
+    if (!passengerHistory.length) {
+      toast.info("No booking data available to export for this date");
+      return;
+    }
+    try {
+      exportTripBookingsToExcel({
+        passengerHistory,
+        tripName:
+          tripDetails?.tripName ||
+          tripName ||
+          "Trip Details",
+        selectedDate: selectedDate || date || "",
+      });
+      toast.success("Excel downloaded successfully");
+    } catch (err: any) {
+      console.error("Excel export failed:", err);
+      toast.error(err?.message || "Failed to export Excel");
+    }
+  };
+
   // ===================== PDF =====================
   const generatePassengerBookingPDF = (row: any) => {
     if (!row) return;
@@ -230,6 +253,13 @@ const BookingDetails = () => {
             .join(", ")
         : "—";
 
+    const pickupAddress = String(passenger?.address || "").trim();
+    const mapUrl = pickupAddress
+      ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+          pickupAddress,
+        )}`
+      : "";
+
     let y = 32;
 
     doc.setFontSize(11);
@@ -253,7 +283,8 @@ const BookingDetails = () => {
         ["Gender", passenger?.gender || "N/A"],
         ["ID Proof", passenger?.idProof || "N/A"],
         ["ID Number", passenger?.idProofNumber || "N/A"],
-        ["Address", passenger?.address || "—"],
+        ["Pickup Location", pickupAddress || "—"],
+        ["Google Maps (Pickup)", mapUrl || "—"],
       ],
       theme: "grid",
       styles: { fontSize: 10, cellPadding: 3, valign: "middle" },
@@ -261,6 +292,23 @@ const BookingDetails = () => {
       columnStyles: {
         0: { cellWidth: 55 },
         1: { cellWidth: 120 },
+      },
+      didDrawCell: (data: any) => {
+        if (
+          data.section === "body" &&
+          data.column.index === 1 &&
+          data.row.index === 8 &&
+          typeof data.cell.raw === "string" &&
+          data.cell.raw.startsWith("http")
+        ) {
+          doc.link(
+            data.cell.x,
+            data.cell.y,
+            data.cell.width,
+            data.cell.height,
+            { url: data.cell.raw },
+          );
+        }
       },
     });
 
@@ -453,7 +501,7 @@ const BookingDetails = () => {
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-2 mt-4 md:mt-0">
+        <div className="flex flex-wrap gap-2 mt-4 md:mt-0 items-center">
           <Badge
             variant="outline"
             className="px-3 py-1 bg-blue-50 text-blue-600 font-medium"
@@ -479,6 +527,17 @@ const BookingDetails = () => {
             <MapPin className="h-4 w-4 mr-1" />
             {availableSeatCount} Seats Available
           </Badge>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportExcel}
+            disabled={passengerHistory.length === 0}
+            className="flex items-center gap-1.5 text-green-700 border-green-200 hover:bg-green-50"
+          >
+            <Download className="h-4 w-4" />
+            Export Excel
+          </Button>
         </div>
       </div>
 
@@ -514,11 +573,22 @@ const BookingDetails = () => {
             </Card>
           ) : (
             <Card>
-              <CardHeader className="pb-2">
-                <CardTitle>Passenger History</CardTitle>
-                <CardDescription>
-                  View passenger details with seats and payment info
-                </CardDescription>
+              <CardHeader className="pb-2 flex flex-row items-start justify-between gap-4">
+                <div>
+                  <CardTitle>Passenger History</CardTitle>
+                  <CardDescription>
+                    View passenger details with seats and payment info
+                  </CardDescription>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleExportExcel}
+                  className="flex items-center gap-1.5 shrink-0 text-green-700 border-green-200 hover:bg-green-50"
+                >
+                  <Download className="h-4 w-4" />
+                  Export Excel
+                </Button>
               </CardHeader>
 
               <CardContent className="p-0">
@@ -549,11 +619,24 @@ const BookingDetails = () => {
                           </TableCell>
 
                           <TableCell className="font-medium">
-                            <div className="flex flex-col">
+                            <div className="flex flex-col gap-1">
                               <span>{row.passenger?.name || "Guest"}</span>
                               <span className="text-xs text-gray-500">
                                 {row.passenger?.email || "—"}
                               </span>
+                              {(row.blockReason || row.isAdminBooking) && (
+                                <span
+                                  className="mt-0.5 inline-flex max-w-[220px] items-start gap-1 rounded-md bg-amber-50 px-2 py-1 text-[11px] font-medium leading-snug text-amber-900 ring-1 ring-amber-100"
+                                  title={row.blockReason || "Admin block"}
+                                >
+                                  <span className="shrink-0 font-bold">
+                                    Block note:
+                                  </span>
+                                  <span className="line-clamp-2">
+                                    {row.blockReason || "—"}
+                                  </span>
+                                </span>
+                              )}
                             </div>
                           </TableCell>
 
@@ -563,22 +646,39 @@ const BookingDetails = () => {
 
                           <TableCell>
                             <div className="flex flex-wrap gap-1 justify-center">
-                              {(row.selectedSeats || []).map(
-                                (s: any, i: number) => (
-                                  <Badge
-                                    key={`${row.bookingId}-${s.seat}-${s.busIndex}-${i}`}
-                                    variant="secondary"
-                                    className="bg-blue-100 text-blue-700 px-2.5 py-0.5"
-                                  >
-                                    {s.seat}
+                              {/* Prefer individual seat for this passenger */}
+                              {row.seat || row.seatNumber ? (
+                                <Badge
+                                  variant="secondary"
+                                  className="bg-blue-100 text-blue-700 px-2.5 py-0.5"
+                                >
+                                  {row.seat?.seat || row.seatNumber}
+                                  {(row.seat?.busIndex != null ||
+                                    row.busIndex != null) && (
                                     <span className="ml-1.5 text-xs text-gray-600 font-normal">
-                                      Bus {Number(s.busIndex) + 1}
+                                      Bus{" "}
+                                      {Number(
+                                        row.seat?.busIndex ?? row.busIndex
+                                      ) + 1}
                                     </span>
-                                  </Badge>
+                                  )}
+                                </Badge>
+                              ) : (row.selectedSeats || []).length > 0 ? (
+                                (row.selectedSeats || []).map(
+                                  (s: any, i: number) => (
+                                    <Badge
+                                      key={`${row.bookingId}-${s.seat}-${s.busIndex}-${i}`}
+                                      variant="secondary"
+                                      className="bg-blue-100 text-blue-700 px-2.5 py-0.5"
+                                    >
+                                      {s.seat}
+                                      <span className="ml-1.5 text-xs text-gray-600 font-normal">
+                                        Bus {Number(s.busIndex) + 1}
+                                      </span>
+                                    </Badge>
+                                  )
                                 )
-                              )}
-
-                              {(row.selectedSeats || []).length === 0 && (
+                              ) : (
                                 <span className="text-gray-400 text-sm italic">
                                   —
                                 </span>

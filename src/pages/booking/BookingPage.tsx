@@ -31,6 +31,7 @@ import { format, parse, isValid } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Armchair, Calendar, MapPin } from "lucide-react";
 import TermsModal from "@/components/TermsModal";
+import { useTranslation } from "react-i18next";
 const INITIAL_STEP = "select-seats";
 
 interface Vehicle {
@@ -79,11 +80,49 @@ interface Trip {
     location: string;
     time: string;
     details: string;
+    maplink?: string;
   }[];
   price: string;
   discountPercentage?: number;
   advancePaymentPercentage?: number;
 }
+
+/** Match passenger.address to trip boarding point and build Maps URL */
+const resolvePickupMapInfo = (
+  address: string | undefined,
+  boardingPoints: {
+    location?: string;
+    time?: string;
+    details?: string;
+    maplink?: string;
+  }[] = [],
+) => {
+  const addr = String(address || "").trim();
+  const points = boardingPoints || [];
+  let point =
+    points.find((p) => String(p?.location || "").trim() === addr) || null;
+  if (!point && addr) {
+    point =
+      points.find((p) => {
+        const loc = String(p?.location || "").trim();
+        return (
+          addr.startsWith(loc) || addr.includes(loc) || loc.includes(addr)
+        );
+      }) || null;
+  }
+  if (!point && points.length === 1) point = points[0];
+
+  const location = point?.location || addr || "";
+  const time = point?.time || "";
+  const details = point?.details || "";
+  let mapUrl = String(point?.maplink || "").trim();
+  if (!mapUrl && location) {
+    mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+      location,
+    )}`;
+  }
+  return { location, time, details, mapUrl };
+};
 
 interface BookingSummaryProps {
   numberOfBuses: number;
@@ -139,6 +178,7 @@ interface BookingSummaryProps {
 }
 
 const BookingPage = () => {
+  const { t } = useTranslation();
   const { data: termsData, isLoading } = useGetTermsQuery();
   console.log("Terms Data:", termsData);
   const location = useLocation();
@@ -308,15 +348,93 @@ const BookingPage = () => {
 
     const afterPassengersY = (doc as any).lastAutoTable.finalY + 8;
 
-    // Payment info table
+    // Pickup locations + Google Maps links (per passenger)
+    const boardingPoints = trip?.boardingPoints || [];
+    const pickupBody = passengers.map((p) => {
+      const info = resolvePickupMapInfo(p?.address, boardingPoints);
+      return [
+        p?.name || "—",
+        info.location
+          ? `${info.location}${info.time ? ` (${info.time})` : ""}`
+          : p?.address || "—",
+        info.mapUrl || "—",
+      ];
+    });
+
     autoTable(doc, {
       startY: afterPassengersY,
+      head: [["Passenger", "Pickup Location", "Google Maps Link"]],
+      body: pickupBody,
+      theme: "grid",
+      styles: {
+        fontSize: 9,
+        cellPadding: 2.5,
+        valign: "middle",
+        overflow: "linebreak",
+      },
+      columnStyles: {
+        0: { cellWidth: 40 },
+        1: { cellWidth: 55 },
+        2: { cellWidth: 80 },
+      },
+      didDrawCell: (data: any) => {
+        // Make Maps URL clickable in the PDF
+        if (
+          data.section === "body" &&
+          data.column.index === 2 &&
+          typeof data.cell.raw === "string" &&
+          data.cell.raw.startsWith("http")
+        ) {
+          const url = data.cell.raw as string;
+          doc.link(
+            data.cell.x,
+            data.cell.y,
+            data.cell.width,
+            data.cell.height,
+            { url },
+          );
+        }
+      },
+    });
+
+    const afterPickupY = (doc as any).lastAutoTable.finalY + 6;
+
+    // Highlight primary map link for easy tap on mobile PDF readers
+    const primaryPickup = resolvePickupMapInfo(
+      passengers[0]?.address,
+      boardingPoints,
+    );
+    let paymentStartY = afterPickupY;
+    if (primaryPickup.mapUrl) {
+      doc.setFontSize(10);
+      doc.setTextColor(194, 65, 12);
+      doc.text("Open primary pickup in Google Maps:", 14, afterPickupY + 4);
+      doc.setTextColor(37, 99, 235);
+      doc.textWithLink("Tap / click here →", 14, afterPickupY + 10, {
+        url: primaryPickup.mapUrl,
+      });
+      doc.setTextColor(0, 0, 0);
+      paymentStartY = afterPickupY + 16;
+    }
+
+    // Payment info table
+    autoTable(doc, {
+      startY: paymentStartY,
       head: [["Payment Info", "Value"]],
       body: [
         [
           "Selected Seats / Bus Details",
           (selectedSeatsFormatted || "—").split(" | ").join("\n"),
         ],
+        [
+          "Pickup Location",
+          primaryPickup.location
+            ? `${primaryPickup.location}${
+                primaryPickup.time ? ` (${primaryPickup.time})` : ""
+              }`
+            : passengers[0]?.address || "—",
+        ],
+        ["Google Maps (Pickup)", primaryPickup.mapUrl || "—"],
         [
           "Total Amount",
           `rs ${Number(totalAmount || 0).toLocaleString("en-IN")}`,
@@ -334,10 +452,32 @@ const BookingPage = () => {
         overflow: "linebreak",
       },
       columnStyles: { 0: { cellWidth: 55 }, 1: { cellWidth: 120 } },
+      didDrawCell: (data: any) => {
+        if (
+          data.section === "body" &&
+          data.column.index === 1 &&
+          data.row.index === 2 &&
+          typeof data.cell.raw === "string" &&
+          data.cell.raw.startsWith("http")
+        ) {
+          doc.link(
+            data.cell.x,
+            data.cell.y,
+            data.cell.width,
+            data.cell.height,
+            { url: data.cell.raw },
+          );
+        }
+      },
     });
 
     doc.setFontSize(9);
-    doc.text(`Thank you for booking with us!`, 14, pageHeight - 12);
+    doc.setTextColor(0, 0, 0);
+    doc.text(
+      `Thank you for booking with us! Use the Google Maps link for your pickup point.`,
+      14,
+      pageHeight - 12,
+    );
 
     // Create blob url for manual download
     const blob = doc.output("blob");
@@ -438,8 +578,12 @@ const BookingPage = () => {
     setBookedSeats(mappedBookedSeats);
   }, [bookingData]);
   const minSeatsPerBooking = selectedDate?.minSeatsPerBooking || 1;
-  const seatsPerBus = selectedDate?.seats || 0;
-  const numberOfBuses = selectedDate?.numberOfBusesAvailable || 1;
+  const seatsPerBus =
+    typeof selectedDate?.seats === "number" ? selectedDate.seats : 0;
+  const numberOfBuses = Math.max(
+    1,
+    Number(selectedDate?.numberOfBusesAvailable || 1) || 1,
+  );
   const totalCapacity = seatsPerBus * numberOfBuses;
 
   useEffect(() => {
@@ -619,16 +763,24 @@ const BookingPage = () => {
   };
 
   const validatePassengerDetails = () => {
-    return passengers.every(
-      (p) =>
-        p.name.trim() &&
+    return passengers.every((p) => {
+      const fullName = (p.name || "").trim() ||
+        [p.title, p.firstName, p.lastName].filter(Boolean).join(" ").trim();
+      return (
+        !!fullName &&
         p.age &&
-        ["male", "female", "other"].includes(p.gender) &&
-        ["aadhar", "pan"].includes(p.idProof) &&
-        p.idProofNumber.trim() &&
-        p.phoneNumber.trim() &&
-        /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(p.email), // ✅ ADD
-    );
+        ["male", "female", "other"].includes(p.gender as string) &&
+        ["aadhar", "pan"].includes(p.idProof as string) &&
+        (p.idProofNumber || "").trim() &&
+        (p.phoneNumber || "").trim() &&
+        /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(p.email || "")
+      );
+    });
+  };
+
+  const formatSeatLabel = (seatKey: string) => {
+    const [busIndex, seat] = seatKey.split("-");
+    return `Bus ${Number(busIndex) + 1} · Seat ${seat}`;
   };
 
   const handleGoBack = () => {
@@ -885,8 +1037,14 @@ const handleProceed = async () => {
 
   // ---------------------------
   // ✅ PACKAGE SEAT RULE
+  // Only when a seat map exists (20/32 seats). Without a seat map the user
+  // cannot pick seats, so do not enforce exact seat count.
   // ---------------------------
-  if (selectedPackage && selectedSeats.length !== selectedPackage.personCount) {
+  if (
+    isSeatTrip &&
+    selectedPackage &&
+    selectedSeats.length !== selectedPackage.personCount
+  ) {
     toast.error(
       `This package requires exactly ${selectedPackage.personCount} seat(s).`,
     );
@@ -1058,7 +1216,7 @@ const handleProceed = async () => {
         <div className="absolute inset-0 bg-gray-500 bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-lg flex items-center space-x-4">
             <FaSpinner className="animate-spin text-4xl text-blue-500" />
-            <span className="text-lg">Processing your booking...</span>
+            <span className="text-lg">{t("booking.processing")}</span>
           </div>
         </div>
       )}
@@ -1075,17 +1233,17 @@ const handleProceed = async () => {
         >
           <h1 className="text-4xl font-bold text-gray-900 mb-4">
             {step === "select-seats"
-              ? "Select Your Seats"
-              : "Passenger Details"}
+              ? t("booking.selectSeats")
+              : t("booking.passengerDetails")}
           </h1>
           <p className="text-gray-600">
             {step === "select-seats"
-              ? `Choose ${
-                  selectedPackage || selectedRoomChoice
-                    ? `up to ${selectedPackage?.personCount || 0}`
-                    : "your"
-                } seats for your journey`
-              : `Enter details for up to ${maxAvailableSeats} passenger(s)`}
+              ? selectedPackage || selectedRoomChoice
+                ? t("booking.chooseSeatsUpTo", {
+                    count: selectedPackage?.personCount || 0,
+                  })
+                : t("booking.chooseSeats")
+              : t("booking.enterDetails", { count: maxAvailableSeats })}
           </p>
         </motion.div>
         <Dialog
@@ -1167,48 +1325,141 @@ const handleProceed = async () => {
                 vehicles={selectedDate?.vehicles}
               />
             ) : (
-              <div className="space-y-4">
-                {passengers.map((_, index) => (
-                  <div key={index} className="relative">
-                    <PassengerForm
-                      tripDetails={tripDetails}
-                      seatNumber={`Passenger ${index + 1}`}
-                      index={index}
-                      onChange={handlePassengerChange}
-                      passengers={passengers}
-                    />
-                    {passengers.length > 1 && (
-                      <Button
-                        onClick={() => removePassenger(index)}
-                        className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white"
-                        disabled={isSubmitting}
-                      >
-                        Remove
-                      </Button>
-                    )}
-                  </div>
-                ))}
+              <div className="space-y-5">
+                {/* Attractive passenger details header for seat bookings */}
+                {step === "passenger-details" &&
+                  (totalSeats === 20 || totalSeats === 32) && (
+                    <div className="rounded-2xl border border-orange-100 bg-gradient-to-r from-orange-500 to-amber-500 px-5 py-4 text-white shadow-md">
+                      <h2 className="text-xl font-bold tracking-tight">
+                        Passengers Details
+                      </h2>
+                      <p className="mt-1 text-sm text-orange-50">
+                        Please note: provide valid passenger details for each
+                        selected seat.
+                      </p>
+                      {selectedSeats.length > 0 && (
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {selectedSeats.map((s) => (
+                            <span
+                              key={s}
+                              className="rounded-full bg-white/20 px-2.5 py-0.5 text-xs font-semibold backdrop-blur"
+                            >
+                              {formatSeatLabel(s)}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                {/* Passenger cards */}
+                <div className="space-y-4">
+                  {passengers.map((_, index) => (
+                    <div key={index} className="relative">
+                      <PassengerForm
+                        tripDetails={tripDetails}
+                        seatNumber={
+                          selectedSeats[index]
+                            ? formatSeatLabel(selectedSeats[index])
+                            : `Passenger ${index + 1}`
+                        }
+                        index={index}
+                        onChange={handlePassengerChange}
+                        passengers={passengers}
+                        hideAddress={
+                          !!(
+                            step === "passenger-details" &&
+                            (totalSeats === 20 || totalSeats === 32) &&
+                            tripDetails.boardingPoints?.length
+                          )
+                        }
+                        showSeatBadge={
+                          !!(
+                            selectedSeats[index] ||
+                            totalSeats === 20 ||
+                            totalSeats === 32
+                          )
+                        }
+                      />
+                      {passengers.length > 1 &&
+                        !(totalSeats === 20 || totalSeats === 32) && (
+                          <Button
+                            onClick={() => removePassenger(index)}
+                            className="absolute right-3 top-3 z-10 bg-red-500 text-white hover:bg-red-600"
+                            disabled={isSubmitting}
+                            size="sm"
+                          >
+                            Remove
+                          </Button>
+                        )}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Shared pickup address card (seat booking) */}
+                {step === "passenger-details" &&
+                  (totalSeats === 20 || totalSeats === 32) &&
+                  tripDetails.boardingPoints?.length > 0 && (
+                    <div className="rounded-2xl border border-orange-100 bg-white p-5 shadow-sm">
+                      <h3 className="text-lg font-bold text-slate-900">
+                        Passenger Address
+                      </h3>
+                      <p className="mt-1 text-xs text-slate-500">
+                        Select pickup location for all passengers (you can
+                        change per passenger if needed below).
+                      </p>
+                      <div className="mt-4">
+                        <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+                          Select pickup location *
+                        </label>
+                        <select
+                          className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm shadow-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-200"
+                          value={passengers[0]?.address || ""}
+                          onChange={(e) => {
+                            const loc = e.target.value;
+                            setPassengers((prev) =>
+                              prev.map((p) => ({ ...p, address: loc })),
+                            );
+                          }}
+                          disabled={isSubmitting}
+                        >
+                          <option value="">Select Pickup Location</option>
+                          {tripDetails.boardingPoints.map((point) => (
+                            <option key={point._id} value={point.location}>
+                              {point.location} - {point.time}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  )}
+
                 {!(totalSeats === 20 || totalSeats === 32) &&
                   maxAvailableSeats > passengers.length && (
                     <Button
                       onClick={addPassenger}
-                      className="bg-green-500 hover:bg-green-600 text-white"
+                      className="rounded-xl bg-orange-500 text-white hover:bg-orange-600"
                       disabled={isSubmitting}
                     >
-                      Add Passenger
+                      Add Members
                     </Button>
                   )}
-                <p className="text-sm text-gray-600">
-                  {maxAvailableSeats} seat(s) available
-                </p>
+
+                {!(totalSeats === 20 || totalSeats === 32) && (
+                  <p className="text-sm text-gray-600">
+                    {maxAvailableSeats} seat(s) available
+                  </p>
+                )}
+
                 {step === "passenger-details" &&
                   (totalSeats === 20 || totalSeats === 32) && (
                     <Button
                       onClick={handleGoBack}
-                      className="bg-gray-500 hover:bg-gray-600 text-white"
+                      variant="outline"
+                      className="rounded-xl border-slate-200"
                       disabled={isSubmitting}
                     >
-                      Back to Seat Selection
+                      ← Back to Seat Selection
                     </Button>
                   )}
               </div>
@@ -1323,12 +1574,13 @@ const SeatLayout = ({
   );
   console.log(`isTwoSeaterLayout: ${totalSeats}`);
   const [showLayoutModal, setShowLayoutModal] = useState(false);
+  const busesCount = Math.max(1, Number(numberOfBuses) || 1);
   const [currentBus, setCurrentBus] = useState(0);
   const v = vehicles?.[currentBus];
 
   const isBlockBooking = selectedSeats.includes("block");
   const bookedSeatsForBus = bookedSeats
-    .filter((b) => b.busIndex === currentBus)
+    .filter((b) => Number(b.busIndex) === currentBus)
     .map((b) => b.seat);
 
   const isCurrentBusFull = bookedSeatsForBus.length >= totalSeats;
@@ -1336,6 +1588,25 @@ const SeatLayout = ({
   useEffect(() => {
     setIsTwoSeaterLayout(totalSeats === 32);
   }, [totalSeats]);
+
+  // Open the first bus that still has free seats (skip full buses)
+  useEffect(() => {
+    if (busesCount <= 1 || !totalSeats) return;
+    for (let bus = 0; bus < busesCount; bus++) {
+      const bookedOnBus = bookedSeats.filter(
+        (b) => Number(b.busIndex) === bus,
+      ).length;
+      if (bookedOnBus < totalSeats) {
+        setCurrentBus((prev) => (prev !== bus ? bus : prev));
+        return;
+      }
+    }
+    // All buses full — stay on last
+    setCurrentBus((prev) =>
+      prev !== busesCount - 1 ? busesCount - 1 : prev,
+    );
+  }, [bookedSeats, busesCount, totalSeats]);
+
   if (totalSeats !== 20 && totalSeats !== 32) {
     console.warn(`Invalid totalSeats value: ${totalSeats}. Expected 20 or 32.`);
     return null;
@@ -1360,7 +1631,6 @@ const SeatLayout = ({
         ["13", "", "14", "15"],
         ["16", "17", "18", "19"],
       ];
-  console.log("Seat Layout:", isTwoSeaterLayout);
   useEffect(() => {
     if (
       !isBlockBooking &&
@@ -1380,11 +1650,6 @@ const SeatLayout = ({
       setShowLayoutModal(true);
     }
   };
-  useEffect(() => {
-    if (isCurrentBusFull && currentBus < numberOfBuses - 1) {
-      setCurrentBus((prev) => prev + 1);
-    }
-  }, [isCurrentBusFull, currentBus, numberOfBuses]);
   const handleSeatClick = (seatId: string) => {
     onSeatSelect(seatId, currentBus);
   };
@@ -1413,9 +1678,14 @@ const SeatLayout = ({
         disabled ? "opacity-50 pointer-events-none" : ""
       }`}
     >
-      {isCurrentBusFull && (
+      {isCurrentBusFull && currentBus < busesCount - 1 && (
         <p className="text-green-600 text-sm mb-3 text-center">
-          This bus is fully booked. Moving to next bus…
+          This bus is fully booked. Showing next bus with free seats…
+        </p>
+      )}
+      {isCurrentBusFull && currentBus === busesCount - 1 && (
+        <p className="text-amber-600 text-sm mb-3 text-center">
+          All seats on this bus are booked.
         </p>
       )}
 
@@ -1443,7 +1713,7 @@ const SeatLayout = ({
         </div>
       </div>
       <span className="font-semibold">
-        Bus {currentBus + 1} of {numberOfBuses}
+        Bus {currentBus + 1} of {busesCount}
         <span className="ml-2 text-sm text-gray-600">
           (Instructor: {v?.instructorName || "—"} • {v?.vehicleNumber || "—"} •{" "}
           {v?.phoneNumber || "—"})
@@ -1500,14 +1770,14 @@ const SeatLayout = ({
         </Button>
 
         <span className="font-semibold">
-          Bus {currentBus + 1} of {numberOfBuses}
+          Bus {currentBus + 1} of {busesCount}
         </span>
 
         <Button
           onClick={() =>
-            setCurrentBus((b) => Math.min(numberOfBuses - 1, b + 1))
+            setCurrentBus((b) => Math.min(busesCount - 1, b + 1))
           }
-          disabled={currentBus === numberOfBuses - 1}
+          disabled={currentBus === busesCount - 1}
           variant="outline"
         >
           Next Bus
@@ -1925,87 +2195,97 @@ const BookingSummary = ({
     return isValid(checkDate) && checkDate >= today;
   });
 
+  const cardClass =
+    "rounded-2xl border border-orange-100 bg-white p-5 shadow-sm";
+
   return (
     <motion.div
       variants={fadeInUp}
       initial="initial"
       animate="animate"
-      className={`bg-white rounded-xl shadow-lg p-6 ${
-        disabled ? "opacity-50" : ""
-      }`}
+      className={`space-y-4 ${disabled ? "opacity-50" : ""}`}
     >
-      <h3 className="text-xl font-semibold mb-4">Booking Summary</h3>
-      <div className="flex justify-between mb-2">
-        <span>Total Buses</span>
-        <span>{numberOfBuses}</span>
-      </div>
-
-      <div className="flex justify-between mb-2">
-        <span>Total Capacity</span>
-        <span>{totalCapacity} seats</span>
-      </div>
-
-      <div className="flex justify-between mb-2">
-        <span>Available Seats</span>
-        <span>{totalCapacity - bookedSeats.length}</span>
-      </div>
-
-      <div className="space-y-4 mb-6">
-        <div className="flex items-center text-gray-600">
-          <MapPin className="w-5 h-5 mr-2" />
-          <span>
-            {tripDetails.from} → {tripDetails.to}
-          </span>
-        </div>
-        {selectedDate?.minSeatsPerBooking > 1 && (
-  <p className="text-sm text-orange-600 mb-2">
-    Minimum booking: {selectedDate.minSeatsPerBooking} seats
-  </p>
-)}
-        <div className="flex items-center text-gray-600">
-          <Calendar className="w-5 h-5 mr-2" />
-          <select
-            className="border p-2 rounded-md w-full disabled:bg-gray-100 disabled:cursor-not-allowed"
-            value={selectedDate ? formatDateWithSeats(selectedDate) : ""}
-            onChange={(e) => {
-              if (disabled) return;
-              const selected = validDates.find(
-                (date) => formatDateWithSeats(date) === e.target.value,
-              );
-              if (selected) setSelectedData(selected);
-            }}
-            disabled={disabled || loading}
-          >
-            {validDates.length === 0 ? (
-              <option value="">No available dates</option>
-            ) : (
-              <>
-                <option value="">Select a date</option>
-                {validDates.map((date) => (
-                  <option key={date.date} value={formatDateWithSeats(date)}>
-                    {formatDateWithSeats(date)}
-                  </option>
-                ))}
-              </>
-            )}
-          </select>
-        </div>
-        {tripDetails.packages.length > 0 && (
+      {/* Tour Summary */}
+      <div className={cardClass}>
+        <h3 className="mb-3 text-lg font-bold text-slate-900">Tour Summary</h3>
+        <div className="space-y-3 text-sm">
+          <div className="flex justify-between text-slate-600">
+            <span>Total Buses</span>
+            <span className="font-semibold text-slate-800">{numberOfBuses}</span>
+          </div>
+          <div className="flex justify-between text-slate-600">
+            <span>Capacity</span>
+            <span className="font-semibold text-slate-800">
+              {totalCapacity} seats
+            </span>
+          </div>
+          <div className="flex justify-between text-slate-600">
+            <span>Available</span>
+            <span className="font-semibold text-green-600">
+              {totalCapacity - bookedSeats.length}
+            </span>
+          </div>
+          <div className="flex items-start gap-2 border-t border-slate-100 pt-3 text-slate-700">
+            <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-orange-500" />
+            <span className="font-medium">
+              {tripDetails.from} → {tripDetails.to}
+            </span>
+          </div>
+          {selectedDate?.minSeatsPerBooking > 1 && (
+            <p className="text-xs font-medium text-orange-600">
+              Minimum booking: {selectedDate.minSeatsPerBooking} seats
+            </p>
+          )}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Select Package
+            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Select date
             </label>
-            <div className="grid gap-4">
-              {tripDetails.packages.map((pkg) => (
-                <div
-                  key={pkg._id}
-                  className={`p-4 border rounded-lg cursor-pointer transition-colors ${
-                    selectedPackage?._id === pkg._id
-                      ? "border-blue-500 bg-blue-50"
-                      : "border-gray-300 hover:bg-gray-50"
-                  }`}
-                  onClick={() => !disabled && setSelectedPackage(pkg)}
-                >
+            <select
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-200 disabled:cursor-not-allowed disabled:bg-gray-100"
+              value={selectedDate ? formatDateWithSeats(selectedDate) : ""}
+              onChange={(e) => {
+                if (disabled) return;
+                const selected = validDates.find(
+                  (date) => formatDateWithSeats(date) === e.target.value,
+                );
+                if (selected) setSelectedData(selected);
+              }}
+              disabled={disabled || loading}
+            >
+              {validDates.length === 0 ? (
+                <option value="">No available dates</option>
+              ) : (
+                <>
+                  <option value="">Select a date</option>
+                  {validDates.map((date) => (
+                    <option key={date.date} value={formatDateWithSeats(date)}>
+                      {formatDateWithSeats(date)}
+                    </option>
+                  ))}
+                </>
+              )}
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {/* Packages */}
+      {tripDetails.packages.length > 0 && (
+        <div className={cardClass}>
+          <h3 className="mb-3 text-lg font-bold text-slate-900">
+            Select Packages
+          </h3>
+          <div className="grid gap-3">
+            {tripDetails.packages.map((pkg) => (
+              <div
+                key={pkg._id}
+                className={`cursor-pointer rounded-xl border p-3 transition-colors ${
+                  selectedPackage?._id === pkg._id
+                    ? "border-orange-500 bg-orange-50"
+                    : "border-slate-200 hover:border-orange-200 hover:bg-orange-50/40"
+                }`}
+                onClick={() => !disabled && setSelectedPackage(pkg)}
+              >
                   <h4 className="font-semibold">{pkg.name}</h4>
                   <p className="text-sm text-gray-600">{pkg.description}</p>
                   <p className="text-sm font-medium mt-2">
@@ -2036,71 +2316,73 @@ const BookingSummary = ({
             </div>
           </div>
         )}
-        {tripDetails.roomChoices.length > 0 && (
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Select Room Choice
-            </label>
-            <div className="grid gap-4">
-              {tripDetails.roomChoices.map((room, index) => (
-                <div
-                  key={`${room._id}-${selectedRoomCount}`}
-                  className={`p-4 border rounded-lg transition-colors relative ${
-                    selectedRoomChoice?._id === room._id
-                      ? "border-blue-500 bg-blue-50"
-                      : "border-gray-300 hover:bg-gray-50"
-                  } ${
-                    index === 0 ? "cursor-pointer opacity-75" : "cursor-pointer"
-                  }`}
-                  onClick={() => !disabled && setSelectedRoomChoice(room)}
-                >
-                  <h4 className="font-semibold">{room.type}</h4>
-                  <p className="text-sm text-gray-600">{room.description}</p>
-                  <p className="text-sm font-medium mt-2">
-                    ₹{room.price.toLocaleString("en-IN")} x{" "}
-                    {selectedRoomChoice?._id === room._id
-                      ? selectedRoomCount
-                      : 1}{" "}
-                    {selectedRoomChoice?._id === room._id &&
-                    selectedRoomCount > 1
-                      ? "rooms"
-                      : "room"}
-                  </p>
-                  {selectedRoomChoice?._id === room._id && (
-                    <div className="absolute top-2 right-2 flex space-x-2">
-                      <Button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          addRoom();
-                        }}
-                        className="bg-green-500 hover:bg-green-600 text-white rounded-full p-2"
-                        disabled={disabled}
-                      >
-                        <FaPlus size={16} />
-                      </Button>
-                      <Button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          removeRoom();
-                        }}
-                        className="bg-red-500 hover:bg-red-600 text-white rounded-full p-2"
-                        disabled={disabled || selectedRoomCount <= 1}
-                      >
-                        <FaMinus size={16} />
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
+      {/* Rooms */}
+      {tripDetails.roomChoices.length > 0 && (
+        <div className={cardClass}>
+          <h3 className="mb-3 text-lg font-bold text-slate-900">Room Choice</h3>
+          <div className="grid gap-3">
+            {tripDetails.roomChoices.map((room, index) => (
+              <div
+                key={`${room._id}-${selectedRoomCount}`}
+                className={`relative cursor-pointer rounded-xl border p-3 transition-colors ${
+                  selectedRoomChoice?._id === room._id
+                    ? "border-orange-500 bg-orange-50"
+                    : "border-slate-200 hover:bg-orange-50/40"
+                }`}
+                onClick={() => !disabled && setSelectedRoomChoice(room)}
+              >
+                <h4 className="font-semibold text-slate-900">{room.type}</h4>
+                <p className="text-sm text-slate-600">{room.description}</p>
+                <p className="mt-1 text-sm font-medium text-orange-600">
+                  ₹{room.price.toLocaleString("en-IN")} ×{" "}
+                  {selectedRoomChoice?._id === room._id
+                    ? selectedRoomCount
+                    : 1}
+                </p>
+                {selectedRoomChoice?._id === room._id && (
+                  <div className="absolute right-2 top-2 flex space-x-1">
+                    <Button
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        addRoom();
+                      }}
+                      className="rounded-full bg-green-500 p-2 text-white hover:bg-green-600"
+                      disabled={disabled}
+                    >
+                      <FaPlus size={12} />
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        removeRoom();
+                      }}
+                      className="rounded-full bg-red-500 p-2 text-white hover:bg-red-600"
+                      disabled={disabled || selectedRoomCount <= 1}
+                    >
+                      <FaMinus size={12} />
+                    </Button>
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
-        )}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Payment Option
-          </label>
-          <div className="flex gap-4">
-            <label className="flex items-center">
+        </div>
+      )}
+
+      {/* Price Breakdown */}
+      <div className={cardClass}>
+        <h3 className="mb-3 text-lg font-bold text-slate-900">
+          Price Breakdown
+        </h3>
+
+        <div className="mb-4">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Payment options
+          </p>
+          <div className="flex flex-col gap-2">
+            <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-100 px-3 py-2 text-sm hover:bg-orange-50/50">
               <input
                 type="radio"
                 name="paymentOption"
@@ -2108,11 +2390,11 @@ const BookingSummary = ({
                 checked={paymentOption === "full"}
                 onChange={() => setPaymentOption("full")}
                 disabled={disabled || loading}
-                className="mr-2"
+                className="text-orange-500 focus:ring-orange-400"
               />
               Full Payment
             </label>
-            <label className="flex items-center">
+            <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-100 px-3 py-2 text-sm hover:bg-orange-50/50">
               <input
                 type="radio"
                 name="paymentOption"
@@ -2120,154 +2402,186 @@ const BookingSummary = ({
                 checked={paymentOption === "advance"}
                 onChange={() => setPaymentOption("advance")}
                 disabled={disabled || loading}
-                className="mr-2"
+                className="text-orange-500 focus:ring-orange-400"
               />
               Advance Payment ({advancePaymentPercentage}%)
             </label>
           </div>
         </div>
-      </div>
 
-      <div className="border-t border-gray-200 pt-4 mb-6">
-        {isSeatSelection && (
-          <div className="flex justify-between mb-2">
-            <span>Selected Seats</span>
-            <span>
-              {isSeatSelection && (
-                <div className="flex justify-between mb-2 gap-4">
-                  <span className="text-right">
-                    {selectedSeats.length === 0
-                      ? "None"
-                      : Object.entries(
-                          selectedSeats.reduce(
-                            (acc: Record<number, number[]>, seat) => {
-                              const [busIndex, seatNo] = seat
-                                .split("-")
-                                .map(Number);
-                              if (!acc[busIndex]) acc[busIndex] = [];
-                              acc[busIndex].push(seatNo);
-                              return acc;
-                            },
-                            {},
-                          ),
-                        )
-                          .map(([busIndexStr, seats]) => {
-                            const busIndex = Number(busIndexStr);
-
-                            return `Bus ${busIndex + 1}: ${seats
-                              .sort((a, b) => a - b)
-                              .join(", ")} `;
-                          })
-                          .join(" | ")}
-                  </span>
-                </div>
-              )}
-            </span>
-          </div>
-        )}
-
-        <div className="flex justify-between mb-2">
-          <span>Number of Passengers</span>
-          <span>{numPassengers}</span>
-        </div>
-        <div className="flex justify-between mb-2">
-          <span>{selectedPackage ? "Package Price" : "Seat Price"}</span>
-          {hasDiscount ? (
-            <div className="flex flex-col items-end">
-              <span className="text-sm line-through text-gray-500">
-                Before: ₹{originalBasePrice.toLocaleString("en-IN")}
-              </span>
-              <span>
-                After: ₹{Math.round(basePrice).toLocaleString("en-IN")}
-              </span>
-              <span className="text-sm text-green-600">
-                {tripDetails.discountPercentage}% off
+        <div className="space-y-2 border-t border-slate-100 pt-3 text-sm">
+          {isSeatSelection && (
+            <div className="flex justify-between gap-3">
+              <span className="text-slate-600">Selected seats</span>
+              <span className="max-w-[55%] text-right font-medium text-slate-800">
+                {selectedSeats.length === 0
+                  ? "None"
+                  : Object.entries(
+                      selectedSeats.reduce(
+                        (acc: Record<number, number[]>, seat) => {
+                          const [busIndex, seatNo] = seat
+                            .split("-")
+                            .map(Number);
+                          if (!acc[busIndex]) acc[busIndex] = [];
+                          acc[busIndex].push(seatNo);
+                          return acc;
+                        },
+                        {},
+                      ),
+                    )
+                      .map(([busIndexStr, seats]) => {
+                        const busIndex = Number(busIndexStr);
+                        return `Bus ${busIndex + 1}: ${seats
+                          .sort((a, b) => a - b)
+                          .join(", ")}`;
+                      })
+                      .join(" | ")}
               </span>
             </div>
-          ) : (
-            <span>₹{basePrice.toLocaleString("en-IN")}</span>
+          )}
+          <div className="flex justify-between">
+            <span className="text-slate-600">Passengers</span>
+            <span className="font-medium text-slate-800">{numPassengers}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-slate-600">
+              {selectedPackage ? "Package price" : "Seat price"}
+            </span>
+            {hasDiscount ? (
+              <div className="text-right">
+                <span className="mr-1 text-xs text-slate-400 line-through">
+                  ₹{originalBasePrice.toLocaleString("en-IN")}
+                </span>
+                <span className="font-medium">
+                  ₹{Math.round(basePrice).toLocaleString("en-IN")}
+                </span>
+              </div>
+            ) : (
+              <span className="font-medium">
+                ₹{basePrice.toLocaleString("en-IN")}
+              </span>
+            )}
+          </div>
+          {selectedRoomChoice && (
+            <div className="flex justify-between">
+              <span className="text-slate-600">
+                Room ({selectedRoomCount})
+              </span>
+              <span className="font-medium">
+                ₹{roomPrice.toLocaleString("en-IN")}
+              </span>
+            </div>
+          )}
+          <div className="flex justify-between">
+            <span className="text-slate-600">Total</span>
+            <span className="font-medium">
+              ₹{totalPrice.toLocaleString("en-IN")}
+            </span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-slate-600">GST (5%)</span>
+            <span className="font-medium">
+              ₹{totalGst.toLocaleString("en-IN")}
+            </span>
+          </div>
+          <div className="flex justify-between border-t border-orange-100 pt-3 text-base font-bold">
+            <span className="text-slate-900">Final amount</span>
+            <span className="text-orange-600">
+              ₹{finalAmount.toLocaleString("en-IN")}
+            </span>
+          </div>
+          {paymentOption === "advance" && (
+            <div className="flex justify-between font-semibold text-orange-700">
+              <span>Pay now ({advancePaymentPercentage}%)</span>
+              <span>
+                ₹
+                {(
+                  finalAmount *
+                  (advancePaymentPercentage / 100)
+                ).toLocaleString("en-IN")}
+              </span>
+            </div>
           )}
         </div>
-        {selectedRoomChoice && (
-          <div className="flex justify-between mb-2">
-            <span>
-              Room Price ({selectedRoomCount}{" "}
-              {selectedRoomCount > 1 ? "rooms" : "room"})
-            </span>
-            <span>₹{roomPrice.toLocaleString("en-IN")}</span>
-          </div>
-        )}
-        <div className="flex justify-between mb-2">
-          <span>Total Price</span>
-          <span>₹{totalPrice.toLocaleString("en-IN")}</span>
-        </div>
-        <div className="flex justify-between mb-2">
-          <span>GST (5%)</span>
-          <span>₹{totalGst.toLocaleString("en-IN")}</span>
-        </div>
-        <div className="flex justify-between font-semibold text-lg mt-4">
-          <span>Final Amount</span>
-          <span>₹{finalAmount.toLocaleString("en-IN")}</span>
-        </div>
-        {paymentOption === "advance" && (
-          <div className="flex justify-between font-semibold text-lg mt-2">
-            <span>Advance Payment ({advancePaymentPercentage}%)</span>
-            <span>
-              ₹
-              {(finalAmount * (advancePaymentPercentage / 100)).toLocaleString(
-                "en-IN",
-              )}
-            </span>
-          </div>
-        )}
       </div>
-      <div className="flex items-start gap-2 mb-4">
-        <input
-          type="checkbox"
-          checked={acceptedTerms}
-          onChange={(e) => setAcceptedTerms(e.target.checked)}
-          disabled={disabled || loading}
-          className="mt-1"
-        />
 
-        <p className="text-sm text-gray-700">
-          I agree to{" "}
-          <span
-            className="text-blue-600 cursor-pointer underline"
-            onClick={() => setShowTermsModal(true)}
-          >
-            Terms & Conditions
+      {/* Terms */}
+      <div className={cardClass}>
+        <h3 className="mb-3 text-lg font-bold text-slate-900">
+          Terms & Conditions
+        </h3>
+        <label className="flex cursor-pointer items-start gap-2.5">
+          <input
+            type="checkbox"
+            checked={acceptedTerms}
+            onChange={(e) => setAcceptedTerms(e.target.checked)}
+            disabled={disabled || loading}
+            className="mt-1 h-4 w-4 rounded border-slate-300 text-orange-500 focus:ring-orange-400"
+          />
+          <span className="text-sm text-slate-700">
+            I have read and agreed to all the{" "}
+            <button
+              type="button"
+              className="font-semibold text-orange-600 underline"
+              onClick={() => setShowTermsModal(true)}
+            >
+              Terms & Conditions
+            </button>{" "}
+            of Sunshine Holiday Packages.
           </span>
-        </p>
+        </label>
+        <button
+          type="button"
+          onClick={() => setShowTermsModal(true)}
+          className="mt-3 w-full rounded-xl border border-orange-200 bg-orange-50 py-2 text-sm font-semibold text-orange-700 hover:bg-orange-100"
+        >
+          Cancellation Policy
+        </button>
       </div>
+
+      {/* Need help */}
+      <div className="rounded-2xl border border-orange-200 bg-gradient-to-br from-orange-500 to-amber-500 p-5 text-white shadow-sm">
+        <h3 className="text-lg font-bold">Need Help?</h3>
+        <p className="mt-1 text-sm text-orange-50">
+          Questions about booking? We&apos;re here to help.
+        </p>
+        <a
+          href="tel:+919975375975"
+          className="mt-3 block rounded-xl bg-white/15 px-3 py-2 text-center text-sm font-bold backdrop-blur hover:bg-white/25"
+        >
+          +91 9975375975
+        </a>
+      </div>
+
       <Button
         onClick={() => !disabled && onProceed()}
         disabled={
           !acceptedTerms ||
-         (isSeatSelection &&
- selectedSeats.length < (selectedDate?.minSeatsPerBooking || 1) &&
- step === "select-seats")||
+          (isSeatSelection &&
+            selectedSeats.length < (selectedDate?.minSeatsPerBooking || 1) &&
+            step === "select-seats") ||
           !selectedDate ||
           loading ||
           disabled
         }
-        className={`w-full relative ${
+        className={`w-full rounded-xl py-6 text-base font-bold shadow-md ${
           (isSeatSelection &&
             selectedSeats.length === 0 &&
             step === "select-seats") ||
           !selectedDate ||
           loading ||
-          disabled
-            ? "bg-gray-300 cursor-not-allowed"
-            : "bg-blue-600 hover:bg-blue-700 text-white"
+          disabled ||
+          !acceptedTerms
+            ? "cursor-not-allowed bg-slate-300 text-slate-500"
+            : "bg-gradient-to-r from-orange-500 to-orange-600 text-white hover:from-orange-600 hover:to-orange-700"
         }`}
       >
-        {loading && <FaSpinner className="animate-spin inline mr-2" />}
-        Proceed to{" "}
+        {loading && <FaSpinner className="mr-2 inline animate-spin" />}
         {isSeatSelection && step === "select-seats"
-          ? "Passenger Details"
-          : "Payment"}
+          ? "Proceed to Passenger Details"
+          : "Proceed to Payment"}
       </Button>
+
       <TermsModal
         open={showTermsModal}
         onClose={() => setShowTermsModal(false)}

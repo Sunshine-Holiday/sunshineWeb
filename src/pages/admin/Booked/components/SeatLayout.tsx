@@ -100,31 +100,21 @@ useEffect(() => {
 
   // Condition to show modal when more than 15 seats are selected
   const shouldShowLayoutChange = selectedSeats.length > 11;
-useEffect(() => {
-  const bookedForCurrentBus = bookedSeats.filter(
-    s => s.startsWith(`${currentBus}-`)
-  );
+  const busesCount = Math.max(1, Number(numberOfBuses) || 1);
 
-  if (
-    bookedForCurrentBus.length >= totalSeats &&
-    currentBus < numberOfBuses - 1
-  ) {
-    onBusChange(currentBus + 1);
-  }
-}, [bookedSeats, currentBus, numberOfBuses, totalSeats]);
-
-useEffect(() => {
-  const bookedForCurrentBus = bookedSeats.filter(
-    s => s.startsWith(`${currentBus}-`)
-  );
-
-  if (
-    bookedForCurrentBus.length >= totalSeats &&
-    currentBus < numberOfBuses - 1
-  ) {
-    onBusChange(currentBus + 1);
-  }
-}, [bookedSeats, currentBus, numberOfBuses, totalSeats]);
+  // Jump to first bus that still has free seats (skip full buses)
+  useEffect(() => {
+    if (busesCount <= 1 || !totalSeats) return;
+    for (let bus = 0; bus < busesCount; bus++) {
+      const bookedOnBus = bookedSeats.filter((s) =>
+        s.startsWith(`${bus}-`),
+      ).length;
+      if (bookedOnBus < totalSeats) {
+        if (currentBus !== bus) onBusChange(bus);
+        return;
+      }
+    }
+  }, [bookedSeats, busesCount, totalSeats, currentBus, onBusChange]);
 
   useEffect(() => {
     if (bookedSeats.length === seats.flat().filter(Boolean).length) {
@@ -223,14 +213,14 @@ useEffect(() => {
   </button>
 
   <span className="font-semibold">
-    Bus {currentBus + 1} of {numberOfBuses}
+    Bus {currentBus + 1} of {busesCount}
   </span>
 
   <button
     onClick={() =>
-      onBusChange(Math.min(numberOfBuses - 1, currentBus + 1))
+      onBusChange(Math.min(busesCount - 1, currentBus + 1))
     }
-    disabled={currentBus === numberOfBuses - 1}
+    disabled={currentBus === busesCount - 1}
     className="px-4 py-2 border rounded disabled:opacity-50"
   >
     Next Bus

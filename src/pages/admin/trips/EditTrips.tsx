@@ -10,7 +10,11 @@ import {
 import { enUS } from "date-fns/locale";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import { Wifi, Coffee, Snowflake, Power, AudioLines } from "lucide-react";
-import { useEditTripsMutation, useGettripsIDQuery } from "@/store/api/trips";
+import {
+  useEditTripsMutation,
+  useGettripsIDQuery,
+  useGettripsQuery,
+} from "@/store/api/trips";
 import { toast } from "react-toastify";
 import { FaSpinner, FaTrash } from "react-icons/fa";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -36,6 +40,8 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import BoardingPointsEditor from "@/components/admin/BoardingPointsEditor";
+import { getStateOptions } from "@/utils/tripDestinations";
 
 const locales = { "en-US": enUS };
 const localizer = dateFnsLocalizer({
@@ -86,6 +92,8 @@ interface TripDetails {
   title: string;
   price: number;
   location: string;
+  /** Destination state for navbar / destination filtering */
+  state: string;
   duration: string;
   description: string;
   startDates: StartDate[];
@@ -98,6 +106,8 @@ interface TripDetails {
   advancePaymentPercentage?: number;
   discountPercentage?: number;
 }
+
+const OTHER_STATE = "__other__";
 
 interface FormErrors {
   [key: string]: string;
@@ -133,15 +143,26 @@ const EditTrips: React.FC = () => {
     { id },
     { skip: !id },
   );
+  const { data: allTripsData } = useGettripsQuery({});
 
   const [editTrips] = useEditTripsMutation();
   const [loading, setLoading] = useState(false);
+  const [customState, setCustomState] = useState("");
+  const [stateSelectValue, setStateSelectValue] = useState("");
+
+  const stateOptions = useMemo(() => {
+    const trips = Array.isArray(allTripsData)
+      ? allTripsData
+      : (allTripsData as any)?.data ?? [];
+    return getStateOptions(trips);
+  }, [allTripsData]);
 
   const [tripDetails, setTripDetails] = useState<TripDetails>({
     _id: id || "",
     title: "",
     price: 0,
     location: "",
+    state: "",
     duration: "",
     description: "",
     startDates: [],
@@ -346,11 +367,28 @@ const EditTrips: React.FC = () => {
         )
         .filter(Boolean);
 
+      const loadedState = (data.trip.state || "").trim();
+      if (loadedState) {
+        const known = getStateOptions(
+          Array.isArray(allTripsData)
+            ? allTripsData
+            : (allTripsData as any)?.data ?? [],
+        );
+        if (known.includes(loadedState)) {
+          setStateSelectValue(loadedState);
+          setCustomState("");
+        } else {
+          setStateSelectValue(OTHER_STATE);
+          setCustomState(loadedState);
+        }
+      }
+
       const updatedDetails: TripDetails = {
         _id: data.trip._id || id,
         title: data.trip.title || "",
         price: data.trip.price ? parseFloat(data.trip.price) : 0,
         location: data.trip.location || "",
+        state: loadedState,
         duration: data.trip.duration || "",
         description: data.trip.description || "",
         startDates: parsedDates,
@@ -601,42 +639,12 @@ const EditTrips: React.FC = () => {
   // =========================
   // LISTS (boarding, pkg, rooms)
   // =========================
-  const handleAddBoardingPoint = useCallback(() => {
-    setTripDetails((prev) => ({
-      ...prev,
-      boardingPoints: [
-        ...prev.boardingPoints,
-        { location: "", time: "", details: "", maplink: "" },
-      ],
-    }));
-    setErrors((prev) => ({ ...prev, boardingPoints: "" }));
+  const handleBoardingPointsChange = useCallback((points: BoardingPoint[]) => {
+    setTripDetails((prev) => ({ ...prev, boardingPoints: points }));
+    if (points.length > 0) {
+      setErrors((prev) => ({ ...prev, boardingPoints: "" }));
+    }
   }, []);
-
-  const handleRemoveBoardingPoint = useCallback(
-    (index: number) => {
-      const updatedPoints = tripDetails.boardingPoints.filter(
-        (_, i) => i !== index,
-      );
-      setTripDetails((prev) => ({ ...prev, boardingPoints: updatedPoints }));
-      if (updatedPoints.length === 0) {
-        setErrors((prev) => ({
-          ...prev,
-          boardingPoints: "Boarding points must have at least one entry",
-        }));
-      }
-    },
-    [tripDetails.boardingPoints],
-  );
-
-  const handleBoardingPointChange = useCallback(
-    (index: number, field: keyof BoardingPoint, value: string) => {
-      const updatedPoints = tripDetails.boardingPoints.map((point, i) =>
-        i === index ? { ...point, [field]: value } : point,
-      );
-      setTripDetails((prev) => ({ ...prev, boardingPoints: updatedPoints }));
-    },
-    [tripDetails.boardingPoints],
-  );
 
   const handleAddPackage = useCallback(() => {
     setTripDetails((prev) => ({
@@ -839,17 +847,23 @@ const EditTrips: React.FC = () => {
   // VALIDATE FORM (including vehicles)
   // =========================
   const validateForm = useCallback(() => {
-    const requiredFields = ["title", "location", "description", "category"];
+    const requiredFields = ["title", "location", "state", "description", "category"];
     let newErrors: FormErrors = {};
     let isValid = true;
 
     requiredFields.forEach((field) => {
       if (!tripDetails[field as keyof TripDetails]) {
         newErrors[field] =
-          `${field.charAt(0).toUpperCase() + field.slice(1)} is required`;
+          field === "state"
+            ? "State / destination is required"
+            : `${field.charAt(0).toUpperCase() + field.slice(1)} is required`;
         isValid = false;
       }
     });
+    if (stateSelectValue === OTHER_STATE && !customState.trim()) {
+      newErrors.state = "Please enter a custom state / destination name";
+      isValid = false;
+    }
 
     if (tripDetails.startDates.length === 0) {
       newErrors.startDates = "At least one date with seats must be selected";
@@ -932,7 +946,7 @@ const EditTrips: React.FC = () => {
     setErrors(newErrors);
     console.log("Validation result:", { isValid, errors: newErrors });
     return isValid && Object.keys(newErrors).length === 0;
-  }, [tripDetails]);
+  }, [tripDetails, stateSelectValue, customState]);
 
   // =========================
   // SAVE (include vehicles)
@@ -951,6 +965,13 @@ const EditTrips: React.FC = () => {
       formData.append("title", tripDetails.title);
       formData.append("price", tripDetails.price.toString());
       formData.append("location", tripDetails.location);
+      formData.append(
+        "state",
+        (stateSelectValue === OTHER_STATE
+          ? customState.trim()
+          : tripDetails.state
+        ).trim(),
+      );
       formData.append("duration", tripDetails.duration);
       formData.append("description", tripDetails.description);
 
@@ -1140,10 +1161,10 @@ const EditTrips: React.FC = () => {
               </div>
 
               <div>
-                <Label htmlFor="location">Location *</Label>
+                <Label htmlFor="location">Pickup / Departure Location *</Label>
                 <Input
                   id="location"
-                  placeholder="Location"
+                  placeholder="e.g. Pune, Mumbai"
                   value={tripDetails.location}
                   onChange={(e) => handleChange("location", e.target.value)}
                   onBlur={() => handleBlur("location")}
@@ -1151,6 +1172,55 @@ const EditTrips: React.FC = () => {
                 />
                 {touched.location && errors.location && (
                   <p className="mt-1 text-sm text-red-500">{errors.location}</p>
+                )}
+              </div>
+
+              <div>
+                <Label htmlFor="state">State / Destination *</Label>
+                <Select
+                  value={stateSelectValue}
+                  onValueChange={(value) => {
+                    setStateSelectValue(value);
+                    handleBlur("state");
+                    if (value === OTHER_STATE) {
+                      handleChange("state", customState.trim());
+                    } else {
+                      setCustomState("");
+                      handleChange("state", value);
+                    }
+                  }}
+                  onOpenChange={() => handleBlur("state")}
+                >
+                  <SelectTrigger className={inputClassName("state")}>
+                    <SelectValue placeholder="Select state / destination" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-64">
+                    {stateOptions.map((s) => (
+                      <SelectItem key={s} value={s}>
+                        {s}
+                      </SelectItem>
+                    ))}
+                    <SelectItem value={OTHER_STATE}>Other (type new)</SelectItem>
+                  </SelectContent>
+                </Select>
+                {stateSelectValue === OTHER_STATE && (
+                  <Input
+                    className="mt-2"
+                    placeholder="Enter new state / destination name"
+                    value={customState}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setCustomState(v);
+                      handleChange("state", v.trim());
+                    }}
+                    onBlur={() => handleBlur("state")}
+                  />
+                )}
+                <p className="mt-1 text-xs text-gray-500">
+                  Used for Tour navbar and destination pages (e.g. Mahabaleshwar).
+                </p>
+                {touched.state && errors.state && (
+                  <p className="mt-1 text-sm text-red-500">{errors.state}</p>
                 )}
               </div>
 
@@ -1169,6 +1239,9 @@ const EditTrips: React.FC = () => {
                     <SelectItem value="Stay Package">Stay Package</SelectItem>
                     <SelectItem value="Domestic Tours">
                       Domestic Tours
+                    </SelectItem>
+                    <SelectItem value="Educational Tours">
+                      Educational Tours
                     </SelectItem>
                   </SelectContent>
                 </Select>
@@ -1590,104 +1663,11 @@ const EditTrips: React.FC = () => {
             </div>
 
             {/* Boarding Points */}
-            <div>
-              <h2 className="text-xl font-semibold mb-4">Boarding Points *</h2>
-              {tripDetails.boardingPoints.map((boardingPoint, index) => (
-                <div
-                  key={index}
-                  className="relative mb-6 p-4 bg-gray-50 rounded-lg"
-                >
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor={`location-${index}`}>
-                        Pick Up Location
-                      </Label>
-                      <Input
-                        id={`location-${index}`}
-                        placeholder="Pick Up Location"
-                        value={boardingPoint.location}
-                        onChange={(e) =>
-                          handleBoardingPointChange(
-                            index,
-                            "location",
-                            e.target.value,
-                          )
-                        }
-                      />
-                    </div>
-
-                    <div>
-                      <Label htmlFor={`maplink-${index}`}>Map Link (URL)</Label>
-                      <Input
-                        id={`maplink-${index}`}
-                        placeholder="Map Link (URL)"
-                        value={boardingPoint.maplink}
-                        onChange={(e) =>
-                          handleBoardingPointChange(
-                            index,
-                            "maplink",
-                            e.target.value,
-                          )
-                        }
-                      />
-                    </div>
-
-                    <div>
-                      <Label htmlFor={`time-${index}`}>Pick Up Time</Label>
-                      <Input
-                        id={`time-${index}`}
-                        type="time"
-                        value={boardingPoint.time}
-                        onChange={(e) =>
-                          handleBoardingPointChange(
-                            index,
-                            "time",
-                            e.target.value,
-                          )
-                        }
-                      />
-                    </div>
-
-                    <div>
-                      <Label htmlFor={`details-${index}`}>
-                        Pick Up Details
-                      </Label>
-                      <Input
-                        id={`details-${index}`}
-                        placeholder="Pick Up Details"
-                        value={boardingPoint.details}
-                        onChange={(e) =>
-                          handleBoardingPointChange(
-                            index,
-                            "details",
-                            e.target.value,
-                          )
-                        }
-                      />
-                    </div>
-                  </div>
-
-                  {tripDetails.boardingPoints.length > 1 && (
-                    <Button
-                      variant="destructive"
-                      size="icon"
-                      className="absolute top-2 right-2"
-                      onClick={() => handleRemoveBoardingPoint(index)}
-                    >
-                      <FaTrash className="h-4 w-4" />
-                    </Button>
-                  )}
-                </div>
-              ))}
-              {errors.boardingPoints && (
-                <p className="mt-2 text-sm text-red-500">
-                  {errors.boardingPoints}
-                </p>
-              )}
-              <Button onClick={handleAddBoardingPoint} className="mt-2">
-                Add Boarding Point
-              </Button>
-            </div>
+            <BoardingPointsEditor
+              boardingPoints={tripDetails.boardingPoints}
+              onChange={handleBoardingPointsChange}
+              error={errors.boardingPoints}
+            />
 
             {/* Save */}
             <Button

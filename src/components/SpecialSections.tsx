@@ -1,13 +1,14 @@
 import { useSpecial_sectionsQuery } from '@/store/api/trips';
-import { IMAGE_URL } from '@/store/store';
 import React, { useRef } from 'react';
-import { Link } from 'react-router-dom';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Navigation, Pagination } from 'swiper/modules';
 import { FaArrowLeft, FaArrowRight } from 'react-icons/fa';
 import 'swiper/css';
 import 'swiper/css/navigation';
 import 'swiper/css/pagination';
+import { useTranslation } from 'react-i18next';
+import TranslatedText from '@/components/TranslatedText';
+import TripCard from '@/pages/trips/TripCard';
 
 interface StartDate {
   date: string;
@@ -23,6 +24,7 @@ interface Trip {
   category: string;
   startDates: StartDate[];
   amenities: string[];
+  [key: string]: any;
 }
 
 interface SpecialSection {
@@ -33,6 +35,7 @@ interface SpecialSection {
 }
 
 const SpecialSections = () => {
+  const { t } = useTranslation();
   const { data: specialSections = [], isLoading, error } = useSpecial_sectionsQuery({});
   const swiperRefs = useRef<{ [key: string]: any }>({});
 
@@ -60,29 +63,43 @@ const SpecialSections = () => {
   }
 
   return (
-    <div className="bg-white py-20">
+    <div
+      id="special-trips"
+      className="scroll-mt-36 bg-gradient-to-b from-white via-orange-50/30 to-white py-16 sm:py-20"
+    >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-16">
-          <h2 className="text-4xl font-bold text-gray-900 sm:text-5xl mb-4">
-            Explore Our Special Collections
+        <div className="text-center mb-12 sm:mb-16">
+          <p className="text-sm font-semibold uppercase tracking-wider text-orange-600 mb-2">
+            {t("special.eyebrow")}
+          </p>
+          <h2 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl mb-3">
+            {t("special.title")}
           </h2>
-          <div className="w-24 h-1 bg-orange-500 mx-auto rounded-full"></div>
+          <p className="text-slate-600 max-w-2xl mx-auto text-base sm:text-lg">
+            {t("special.subtitle")}
+          </p>
+          <div className="w-16 h-1 bg-gradient-to-r from-orange-400 to-amber-500 mx-auto rounded-full mt-5" />
         </div>
 
-        <div className="space-y-20">
+        <div className="space-y-14 sm:space-y-16">
           {specialSections.map((section: SpecialSection) => (
             <div
               key={section._id}
-              className="bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-100 hover:shadow-xl transition-shadow duration-300"
+              id={`special-${section._id}`}
+              className="scroll-mt-36 bg-white rounded-3xl shadow-sm overflow-hidden border border-slate-100 hover:shadow-lg transition-shadow duration-300"
             >
-              <div className="p-8 md:p-12">
-                <div className="text-center mb-8">
-                  <h2 className="text-3xl font-bold text-gray-900 mb-3">{section.title}</h2>
-                  {section.description && (
-                    <p className="text-gray-600 text-lg max-w-3xl mx-auto leading-relaxed">
-                      {section.description}
-                    </p>
-                  )}
+              <div className="p-6 sm:p-8 md:p-10">
+                <div className="mb-8 md:flex md:items-end md:justify-between md:gap-6">
+                  <div className="max-w-2xl">
+                    <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-2">
+                      <TranslatedText text={section.title} as="span" />
+                    </h2>
+                    {section.description && (
+                      <p className="text-slate-600 text-base sm:text-lg leading-relaxed">
+                        <TranslatedText text={section.description} as="span" />
+                      </p>
+                    )}
+                  </div>
                 </div>
 
                 <div className="relative">
@@ -119,132 +136,8 @@ const SpecialSections = () => {
                       className="trip-swiper py-6"
                     >
                       {section.trips.map((trip: Trip) => (
-                        <SwiperSlide key={trip._id}>
-                          <Link to={`/trips/${trip._id}`} className="group block h-full">
-                            <div className="bg-white rounded-xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 border border-gray-100 h-full flex flex-col group-hover:-translate-y-1">
-                              {trip.banner && (
-                                <div className="relative h-56 overflow-hidden">
-                                  <img
-                                    src={`${IMAGE_URL}${trip.banner}`}
-                                    alt={trip.title}
-                                    className="w-full h-full object-cover transform group-hover:scale-110 transition duration-700"
-                                  />
-                                  <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
-                                  <div className="absolute top-4 right-4 bg-orange-500 text-white px-4 py-2 text-sm font-bold rounded-full shadow-lg">
-                                    {trip.price}
-                                  </div>
-                                </div>
-                              )}
-
-                              <div className="p-6 flex-grow flex flex-col">
-                                <h3 className="font-bold text-xl text-gray-900 mb-3 group-hover:text-orange-600 transition duration-300 leading-tight">
-                                  {trip.title}
-                                </h3>
-
-                                <div className="flex items-center text-gray-500 mb-4">
-                                  <svg
-                                    className="h-5 w-5 mr-2 text-orange-500"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor"
-                                  >
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      strokeWidth={2}
-                                      d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-                                    />
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      strokeWidth={2}
-                                      d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
-                                    />
-                                  </svg>
-                                  <span className="text-sm font-medium">{trip.location}</span>
-                                </div>
-
-                                {trip.category && (
-                                  <span className="inline-block bg-orange-50 text-orange-700 text-sm px-3 py-1 rounded-full mb-4 font-medium w-fit">
-                                    {trip.category}
-                                  </span>
-                                )}
-
-                                {trip.startDates && trip.startDates.length > 0 && (
-                                  <div className="mb-4">
-                                    <span className="text-sm font-medium text-gray-700 block mb-2">Available Dates:</span>
-                                    <div className="flex flex-wrap gap-2">
-                                      {trip.startDates
-                                        .filter((date): date is StartDate => !!date && typeof date.date === 'string')
-                                        .slice(0, 2)
-                                        .map((date, index) => (
-                                          <span key={index} className="text-xs bg-gray-50 text-gray-700 px-2 py-1 rounded-md border">
-                                            {date.date}
-                                          </span>
-                                        ))}
-                                      {trip.startDates.length > 2 && (
-                                        <span className="text-xs text-orange-600 font-medium px-2 py-1">
-                                          +{trip.startDates.length - 2} more
-                                        </span>
-                                      )}
-                                    </div>
-                                  </div>
-                                )}
-
-                                {trip.amenities && trip.amenities.length > 0 && (
-                                  <div className="mb-6">
-                                    <div className="flex flex-wrap gap-2">
-                                      {trip.amenities.slice(0, 3).map((amenity, index) => (
-                                        <span
-                                          key={index}
-                                          className="inline-flex items-center text-sm text-gray-600 bg-gray-50 px-2 py-1 rounded-md"
-                                        >
-                                          <svg
-                                            className="h-3 w-3 mr-1 text-orange-500"
-                                            fill="none"
-                                            viewBox="0 0 24 24"
-                                            stroke="currentColor"
-                                          >
-                                            <path
-                                              strokeLinecap="round"
-                                              strokeLinejoin="round"
-                                              strokeWidth={2}
-                                              d="M5 13l4 4L19 7"
-                                            />
-                                          </svg>
-                                          {amenity}
-                                        </span>
-                                      ))}
-                                      {trip.amenities.length > 3 && (
-                                        <span className="text-sm text-orange-600 font-medium px-2 py-1">
-                                          +{trip.amenities.length - 3} more
-                                        </span>
-                                      )}
-                                    </div>
-                                  </div>
-                                )}
-
-                                <div className="mt-auto flex items-center justify-between">
-                                  <div className="flex items-center text-orange-600 font-semibold text-base">
-                                    View Details
-                                    <svg
-                                      className="h-5 w-5 ml-2 group-hover:translate-x-1 transition-transform duration-300"
-                                      fill="none"
-                                      viewBox="0 0 24 24"
-                                      stroke="currentColor"
-                                    >
-                                      <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth={2}
-                                        d="M9 5l7 7-7 7"
-                                      />
-                                    </svg>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          </Link>
+                        <SwiperSlide key={trip._id} className="h-auto pb-2">
+                          <TripCard trip={trip} className="h-full" />
                         </SwiperSlide>
                       ))}
                     </Swiper>

@@ -27,43 +27,65 @@ import AdminHomeControl from "@/components/dashboard/Home/home";
 
 import EditReadonlyTrips from "@/pages/admin/trips/EditReadonlytrips";
 import AddReadonlyTrips from "@/pages/admin/trips/Add-readonlytrips";
+import PickupLocationsPage from "@/pages/admin/PickupLocations";
+
+/**
+ * Admin shell sits flush under the sticky dual-row navbar.
+ * No extra top padding (that was causing the large white gap).
+ * Uses remaining viewport height so the panel sits in the middle of the screen.
+ */
 const Layout = () => {
   return (
-    <div className="flex h-screen bg-background pt-14">
+    <div className="flex h-[calc(100dvh-7rem)] w-full overflow-hidden bg-slate-50 lg:h-[calc(100dvh-7.75rem)]">
       <Sidebar />
-      <main className="flex-1 overflow-y-auto p-8">
-        <Routes>
-          <Route path="/dashboard" element={<AdminHomeControl />} />
-          <Route path="/special_sections" element={<Special_sections />} />
-          <Route path="/trips/add-readonlytrips" element={<AddReadonlyTrips />} />
-          <Route
-            path="/special_sections/create"
-            element={<CreateSpecialSection />}
-          />
-          <Route
-            path="/special_sections/Edit/:id"
-            element={<EditSpecialSection />}
-          />
+      <main className="min-w-0 flex-1 overflow-y-auto p-4 sm:p-5 lg:p-6">
+        <div className="mx-auto w-full max-w-[1400px]">
+          <Routes>
+            <Route path="/dashboard" element={<AdminHomeControl />} />
+            <Route path="/special_sections" element={<Special_sections />} />
+            <Route
+              path="/trips/add-readonlytrips"
+              element={<AddReadonlyTrips />}
+            />
+            <Route
+              path="/special_sections/create"
+              element={<CreateSpecialSection />}
+            />
+            <Route
+              path="/special_sections/Edit/:id"
+              element={<EditSpecialSection />}
+            />
 
-          <Route path="/users" element={<UserManagement />} />
-          <Route path="/about" element={<AboutPage />} />
-          <Route path="/privacy-policy" element={<EditPrivacy />} />
-          <Route path="/trips" element={<Trips />} />
-          <Route path="/trips/add-trips" element={<AddTrips />} />
-          <Route path="/trips/edit" element={<EditTrips />} />
-          <Route path="/trips/edit-readonly" element={<EditReadonlyTrips />} />
-          <Route path="/booked" element={<BookedPage />} />
-          <Route path="/block-trip/:id" element={<BlockTrip />} />
-          <Route path="/booked-data/:id" element={<Booked />} />
-          <Route path="/booking-details" element={<BookingDetails />} />
-          <Route path="/booked/:id" element={<BookingDetail />} />
-          <Route path="/gallery" element={<Gallery />} />
-          <Route path="/gallery/add-gallery" element={<AddGallery />} />
-          {/* <Route path="/blog" element={<Blogs />} />
+            <Route path="/users" element={<UserManagement />} />
+            <Route path="/about" element={<AboutPage />} />
+            <Route path="/privacy-policy" element={<EditPrivacy />} />
+            <Route path="/trips" element={<Trips />} />
+            <Route path="/trips/add-trips" element={<AddTrips />} />
+            <Route path="/trips/edit" element={<EditTrips />} />
+            <Route
+              path="/trips/edit-readonly"
+              element={<EditReadonlyTrips />}
+            />
+            <Route
+              path="/pickup-locations"
+              element={<PickupLocationsPage />}
+            />
+            <Route path="/booked" element={<BookedPage />} />
+            <Route path="/block-trip/:id" element={<BlockTrip />} />
+            <Route path="/booked-data/:id" element={<Booked />} />
+            <Route path="/booking-details" element={<BookingDetails />} />
+            <Route path="/booked/:id" element={<BookingDetail />} />
+            <Route path="/gallery" element={<Gallery />} />
+            <Route path="/gallery/add-gallery" element={<AddGallery />} />
+            {/* <Route path="/blog" element={<Blogs />} />
           <Route path="/blog/create" element={<BlogCreatePage />} />
           <Route path="/blog/edit/:id" element={<BlogEdit />} /> */}
-          <Route path="/term-and-condition" element={<TermAndCondition />} />
-        </Routes>
+            <Route
+              path="/term-and-condition"
+              element={<TermAndCondition />}
+            />
+          </Routes>
+        </div>
       </main>
     </div>
   );

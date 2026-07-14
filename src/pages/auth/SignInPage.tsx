@@ -8,8 +8,10 @@ import PasswordInput from "./components/PasswordIntput";
 import { toast } from "react-toastify";
 import { setCredentials } from "@/store/reducer/auth";
 import { useDispatch } from "react-redux";
+import { useTranslation } from "react-i18next";
 
 const SignInPage = () => {
+  const { t } = useTranslation();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -25,11 +27,11 @@ const SignInPage = () => {
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
 
-    if (!email) newErrors.email = "Email is required";
+    if (!email) newErrors.email = t("auth.emailRequired");
     else if (!/\S+@\S+\.\S+/.test(email))
-      newErrors.email = "Invalid email format";
+      newErrors.email = t("auth.invalidEmail");
 
-    if (!password) newErrors.password = "Password is required";
+    if (!password) newErrors.password = t("auth.passwordRequired");
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -43,13 +45,13 @@ const SignInPage = () => {
     try {
       const resp = await signIn({ email, password }).unwrap();
       if (resp.success) {
-        toast.success("Logged in successfully");
+        toast.success(t("auth.loggedIn"));
         dispatch(setCredentials(resp));
         navigate(from || "/", { replace: true });
       }
     } catch (error) {
       console.error("Error logging in", error);
-      setErrors({ form: "Invalid email or password" });
+      setErrors({ form: t("auth.invalidLogin") });
       setLoading(false);
     }
   };
@@ -63,8 +65,8 @@ const SignInPage = () => {
       }}
     >
       <AuthCard
-        title="Welcome Back"
-        subtitle="Sign in to your account to continue booking"
+        title={t("auth.welcomeBack")}
+        subtitle={t("auth.signInSubtitle")}
       >
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           {errors.form && (
@@ -76,7 +78,7 @@ const SignInPage = () => {
           <div className="space-y-4">
             <FormInput
               id="email"
-              label="Email address"
+              label={t("auth.email")}
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -84,7 +86,7 @@ const SignInPage = () => {
             />
             <PasswordInput
               id="password"
-              label="Password"
+              label={t("auth.password")}
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -103,18 +105,18 @@ const SignInPage = () => {
                 htmlFor="remember-me"
                 className="ml-2 block text-sm text-gray-900"
               >
-                Remember me
+                {t("auth.signIn")}
               </label>
             </div>
             <Link
               to="/forgot-password"
               className="text-sm font-medium text-blue-600 hover:text-blue-500"
             >
-              Forgot password?
+              {t("auth.forgotPassword")}
             </Link>
           </div>
 
-          <SubmitButton loading={loading}>Sign in</SubmitButton>
+          <SubmitButton loading={loading}>{t("auth.signIn")}</SubmitButton>
 
           {/* <div className="text-center text-sm">
             <span className="text-gray-600">Don't have an account?</span>{" "}

@@ -1,32 +1,50 @@
+import React from "react";
+import { motion } from "framer-motion";
+import { useTranslation } from "react-i18next";
 
-import React from 'react';
-import { motion } from 'framer-motion';
+/** Internal category values (must match DB). Labels are translated. */
+export const TRIP_CATEGORIES = [
+  "All",
+  "One Day Tours",
+  "Stay Package",
+  "Domestic Tours",
+  "Educational Tours",
+] as const;
 
-const categories = ['All', 'One Day Tours', 'Stay Package', 'Domestic Tours','Educational Tours'];
+const categoryKey: Record<string, string> = {
+  All: "trips.categoryAll",
+  "One Day Tours": "trips.categoryOneDay",
+  "Stay Package": "trips.categoryStay",
+  "Domestic Tours": "trips.categoryDomestic",
+  "Educational Tours": "trips.categoryEdu",
+};
 
-export const TripFilters = ({ filterTrips, selectedCategory }: { filterTrips: (category: string) => void; selectedCategory: string }) => {
+export const TripFilters = ({
+  filterTrips,
+  selectedCategory,
+}: {
+  filterTrips: (category: string) => void;
+  selectedCategory: string;
+}) => {
+  const { t } = useTranslation();
+
   return (
-    <div className="flex flex-wrap justify-center gap-4 mb-10">
-      {categories.map((category) => (
+    <div className="mb-10 flex flex-wrap justify-center gap-4">
+      {TRIP_CATEGORIES.map((category) => (
         <motion.button
           key={category}
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           onClick={() => filterTrips(category)}
-          className={`px-6 py-3 rounded-lg shadow-sm transition-all duration-200 font-medium text-base ${
+          className={`rounded-lg border px-6 py-3 text-base font-medium shadow-sm transition-all duration-200 ${
             selectedCategory === category
-              ? 'bg-orange-100 text-orange-500 border-orange-200 font-semibold'
-              : 'text-gray-600 border-gray-200 hover:text-orange-500 hover:bg-orange-50 hover:shadow-md'
-          } border`}
+              ? "border-orange-200 bg-orange-100 font-semibold text-orange-500"
+              : "border-gray-200 text-gray-600 hover:bg-orange-50 hover:text-orange-500 hover:shadow-md"
+          }`}
         >
-          {category}
+          {t(categoryKey[category] || category)}
         </motion.button>
       ))}
-      <style jsx>{`
-        button {
-          font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        }
-      `}</style>
     </div>
   );
 };

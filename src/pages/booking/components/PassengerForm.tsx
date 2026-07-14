@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { fadeInUp } from "../../../utils/animations";
+import { useTranslation } from "react-i18next";
+import { Armchair, UserRound } from "lucide-react";
 
 interface PassengerFormProps {
   seatNumber: string;
@@ -15,16 +17,40 @@ interface PassengerFormProps {
   };
   onChange: (index: number, data: PassengerData) => void;
   passengers: PassengerData[];
+  /** Compact: hide address (shown in separate card) */
+  hideAddress?: boolean;
+  /** Show selected seat badge prominently */
+  showSeatBadge?: boolean;
 }
 
 export interface PassengerData {
+  title?: string;
+  firstName?: string;
+  lastName?: string;
   name: string;
   age: string;
-  gender: "male" | "female" | "other";
-  idProof: "aadhar" | "pan";
+  gender: "male" | "female" | "other" | "";
+  idProof: "aadhar" | "pan" | "";
   idProofNumber: string;
   address: string;
-    email: string; // ✅ ADD
+  email: string;
+  phoneNumber?: string;
+}
+
+const inputClass =
+  "w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-orange-400 focus:ring-2 focus:ring-orange-200";
+
+const labelClass = "mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500";
+
+function combineName(
+  title?: string,
+  first?: string,
+  last?: string,
+  fallbackName?: string
+) {
+  const parts = [title, first, last].map((p) => (p || "").trim()).filter(Boolean);
+  if (parts.length) return parts.join(" ");
+  return (fallbackName || "").trim();
 }
 
 export const PassengerForm = ({
@@ -33,176 +59,271 @@ export const PassengerForm = ({
   index,
   onChange,
   passengers,
+  hideAddress = false,
+  showSeatBadge = true,
 }: PassengerFormProps) => {
-  const [errors, setErrors] = useState({
-    name: false,
-    age: false,
-    gender: false,
-    idProof: false,
-    idProofNumber: false,
-    address: false,
-  });
+  const { t } = useTranslation();
+  const p = passengers[index] || ({} as PassengerData);
 
-  const [errorMessages, setErrorMessages] = useState({
-    name: "",
-    age: "",
-    gender: "",
-    idProof: "",
-    idProofNumber: "",
-    address: "",
-    
-  });
+  // Derive first/last from existing full name if missing
+  const firstName =
+    p.firstName ??
+    (p.name && !p.lastName ? p.name.split(/\s+/).slice(0, -1).join(" ") || p.name : p.firstName) ||
+    "";
+  const lastName =
+    p.lastName ??
+    (p.name && p.name.includes(" ")
+      ? p.name.split(/\s+/).slice(-1).join(" ")
+      : "") ||
+    "";
 
-  const handleChange = (
+  const [localFirst, setLocalFirst] = useState(firstName);
+  const [localLast, setLocalLast] = useState(lastName);
+  const [localTitle, setLocalTitle] = useState(p.title || "Mr");
+
+  // Keep local in sync when passenger list is reset
+  React.useEffect(() => {
+    setLocalFirst(p.firstName || firstName || "");
+    setLocalLast(p.lastName || lastName || "");
+    setLocalTitle(p.title || "Mr");
+  }, [index, p.name, p.firstName, p.lastName, p.title]);
+
+  const pushUpdate = (patch: Partial<PassengerData>) => {
+    const next = { ...p, ...patch };
+    // Always keep combined name for backend
+    next.name = combineName(
+      next.title ?? localTitle,
+      next.firstName ?? localFirst,
+      next.lastName ?? localLast,
+      next.name
+    );
+    onChange(index, next as PassengerData);
+  };
+
+  const handleField = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
     const { name, value } = e.target;
-
-    const updatedData: PassengerData = {
-      ...passengers[index],
-      [name]: value,
-    };
-
-    onChange(index, updatedData);
-
-    setErrors((prevErrors) => ({
-      ...prevErrors,
-      [name]: value.trim() === "",
-    }));
+    pushUpdate({ [name]: value } as Partial<PassengerData>);
   };
+
+  const hasBoarding =
+    tripDetails.boardingPoints && tripDetails.boardingPoints.length > 0;
 
   return (
     <motion.div
       variants={fadeInUp}
-      className="bg-white p-6 rounded-lg shadow-sm mb-4"
+      className="overflow-hidden rounded-2xl border border-orange-100 bg-white shadow-sm"
     >
-      <h3 className="font-medium mb-4">
-        Passenger {index + 1} - Seat {seatNumber}
-      </h3>
-  
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Full Name
-          </label>
-          <input
-            type="text"
-            name="name"
-            value={passengers[index]?.name || ""}
-            onChange={handleChange}
-            className={`w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${
-              errors.name ? "border-red-500" : ""
-            }`}
-            aria-invalid={errors.name ? "true" : "false"}
-            required
-          />
-          {errors.name && <p className="text-red-500 text-xs">{errorMessages.name}</p>}
+      {/* Header with seat */}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-orange-50 bg-gradient-to-r from-orange-50 to-amber-50/50 px-5 py-3.5">
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-orange-500 text-white shadow">
+            <UserRound className="h-4 w-4" />
+          </div>
+          <div>
+            <p className="text-sm font-bold text-slate-900">
+              {t("booking.passenger")} {index + 1}
+            </p>
+            <p className="text-xs text-slate-500">
+              Please provide valid passenger details
+            </p>
+          </div>
         </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Age
-          </label>
-          <input
-            type="text"
-            name="age"
-            value={passengers[index]?.age || ""}
-            onChange={handleChange}
-            className={`w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${
-              errors.age ? "border-red-500" : ""
-            }`}
-            aria-invalid={errors.age ? "true" : "false"}
-            required
-          />
-          {errors.age && <p className="text-red-500 text-xs">{errorMessages.age}</p>}
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Gender
-          </label>
-          <select
-            name="gender"
-            value={passengers[index]?.gender || ""}
-            onChange={handleChange}
-            className={`w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${
-              errors.gender ? "border-red-500" : ""
-            }`}
-            aria-invalid={errors.gender ? "true" : "false"}
-            required
-          >
-            <option value="">Select Gender</option>
-            <option value="male">Male</option>
-            <option value="female">Female</option>
-            <option value="other">Other</option>
-          </select>
-          {errors.gender && <p className="text-red-500 text-xs">{errorMessages.gender}</p>}
-        </div>
+        {showSeatBadge && seatNumber && (
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-orange-500 px-3 py-1 text-xs font-bold text-white shadow-sm">
+            <Armchair className="h-3.5 w-3.5" />
+            {seatNumber}
+          </span>
+        )}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            ID Proof Type
-          </label>
-          <select
-            name="idProof"
-            value={passengers[index]?.idProof || ""}
-            onChange={handleChange}
-            className={`w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${
-              errors.idProof ? "border-red-500" : ""
-            }`}
-            required
-          >
-            <option value="">Select ID Proof</option>
-            <option value="aadhar">Aadhar</option>
-            <option value="pan">PAN</option>
-          </select>
-          {errors.idProof && <p className="text-red-500 text-xs">{errorMessages.idProof}</p>}
+      <div className="space-y-4 p-5">
+        {/* Row 1: Title + First + Last */}
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
+          <div>
+            <label className={labelClass}>Title</label>
+            <select
+              value={localTitle}
+              onChange={(e) => {
+                setLocalTitle(e.target.value);
+                pushUpdate({
+                  title: e.target.value,
+                  firstName: localFirst,
+                  lastName: localLast,
+                });
+              }}
+              className={inputClass}
+            >
+              <option value="Mr">Mr</option>
+              <option value="Mrs">Mrs</option>
+              <option value="Ms">Ms</option>
+              <option value="Miss">Miss</option>
+            </select>
+          </div>
+          <div>
+            <label className={labelClass}>First name *</label>
+            <input
+              type="text"
+              placeholder="First name"
+              value={localFirst}
+              onChange={(e) => {
+                setLocalFirst(e.target.value);
+                pushUpdate({
+                  title: localTitle,
+                  firstName: e.target.value,
+                  lastName: localLast,
+                });
+              }}
+              className={inputClass}
+              required
+            />
+          </div>
+          <div className="sm:col-span-2">
+            <label className={labelClass}>Last name *</label>
+            <input
+              type="text"
+              placeholder="Last name"
+              value={localLast}
+              onChange={(e) => {
+                setLocalLast(e.target.value);
+                pushUpdate({
+                  title: localTitle,
+                  firstName: localFirst,
+                  lastName: e.target.value,
+                });
+              }}
+              className={inputClass}
+              required
+            />
+          </div>
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            ID Proof Number
-          </label>
-          <input
-            type="text"
-            name="idProofNumber"
-            value={passengers[index]?.idProofNumber || ""}
-            onChange={handleChange}
-            className={`w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${
-              errors.idProofNumber ? "border-red-500" : ""
-            }`}
-            aria-invalid={errors.idProofNumber ? "true" : "false"}
-            required
-          />
-          {errors.idProofNumber && <p className="text-red-500 text-xs">{errorMessages.idProofNumber}</p>}
+        {/* Row 2: Email, ID Proof, Age */}
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <div>
+            <label className={labelClass}>{t("booking.email")} *</label>
+            <input
+              type="email"
+              name="email"
+              placeholder="email@example.com"
+              value={p.email || ""}
+              onChange={handleField}
+              className={inputClass}
+              required
+            />
+          </div>
+          <div>
+            <label className={labelClass}>{t("booking.idProof")} *</label>
+            <select
+              name="idProof"
+              value={p.idProof || ""}
+              onChange={handleField}
+              className={inputClass}
+              required
+            >
+              <option value="">{t("booking.selectId")}</option>
+              <option value="aadhar">{t("booking.aadhar")}</option>
+              <option value="pan">{t("booking.pan")}</option>
+            </select>
+          </div>
+          <div>
+            <label className={labelClass}>{t("booking.age")} *</label>
+            <input
+              type="text"
+              name="age"
+              placeholder="Age"
+              value={p.age || ""}
+              onChange={handleField}
+              className={inputClass}
+              required
+            />
+          </div>
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Pickup Location
-          </label>
-          <select
-            name="address"
-            value={passengers[index]?.address || ""}
-            onChange={handleChange}
-            className={`w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${
-              errors.address ? "border-red-500" : ""
-            }`}
-            aria-invalid={errors.address ? "true" : "false"}
-            required
-          >
-            <option value="">Select Pickup Location</option>
-            {tripDetails.boardingPoints.map((point) => (
-              <option key={point._id} value={point.location}>
-                {point.location} - {point.time}
-              </option>
-            ))}
-          </select>
-          {errors.address && <p className="text-red-500 text-xs">{errorMessages.address}</p>}
+        {/* Row 3: Contact, ID No, Gender */}
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <div>
+            <label className={labelClass}>{t("booking.phone")} *</label>
+            <input
+              type="tel"
+              name="phoneNumber"
+              placeholder="10-digit mobile"
+              value={p.phoneNumber || ""}
+              onChange={handleField}
+              className={inputClass}
+              required
+            />
+          </div>
+          <div>
+            <label className={labelClass}>{t("booking.idNumber")} *</label>
+            <input
+              type="text"
+              name="idProofNumber"
+              placeholder="ID number"
+              value={p.idProofNumber || ""}
+              onChange={handleField}
+              className={inputClass}
+              required
+            />
+          </div>
+          <div>
+            <label className={labelClass}>{t("booking.gender")} *</label>
+            <div className="flex h-[42px] items-center gap-4 rounded-xl border border-slate-200 bg-white px-3">
+              {(["male", "female"] as const).map((g) => (
+                <label
+                  key={g}
+                  className="flex cursor-pointer items-center gap-1.5 text-sm font-medium text-slate-700"
+                >
+                  <input
+                    type="radio"
+                    name={`gender-${index}`}
+                    checked={p.gender === g}
+                    onChange={() => pushUpdate({ gender: g })}
+                    className="h-4 w-4 border-slate-300 text-orange-500 focus:ring-orange-400"
+                  />
+                  {g === "male" ? t("booking.male") : t("booking.female")}
+                </label>
+              ))}
+              <label className="flex cursor-pointer items-center gap-1.5 text-sm font-medium text-slate-700">
+                <input
+                  type="radio"
+                  name={`gender-${index}`}
+                  checked={p.gender === "other"}
+                  onChange={() => pushUpdate({ gender: "other" })}
+                  className="h-4 w-4 border-slate-300 text-orange-500 focus:ring-orange-400"
+                />
+                {t("booking.other")}
+              </label>
+            </div>
+          </div>
         </div>
+
+        {/* Address / pickup — optional in-form */}
+        {!hideAddress && hasBoarding && (
+          <div>
+            <label className={labelClass}>
+              {t("booking.pickupLocation")} *
+            </label>
+            <select
+              name="address"
+              value={p.address || ""}
+              onChange={handleField}
+              className={inputClass}
+              required
+            >
+              <option value="">{t("booking.selectPickup")}</option>
+              {tripDetails.boardingPoints.map((point) => (
+                <option key={point._id} value={point.location}>
+                  {point.location} - {point.time}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
     </motion.div>
   );
 };
+
+export default PassengerForm;

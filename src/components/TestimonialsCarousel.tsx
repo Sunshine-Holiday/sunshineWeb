@@ -42,9 +42,9 @@ export default function TestimonialsCarousel() {
   };
 
   return (
-    <div className="relative overflow-hidden bg-white border border-gray-100 p-8 md:p-12 rounded-2xl shadow-lg hover:shadow-xl transition-shadow duration-300">
+    <div className="relative overflow-hidden bg-white border border-slate-100 p-8 md:p-12 rounded-3xl shadow-sm hover:shadow-lg transition-shadow duration-300">
       {/* Decorative elements */}
-      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-orange-400 to-orange-600"></div>
+      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-orange-400 to-amber-500"></div>
       
       {/* Quote icon */}
       <div className="absolute top-6 right-6 text-orange-100">

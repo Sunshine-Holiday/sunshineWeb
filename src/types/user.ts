@@ -9,6 +9,8 @@ export interface User {
   role?: "admin" | "user"; // User role
   phone?: string;
   address?: string;
+  profile?: string;
+  emailVerified?: boolean;
 }
 export interface contact{
   name: string;

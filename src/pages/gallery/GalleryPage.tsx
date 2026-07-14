@@ -1,11 +1,21 @@
 import { useEffect, useState } from "react";
 import Masonry from "react-masonry-css";
 import { motion } from "framer-motion";
-import { MapPin, Calendar, Heart, Share2, Download, Eye, Play } from "lucide-react";
-
-import { useNavigate } from "react-router-dom";
-import { useGetGalleryQuery, useDeleteGalleryMutation } from "@/store/api/gallery";
+import {
+  MapPin,
+  Calendar,
+  Heart,
+  Share2,
+  Download,
+  Eye,
+  Play,
+  X,
+  Sparkles,
+  Camera,
+} from "lucide-react";
+import { useGetGalleryQuery } from "@/store/api/gallery";
 import { IMAGE_URL } from "@/store/store";
+import { useTranslation } from "react-i18next";
 
 interface MediaFile {
   path: string;
@@ -19,35 +29,30 @@ type MediaItem = {
   location: string;
   date: string;
   path: string;
+  originalName?: string;
 };
 
+/** Pinterest-style column counts */
 const breakpoints = {
-  default: 4,
+  default: 5,
+  1400: 4,
   1100: 3,
   700: 2,
-  500: 1,
-};
-
-const fadeInUp = {
-  initial: { opacity: 0, y: 20 },
-  animate: { opacity: 1, y: 0, transition: { duration: 0.5 } },
+  480: 2,
 };
 
 const GalleryPage: React.FC = () => {
-  const navigate = useNavigate();
+  const { t } = useTranslation();
   const [gallery, setGallery] = useState<MediaItem[]>([]);
   const [selectedItem, setSelectedItem] = useState<MediaItem | null>(null);
-  const [confirmDeleteItem, setConfirmDeleteItem] = useState<MediaItem | null>(null);
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
   const [likedItems, setLikedItems] = useState<Set<string>>(new Set());
-  const [loadingId, setLoadingId] = useState<string | null>(null);
 
   const { data, isLoading } = useGetGalleryQuery();
 
-
   useEffect(() => {
     if (data) {
-      const transformedGallery = data.map((item) => ({
+      const transformedGallery = (data as any[]).map((item) => ({
         ...item,
         file: {
           path: item.path,
@@ -60,331 +65,366 @@ const GalleryPage: React.FC = () => {
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        closeModal();
-      }
+      if (event.key === "Escape") setSelectedItem(null);
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  const handleItemClick = (item: MediaItem) => {
-    setSelectedItem(item);
+  const toggleLike = (itemId: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setLikedItems((prev) => {
+      const next = new Set(prev);
+      if (next.has(itemId)) next.delete(itemId);
+      else next.add(itemId);
+      return next;
+    });
   };
 
-  const closeModal = () => {
-    setSelectedItem(null);
-  };
-
-  // const handleDeleteItem = async (_id: string) => {
-  //   setLoadingId(_id);
-  //   try {
-  //     await deleteGalleryItem({ _id }).unwrap();
-  //     setGallery(gallery.filter((item) => item._id !== _id));
-  //   } catch (error) {
-  //     console.error("Error deleting item:", error);
-  //   } finally {
-  //     setLoadingId(null);
-  //   }
-  // };
-
-  const confirmDelete = (item: MediaItem) => {
-    setConfirmDeleteItem(item);
-  };
-
-  const cancelDelete = () => {
-    setConfirmDeleteItem(null);
-  };
-
-  // const confirmAndDelete = () => {
-  //   if (confirmDeleteItem) {
-  //     handleDeleteItem(confirmDeleteItem._id);
-  //     setConfirmDeleteItem(null);
-  //   }
-  // };
-
-  const toggleLike = (itemId: string) => {
-    const newLikedItems = new Set(likedItems);
-    if (newLikedItems.has(itemId)) {
-      newLikedItems.delete(itemId);
-    } else {
-      newLikedItems.add(itemId);
+  const formatDate = (dateStr: string) => {
+    try {
+      return new Date(dateStr).toLocaleDateString("en-GB", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      });
+    } catch {
+      return dateStr || "";
     }
-    setLikedItems(newLikedItems);
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-orange-50 pt-24 pb-16">
-      {/* Floating Background Elements */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-orange-200 rounded-full opacity-20 blur-3xl animate-pulse"></div>
-        <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-blue-200 rounded-full opacity-20 blur-3xl animate-pulse" style={{ animationDelay: "2s" }}></div>
-        <div className="absolute top-1/2 left-1/2 w-60 h-60 bg-purple-200 rounded-full opacity-20 blur-3xl animate-pulse" style={{ animationDelay: "4s" }}></div>
+    <div className="relative min-h-screen overflow-hidden bg-gradient-to-br from-orange-50 via-white to-amber-50 pt-20 pb-16">
+      {/* Soft orange ambient blobs */}
+      <div className="pointer-events-none fixed inset-0 overflow-hidden">
+        <div className="absolute -right-32 -top-32 h-80 w-80 rounded-full bg-orange-300/25 blur-3xl" />
+        <div className="absolute -bottom-40 -left-24 h-96 w-96 rounded-full bg-amber-200/30 blur-3xl" />
+        <div className="absolute left-1/2 top-1/3 h-64 w-64 -translate-x-1/2 rounded-full bg-orange-200/20 blur-3xl" />
       </div>
 
-      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <motion.div variants={fadeInUp} initial="initial" animate="animate" className="text-center mb-16">
-     
-          <h1 className="text-6xl font-bold bg-gradient-to-r from-gray-900 via-orange-600 to-pink-600 bg-clip-text text-transparent mb-6">
-            Travel Gallery
-          </h1>
-          <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
-            Capturing breathtaking moments from our incredible adventures around the world
-          </p>
-          <div className="mt-8 flex items-center justify-center space-x-8 text-sm text-gray-500">
-            <div className="flex items-center space-x-2">
-              <div className="w-3 h-3 bg-orange-500 rounded-full animate-pulse"></div>
-              <span>{gallery.length} Memories</span>
-            </div>
-           
+      <div className="relative z-10 mx-auto max-w-[1600px] px-3 sm:px-4 lg:px-6">
+        {/* Header — compact spacing */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+          className="mb-5 pt-2 text-center sm:mb-6 sm:pt-3"
+        >
+          <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-orange-200 bg-white/80 px-3 py-1 text-xs font-semibold text-orange-600 shadow-sm backdrop-blur-sm">
+            <Sparkles className="h-3 w-3" />
+            {t("gallery.badge")}
           </div>
+
+          <h1 className="bg-gradient-to-r from-slate-900 via-orange-600 to-amber-500 bg-clip-text text-3xl font-bold tracking-tight text-transparent sm:text-4xl">
+            {t("gallery.title")}
+          </h1>
+
+          <p className="mx-auto mt-1.5 max-w-xl text-sm text-slate-600 sm:text-base">
+            {t("gallery.subtitle")}
+          </p>
+
+          {gallery.length > 0 && (
+            <div className="mt-2.5 inline-flex items-center gap-2 rounded-full border border-orange-100 bg-white/90 px-3 py-1 text-xs font-medium text-slate-600 shadow-sm sm:text-sm">
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-orange-400 opacity-60" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-orange-500" />
+              </span>
+              {gallery.length}{" "}
+              {gallery.length === 1
+                ? t("gallery.memory")
+                : t("gallery.memories")}
+            </div>
+          )}
+
+          <div className="mx-auto mt-3 h-0.5 w-14 rounded-full bg-gradient-to-r from-orange-400 to-amber-500" />
         </motion.div>
 
-    
-
-        {/* Gallery Grid */}
-        {isLoading ? (
-          <div className="flex justify-center items-center h-96">
-            <div className="relative">
-              <div className="w-20 h-20 border-4 border-orange-200 rounded-full animate-spin"></div>
-              <div className="absolute inset-0 w-20 h-20 border-4 border-orange-500 rounded-full animate-spin border-t-transparent"></div>
-            </div>
-          </div>
-        ) : gallery.length === 0 ? (
-          <div className="text-center py-20">
-            <div className="w-32 h-32 bg-gradient-to-r from-gray-100 to-gray-200 rounded-full flex items-center justify-center mx-auto mb-8">
-              <Eye className="w-16 h-16 text-gray-400" />
-            </div>
-            <h3 className="text-2xl font-semibold text-gray-800 mb-4">No memories yet</h3>
-            <p className="text-gray-600">Start your adventure and create your first memory!</p>
-          </div>
-        ) : (
-          <Masonry breakpointCols={breakpoints} className="flex w-auto gap-6" columnClassName="masonry-grid_column">
-            {gallery.map((item: MediaItem, index: number) => (
-              <motion.div
-                key={item._id}
-                variants={fadeInUp}
-                initial="initial"
-                animate="animate"
-                className="relative rounded-3xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-500 bg-white/80 backdrop-blur-sm border border-white/50 cursor-pointer"
-                onMouseEnter={() => setHoveredItem(item._id)}
-                onMouseLeave={() => setHoveredItem(null)}
-                onClick={() => handleItemClick(item)}
-                style={{ animationDelay: `${index * 100}ms` }}
+        {/* Loading skeleton */}
+        {isLoading && (
+          <div className="pinterest-masonry">
+            {[
+              [200, 280, 220, 300],
+              [260, 190, 290, 210],
+              [230, 310, 180, 250],
+              [270, 200, 240],
+            ].map((heights, col) => (
+              <div
+                key={col}
+                className={`pinterest-masonry-column ${
+                  col === 2 ? "hidden sm:block" : ""
+                } ${col === 3 ? "hidden lg:block" : ""}`}
               >
-                {/* Image/Video Container */}
-                <div className="relative overflow-hidden">
-                  {item.mediaType === "image" ? (
-                    <img
-                      src={`${IMAGE_URL}${item.path}`}
-                      alt={item.location}
-                      className="w-full h-auto object-cover transition-transform duration-700 group-hover:scale-110"
-                    />
-                  ) : (
-                    <div className="relative">
+                {heights.map((h, i) => (
+                  <div
+                    key={i}
+                    className="mb-3 animate-pulse rounded-2xl bg-gradient-to-br from-orange-100 to-amber-50"
+                    style={{ height: h }}
+                  />
+                ))}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Empty */}
+        {!isLoading && gallery.length === 0 && (
+          <div className="flex flex-col items-center justify-center rounded-3xl border border-orange-100 bg-white/70 px-6 py-24 text-center shadow-sm backdrop-blur-sm">
+            <div className="mb-5 flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-orange-100 to-amber-100 shadow-inner">
+              <Camera className="h-9 w-9 text-orange-400" />
+            </div>
+            <h3 className="text-xl font-bold text-slate-800">
+              {t("gallery.emptyTitle")}
+            </h3>
+            <p className="mt-2 max-w-sm text-sm text-slate-500">
+              {t("gallery.emptyDesc")}
+            </p>
+          </div>
+        )}
+
+        {/* Pinterest masonry — orange theme */}
+        {!isLoading && gallery.length > 0 && (
+          <Masonry
+            breakpointCols={breakpoints}
+            className="pinterest-masonry"
+            columnClassName="pinterest-masonry-column"
+          >
+            {gallery.map((item, index) => {
+              const isHovered = hoveredItem === item._id;
+              const isLiked = likedItems.has(item._id);
+              const src = `${IMAGE_URL}${item.path}`;
+
+              return (
+                <motion.article
+                  key={item._id}
+                  initial={{ opacity: 0, y: 18 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{
+                    duration: 0.4,
+                    delay: Math.min(index * 0.03, 0.45),
+                  }}
+                  className="pinterest-pin group mb-3 break-inside-avoid"
+                  onMouseEnter={() => setHoveredItem(item._id)}
+                  onMouseLeave={() => setHoveredItem(null)}
+                  onClick={() => setSelectedItem(item)}
+                >
+                  <div className="relative cursor-pointer overflow-hidden rounded-2xl border border-orange-100/80 bg-white shadow-md shadow-orange-100/40 transition duration-300 hover:-translate-y-0.5 hover:border-orange-200 hover:shadow-xl hover:shadow-orange-200/50">
+                    {/* Natural height media */}
+                    {item.mediaType === "image" ? (
                       <img
-                        src={`${IMAGE_URL}${item.path}`} // Fallback thumbnail for video
-                        alt={item.location}
-                        className="w-full h-auto object-cover transition-transform duration-700 group-hover:scale-110"
+                        src={src}
+                        alt={item.location || "Gallery"}
+                        loading="lazy"
+                        className="block h-auto w-full object-cover transition duration-500 group-hover:scale-[1.03] group-hover:brightness-[0.92]"
                       />
-                      <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:bg-black/30 transition-colors duration-300">
-                        <div className="w-16 h-16 bg-white/90 rounded-full flex items-center justify-center shadow-lg transform group-hover:scale-110 transition-transform duration-300">
-                          <Play className="w-8 h-8 text-orange-600 ml-1" />
+                    ) : (
+                      <div className="relative">
+                        <img
+                          src={src}
+                          alt={item.location || "Video"}
+                          loading="lazy"
+                          className="block h-auto w-full object-cover transition duration-500 group-hover:scale-[1.03] group-hover:brightness-[0.92]"
+                        />
+                        <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-t from-orange-950/30 to-transparent">
+                          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-orange-500 to-amber-500 text-white shadow-lg shadow-orange-500/40 ring-4 ring-white/40">
+                            <Play className="ml-0.5 h-5 w-5 fill-current" />
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  )}
-                  {/* Gradient Overlay */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                  {/* Action Buttons */}
-                  <div
-                    className={`absolute top-4 right-4 flex space-x-2 transition-all duration-300 ${
-                      hoveredItem === item._id ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-2"
-                    }`}
-                  >
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        toggleLike(item._id);
-                      }}
-                      className={`w-10 h-10 rounded-full backdrop-blur-md transition-all duration-300 flex items-center justify-center ${
-                        likedItems.has(item._id)
-                          ? "bg-red-500 text-white shadow-lg"
-                          : "bg-white/90 text-gray-700 hover:bg-red-500 hover:text-white"
-                      }`}
-                    >
-                      <Heart className={`w-5 h-5 ${likedItems.has(item._id) ? "fill-current" : ""}`} />
-                    </button>
-               
-                  </div>
-                </div>
-                {/* Content */}
-                <div className="p-6">
-                  <div className="flex items-start justify-between mb-3">
-                    <h3 className="text-lg font-semibold text-gray-900 group-hover:text-orange-600 transition-colors duration-300">
-                      {item.location}
-                    </h3>
-                    {likedItems.has(item._id) && (
-                      <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
                     )}
-                  </div>
-                  <div className="flex items-center space-x-4 text-sm text-gray-500">
-                    <div className="flex items-center space-x-1">
-                      <MapPin className="w-4 h-4" />
-                      <span>Adventure</span>
-                    </div>
-                    <div className="flex items-center space-x-1">
-                      <Calendar className="w-4 h-4" />
-                      <span>{new Date(item.date).toLocaleDateString("en-GB")}</span>
-                    </div>
-                  </div>
-                  {/* Progress Bar Animation */}
-                  <div className="mt-4 h-1 bg-gray-200 rounded-full overflow-hidden">
+
+                    {/* Warm hover overlay */}
                     <div
-                      className={`h-full bg-gradient-to-r from-orange-500 to-pink-500 rounded-full transition-all duration-1000 ${
-                        hoveredItem === item._id ? "w-full" : "w-0"
+                      className={`pointer-events-none absolute inset-0 bg-gradient-to-t from-orange-950/75 via-orange-900/10 to-transparent transition-opacity duration-300 ${
+                        isHovered ? "opacity-100" : "opacity-0"
                       }`}
                     />
+
+                    {/* Top-right like */}
+                    <div
+                      className={`absolute right-2.5 top-2.5 transition-all duration-300 ${
+                        isHovered
+                          ? "translate-y-0 opacity-100"
+                          : "-translate-y-1 opacity-0"
+                      }`}
+                    >
+                      <button
+                        type="button"
+                        onClick={(e) => toggleLike(item._id, e)}
+                        className={`pointer-events-auto flex h-9 w-9 items-center justify-center rounded-full shadow-lg transition ${
+                          isLiked
+                            ? "bg-gradient-to-br from-orange-500 to-red-500 text-white"
+                            : "bg-white/95 text-orange-600 hover:bg-orange-50"
+                        }`}
+                        aria-label="Like"
+                      >
+                        <Heart
+                          className={`h-4 w-4 ${isLiked ? "fill-current" : ""}`}
+                        />
+                      </button>
+                    </div>
+
+                    {/* Bottom meta on hover */}
+                    <div
+                      className={`absolute bottom-0 left-0 right-0 p-3.5 transition-all duration-300 ${
+                        isHovered
+                          ? "translate-y-0 opacity-100"
+                          : "translate-y-2 opacity-0"
+                      }`}
+                    >
+                      {item.location && (
+                        <p className="truncate text-sm font-bold text-white drop-shadow-sm">
+                          {item.location}
+                        </p>
+                      )}
+                      {item.date && (
+                        <p className="mt-1 flex items-center gap-1 text-xs font-medium text-orange-100/95">
+                          <Calendar className="h-3 w-3" />
+                          {formatDate(item.date)}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Subtle bottom accent bar */}
+                    <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-orange-400 via-amber-400 to-orange-500 opacity-0 transition group-hover:opacity-100" />
                   </div>
-                </div>
-              </motion.div>
-            ))}
+
+                  {/* Caption under pin */}
+                  {item.location && (
+                    <div className="mt-2 flex items-center gap-1.5 px-1">
+                      <MapPin className="h-3 w-3 shrink-0 text-orange-500" />
+                      <p className="truncate text-xs font-semibold text-slate-700">
+                        {item.location}
+                      </p>
+                      {isLiked && (
+                        <Heart className="ml-auto h-3 w-3 shrink-0 fill-orange-500 text-orange-500" />
+                      )}
+                    </div>
+                  )}
+                </motion.article>
+              );
+            })}
           </Masonry>
         )}
 
-        {/* Media Modal */}
+        {/* Lightbox — orange themed */}
         {selectedItem && (
           <div
-            className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-in fade-in duration-300"
-            onClick={closeModal}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/75 p-3 backdrop-blur-md sm:p-6"
+            onClick={() => setSelectedItem(null)}
           >
+            <button
+              type="button"
+              onClick={() => setSelectedItem(null)}
+              className="absolute right-4 top-4 z-20 flex h-11 w-11 items-center justify-center rounded-full border border-white/20 bg-white/10 text-white transition hover:bg-orange-500 hover:border-orange-400"
+              aria-label="Close"
+            >
+              <X className="h-5 w-5" />
+            </button>
+
             <div
-              className="relative bg-white/95 backdrop-blur-xl rounded-3xl overflow-hidden max-w-5xl w-full max-h-[90vh] shadow-2xl border border-white/20 animate-in zoom-in-95 duration-300"
+              className="relative flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-3xl border border-orange-100 bg-white shadow-2xl shadow-orange-900/20 sm:flex-row"
               onClick={(e) => e.stopPropagation()}
             >
-              {/* Modal Header */}
-              <div className="absolute top-0 left-0 right-0 z-10 bg-gradient-to-b from-black/50 to-transparent p-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-4">
-                    <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center">
-                      <MapPin className="w-6 h-6 text-white" />
-                    </div>
-                    <div>
-                      <h2 className="text-2xl font-bold text-white">{selectedItem.location}</h2>
-                      <p className="text-white/80">{new Date(selectedItem.date).toLocaleDateString("en-GB")}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <button className="w-12 h-12 bg-white/20 backdrop-blur-sm text-white rounded-full hover:bg-white/30 transition-colors duration-200 flex items-center justify-center">
-                      <Download className="w-6 h-6" />
-                    </button>
-                    <button className="w-12 h-12 bg-white/20 backdrop-blur-sm text-white rounded-full hover:bg-white/30 transition-colors duration-200 flex items-center justify-center">
-                      <Share2 className="w-6 h-6" />
-                    </button>
-                
-                  </div>
-                </div>
-              </div>
-              {/* Media Content */}
-              <div className="flex items-center justify-center">
+              {/* Media */}
+              <div className="relative flex max-h-[58vh] flex-1 items-center justify-center bg-gradient-to-br from-slate-900 to-orange-950 sm:max-h-[92vh]">
                 {selectedItem.mediaType === "image" ? (
                   <img
                     src={`${IMAGE_URL}${selectedItem.path}`}
                     alt={selectedItem.location}
-                    className="max-w-full max-h-[90vh] object-contain"
+                    className="max-h-[58vh] w-full object-contain sm:max-h-[92vh]"
                   />
                 ) : (
                   <video
                     src={`${IMAGE_URL}${selectedItem.path}`}
-                    className="max-w-full max-h-[90vh] object-contain"
+                    className="max-h-[58vh] w-full object-contain sm:max-h-[92vh]"
                     controls
                     autoPlay
                     muted
                   />
                 )}
+                <div className="pointer-events-none absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-orange-500/20 to-transparent" />
               </div>
-            </div>
-          </div>
-        )}
 
-        {/* Delete Confirmation Modal */}
-        {confirmDeleteItem && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-            <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl p-8 max-w-md w-full border border-white/20 animate-in zoom-in-95 duration-200">
-              <div className="text-center">
-                <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                  <X className="w-8 h-8 text-red-600" />
+              {/* Side panel */}
+              <div className="flex w-full flex-col bg-gradient-to-b from-orange-50/80 to-white p-5 sm:w-80 sm:shrink-0 sm:p-6">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-orange-500 to-amber-500 text-white shadow-lg shadow-orange-200">
+                    <MapPin className="h-5 w-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <h2 className="text-lg font-bold text-slate-900">
+                      {selectedItem.location || "Memory"}
+                    </h2>
+                    {selectedItem.date && (
+                      <p className="mt-1 flex items-center gap-1.5 text-sm text-slate-500">
+                        <Calendar className="h-3.5 w-3.5 text-orange-500" />
+                        {formatDate(selectedItem.date)}
+                      </p>
+                    )}
+                  </div>
                 </div>
-                <h2 className="text-2xl font-bold text-gray-900 mb-4">Delete Memory?</h2>
-                <p className="text-gray-600 mb-8">
-                  Are you sure you want to delete this precious memory? This action cannot be undone.
-                </p>
-                <div className="flex space-x-4">
+
+                <div className="mt-2 h-px w-full bg-gradient-to-r from-orange-200 via-amber-100 to-transparent" />
+
+                <div className="mt-5 flex flex-wrap gap-2">
                   <button
-                    className="flex-1 px-6 py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-colors duration-200 font-medium"
-                    onClick={cancelDelete}
+                    type="button"
+                    onClick={(e) => toggleLike(selectedItem._id, e)}
+                    className={`inline-flex flex-1 items-center justify-center gap-2 rounded-full px-4 py-2.5 text-sm font-semibold shadow-sm transition ${
+                      likedItems.has(selectedItem._id)
+                        ? "bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-orange-200"
+                        : "border border-orange-100 bg-white text-orange-700 hover:bg-orange-50"
+                    }`}
                   >
-                    Keep It
+                    <Heart
+                      className={`h-4 w-4 ${
+                        likedItems.has(selectedItem._id) ? "fill-current" : ""
+                      }`}
+                    />
+                    {likedItems.has(selectedItem._id) ? "Liked" : "Like"}
                   </button>
-        
+                  <a
+                    href={`${IMAGE_URL}${selectedItem.path}`}
+                    download
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-orange-100 bg-white text-orange-600 transition hover:bg-orange-50"
+                    aria-label="Download"
+                  >
+                    <Download className="h-4 w-4" />
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (navigator.share) {
+                        navigator
+                          .share({
+                            title: selectedItem.location,
+                            url: `${IMAGE_URL}${selectedItem.path}`,
+                          })
+                          .catch(() => {});
+                      }
+                    }}
+                    className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-orange-100 bg-white text-orange-600 transition hover:bg-orange-50"
+                    aria-label="Share"
+                  >
+                    <Share2 className="h-4 w-4" />
+                  </button>
+                </div>
+
+                <div className="mt-auto rounded-2xl border border-orange-100 bg-white/80 p-4 pt-5">
+                  <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-orange-600">
+                    <Eye className="h-3.5 w-3.5" />
+                    Sunshine Gallery
+                  </div>
+                  <p className="mt-2 text-xs leading-relaxed text-slate-500">
+                    Press Esc or click outside to close this memory.
+                  </p>
                 </div>
               </div>
             </div>
           </div>
         )}
-
-        <style jsx>{`
-          .masonry-grid_column {
-            background-clip: padding-box;
-          }
-          .masonry-grid_column > div {
-            margin-bottom: 1.5rem;
-          }
-          button,
-          h1,
-          h2,
-          p {
-            font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-          }
-          @keyframes animate-in {
-            from {
-              opacity: 0;
-              transform: scale(0.95);
-            }
-            to {
-              opacity: 1;
-              transform: scale(1);
-            }
-          }
-          .animate-in {
-            animation: animate-in 0.3s ease-out;
-          }
-          .fade-in {
-            animation: fadeIn 0.3s ease-out;
-          }
-          .zoom-in-95 {
-            animation: zoomIn 0.3s ease-out;
-          }
-          @keyframes fadeIn {
-            from {
-              opacity: 0;
-            }
-            to {
-              opacity: 1;
-            }
-          }
-          @keyframes zoomIn {
-            from {
-              opacity: 0;
-              transform: scale(0.95);
-            }
-            to {
-              opacity: 1;
-              transform: scale(1);
-            }
-          }
-        `}</style>
       </div>
     </div>
   );

@@ -23,10 +23,14 @@ export default defineConfig({
   server: {
     host: true,
     proxy: {
+      // Fallback if frontend ever uses relative /api/v1 paths
       "/api/v1": {
-        target: "http://192.168.0.102:4000",
+        target: "http://localhost:4000",
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api\/v1/, ""),
+      },
+      "/uploads": {
+        target: "http://localhost:4000",
+        changeOrigin: true,
       },
     },
   },

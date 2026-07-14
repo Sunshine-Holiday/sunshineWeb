@@ -1,7 +1,7 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import { Wifi, Coffee, Snowflake, Power, AudioLines } from "lucide-react";
-import { useCreatetripsMutation } from "@/store/api/trips";
+import { useCreatetripsMutation, useGettripsQuery } from "@/store/api/trips";
 import { toast } from "react-toastify";
 import { FaSpinner, FaTrash } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
@@ -25,17 +25,21 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import BoardingPointsEditor from "@/components/admin/BoardingPointsEditor";
+import { getStateOptions } from "@/utils/tripDestinations";
 
 interface BoardingPoint {
   location: string;
   time: string;
   details: string;
   maplink: string;
+  pickupLocationId?: string;
 }
 
 interface TripDetails {
   title: string;
   location: string;
+  state: string;
   duration: string;
   description: string;
   category: string;
@@ -44,6 +48,8 @@ interface TripDetails {
   file?: File | null;
   readonly: boolean;
 }
+
+const OTHER_STATE = "__other__";
 
 interface FormErrors {
   [key: string]: string;
@@ -59,11 +65,21 @@ const availableAmenities = [
 
 const AddReadonlyTrips: React.FC = () => {
   const [createTrips] = useCreatetripsMutation();
+  const { data: allTripsData } = useGettripsQuery({});
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const [customState, setCustomState] = useState("");
+  const [stateSelectValue, setStateSelectValue] = useState("");
+  const stateOptions = useMemo(() => {
+    const trips = Array.isArray(allTripsData)
+      ? allTripsData
+      : (allTripsData as any)?.data ?? [];
+    return getStateOptions(trips);
+  }, [allTripsData]);
   const [tripDetails, setTripDetails] = useState<TripDetails>({
     title: "",
     location: "",
+    state: "",
     duration: "",
     description: "",
     category: "",
@@ -146,31 +162,15 @@ const AddReadonlyTrips: React.FC = () => {
     setErrors(newErrors);
   };
 
-  const handleAddBoardingPoint = () => {
-    setTripDetails({
-      ...tripDetails,
-      boardingPoints: [...tripDetails.boardingPoints, { location: "", time: "", details: "", maplink: "" }],
-    });
-    setErrors({ ...errors, boardingPoints: "" });
-  };
-
-  const handleRemoveBoardingPoint = (index: number) => {
-    const updatedPoints = tripDetails.boardingPoints.filter((_, i) => i !== index);
-    setTripDetails({ ...tripDetails, boardingPoints: updatedPoints });
-    if (updatedPoints.length === 0) {
-      setErrors({ ...errors, boardingPoints: "Boarding points must have at least one entry" });
+  const handleBoardingPointsChange = (points: BoardingPoint[]) => {
+    setTripDetails({ ...tripDetails, boardingPoints: points });
+    if (points.length > 0) {
+      setErrors({ ...errors, boardingPoints: "" });
     }
   };
 
-  const handleBoardingPointChange = (index: number, field: keyof BoardingPoint, value: string) => {
-    const updatedPoints = tripDetails.boardingPoints.map((point, i) =>
-      i === index ? { ...point, [field]: value } : point
-    );
-    setTripDetails({ ...tripDetails, boardingPoints: updatedPoints });
-  };
-
   const validateForm = () => {
-    const requiredFields = ["title", "location", "description", "category", "file"];
+    const requiredFields = ["title", "location", "state", "description", "category", "file"];
     let newErrors: FormErrors = {};
     let isValid = true;
 
@@ -195,6 +195,13 @@ const AddReadonlyTrips: React.FC = () => {
       const formData = new FormData();
       formData.append("title", tripDetails.title);
       formData.append("location", tripDetails.location);
+      formData.append(
+        "state",
+        (stateSelectValue === OTHER_STATE
+          ? customState.trim()
+          : tripDetails.state
+        ).trim(),
+      );
       formData.append("duration", tripDetails.duration);
       formData.append("description", tripDetails.description);
       formData.append("category", tripDetails.category);
@@ -272,16 +279,61 @@ const AddReadonlyTrips: React.FC = () => {
                 {touched.title && errors.title && <p className="mt-1 text-sm text-red-500">{errors.title}</p>}
               </div>
               <div>
-                <Label htmlFor="location">Location *</Label>
+                <Label htmlFor="location">Pickup / Departure Location *</Label>
                 <Input
                   id="location"
-                  placeholder="Location"
+                  placeholder="e.g. Pune, Mumbai"
                   value={tripDetails.location}
                   onChange={(e) => handleChange("location", e.target.value)}
                   onBlur={() => handleBlur("location")}
                   className={inputClassName("location")}
                 />
                 {touched.location && errors.location && <p className="mt-1 text-sm text-red-500">{errors.location}</p>}
+              </div>
+              <div>
+                <Label htmlFor="state">State / Destination *</Label>
+                <Select
+                  value={stateSelectValue}
+                  onValueChange={(value) => {
+                    setStateSelectValue(value);
+                    handleBlur("state");
+                    if (value === OTHER_STATE) {
+                      handleChange("state", customState.trim());
+                    } else {
+                      setCustomState("");
+                      handleChange("state", value);
+                    }
+                  }}
+                  onOpenChange={() => handleBlur("state")}
+                >
+                  <SelectTrigger className={inputClassName("state")}>
+                    <SelectValue placeholder="Select state / destination" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-64">
+                    {stateOptions.map((s) => (
+                      <SelectItem key={s} value={s}>
+                        {s}
+                      </SelectItem>
+                    ))}
+                    <SelectItem value={OTHER_STATE}>Other (type new)</SelectItem>
+                  </SelectContent>
+                </Select>
+                {stateSelectValue === OTHER_STATE && (
+                  <Input
+                    className="mt-2"
+                    placeholder="Enter new state / destination name"
+                    value={customState}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setCustomState(v);
+                      handleChange("state", v.trim());
+                    }}
+                    onBlur={() => handleBlur("state")}
+                  />
+                )}
+                {touched.state && errors.state && (
+                  <p className="mt-1 text-sm text-red-500">{errors.state}</p>
+                )}
               </div>
               <div>
                 <Label htmlFor="category">Category *</Label>
@@ -342,63 +394,11 @@ const AddReadonlyTrips: React.FC = () => {
               {touched.amenities && errors.amenities && <p className="mt-2 text-sm text-red-500">{errors.amenities}</p>}
             </div>
 
-            <div>
-              <h2 className="text-xl font-semibold mb-4">Boarding Points *</h2>
-              {tripDetails.boardingPoints.map((boardingPoint, index) => (
-                <div key={index} className="relative mb-6 p-4 bg-gray-50 rounded-lg">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor={`location-${index}`}>Pick Up Location</Label>
-                      <Input
-                        id={`location-${index}`}
-                        placeholder="Pick Up Location"
-                        value={boardingPoint.location}
-                        onChange={(e) => handleBoardingPointChange(index, "location", e.target.value)}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor={`maplink-${index}`}>Map Link (URL)</Label>
-                      <Input
-                        id={`maplink-${index}`}
-                        placeholder="Map Link (URL)"
-                        value={boardingPoint.maplink}
-                        onChange={(e) => handleBoardingPointChange(index, "maplink", e.target.value)}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor={`time-${index}`}>Pick Up Time</Label>
-                      <Input
-                        id={`time-${index}`}
-                        type="time"
-                        value={boardingPoint.time}
-                        onChange={(e) => handleBoardingPointChange(index, "time", e.target.value)}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor={`details-${index}`}>Pick Up Details</Label>
-                      <Input
-                        id={`details-${index}`}
-                        placeholder="Pick Up Details"
-                        value={boardingPoint.details}
-                        onChange={(e) => handleBoardingPointChange(index, "details", e.target.value)}
-                      />
-                    </div>
-                  </div>
-                  {tripDetails.boardingPoints.length > 1 && (
-                    <Button
-                      variant="destructive"
-                      size="icon"
-                      className="absolute top-2 right-2"
-                      onClick={() => handleRemoveBoardingPoint(index)}
-                    >
-                      <FaTrash className="h-4 w-4" />
-                    </Button>
-                  )}
-                </div>
-              ))}
-              {errors.boardingPoints && <p className="mt-2 text-sm text-red-500">{errors.boardingPoints}</p>}
-              <Button onClick={handleAddBoardingPoint} className="mt-2">Add Boarding Point</Button>
-            </div>
+            <BoardingPointsEditor
+              boardingPoints={tripDetails.boardingPoints}
+              onChange={handleBoardingPointsChange}
+              error={errors.boardingPoints}
+            />
 
             <Button
               onClick={handleSave}

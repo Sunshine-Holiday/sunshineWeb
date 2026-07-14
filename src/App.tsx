@@ -55,6 +55,9 @@ const ForgotPasswordPage = React.lazy(
 );
 const BookingPage = React.lazy(() => import("./pages/booking/BookingPage"));
 const HomePage = React.lazy(() => import("./pages/Home"));
+const StateDetailPage = React.lazy(
+  () => import("./pages/destinations/StateDetailPage")
+);
 
 // Skeleton Loader using Tailwind CSS
 import "slick-carousel/slick/slick.css";
@@ -67,6 +70,14 @@ export const AppContent = () => {
   const from = location.state?.from || "/";
   const user = useSelector(selectCurrentUser);
   const isAuthLoading = useSelector(selectCurrentLoading);
+
+  // Scroll to top on every route change (fixes mid-page open on trip details)
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+  }, [location.pathname, location.key]);
+
   useEffect(() => {
     if (data) {
       console.log("Data", data);
@@ -84,10 +95,12 @@ export const AppContent = () => {
     return <LoadingSkeleton  />;
   }
 
+  const isAdminRoute = location.pathname.startsWith("/admin");
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
-      <React.Suspense fallback={<LoadingSkeleton  />}>
+      <React.Suspense fallback={<LoadingSkeleton />}>
         <Routes>
           <Route element={<RedirectRoute redirectPath={from} />}>
             <Route path="/signin" element={<SignInPage />} />
@@ -109,6 +122,10 @@ export const AppContent = () => {
           />
           <Route path="/trips" element={<TripsPage />} />
           <Route path="/trips/:id" element={<TripDetails />} />
+          <Route
+            path="/destinations/:slug"
+            element={<StateDetailPage />}
+          />
           <Route path="/blog" element={<BlogPage />} />
           <Route
             path="/blog/:id"
@@ -132,21 +149,12 @@ export const AppContent = () => {
               </ProtectedRoute>
             }
           />
-          <Route
-            path="/booking"
-            element={
-
-                <BookingPage />
-
-            }
-          />
-   
-
-     
+          <Route path="/booking" element={<BookingPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </React.Suspense>
-      <Footer />
+      {/* Hide public footer on admin — keeps panel flush under the header */}
+      {!isAdminRoute && <Footer />}
     </div>
   );
 };

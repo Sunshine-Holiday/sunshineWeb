@@ -1,8 +1,8 @@
 import {
-  useGetbookingQuery,
   useGetTripBookingStatsQuery,
+  useLazyGetTripBookingHistoryQuery,
 } from "@/store/api/booking";
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   Table,
   TableHeader,
@@ -12,20 +12,22 @@ import {
   TableHead,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { FaSpinner } from "react-icons/fa";
-import { FaEye } from "react-icons/fa";
+import { FaSpinner, FaEye, FaFileExcel } from "react-icons/fa";
 import "react-loading-skeleton/dist/skeleton.css";
-import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
+import { exportTripBookingsToExcel } from "@/utils/exportTripBookingsExcel";
 
 const Booked = () => {
   const { state } = useLocation();
   const { trip } = state;
-  const [bookings, setBookings] = useState<any>([]);
-  const { data, isError, isLoading, error } = useGetTripBookingStatsQuery({
+  const { data, isLoading, error } = useGetTripBookingStatsQuery({
     trip: trip._id,
   });
   const navigate = useNavigate();
-  
+  const [exportingDate, setExportingDate] = useState<string | null>(null);
+  const [fetchBookingHistory] = useLazyGetTripBookingHistoryQuery();
+
   // Handle empty or missing data and set default values
   const stats = data?.stats ?? {
     uniqueUsers: 0,
@@ -34,6 +36,9 @@ const Booked = () => {
     totalSeatsBooked: 0,
     dailyStats: {},
   };
+
+  const tripDisplayName =
+    trip?.title || trip?.name || trip?.location || "Trip Details";
 
   console.log("error", error);
 
@@ -45,8 +50,6 @@ const Booked = () => {
     );
   }
 
-
-
   // Sort dates for the table
   const sortedDates = Object.keys(stats.dailyStats).sort();
 
@@ -56,9 +59,56 @@ const Booked = () => {
       state: {
         date: date,
         tripId: trip._id,
-        tripName: trip.name || "Trip Details",
+        tripName: tripDisplayName,
       },
     });
+  };
+
+  const handleExportExcel = async (date: string) => {
+    if (!trip?._id || !date) {
+      toast.error("Missing trip or date for export");
+      return;
+    }
+
+    // Resolve day entry (keys may be date strings)
+    const dayEntry =
+      stats.dailyStats[date] ||
+      Object.values(stats.dailyStats).find((d: any) => d?.date === date);
+
+    if (!dayEntry || (dayEntry.totalBookings ?? 0) === 0) {
+      toast.info("No bookings available for this date to export");
+      return;
+    }
+
+    setExportingDate(date);
+    try {
+      const result = await fetchBookingHistory({
+        trip: trip._id,
+        date,
+      }).unwrap();
+
+      const passengerHistory = result?.passengerHistory ?? [];
+      if (!passengerHistory.length) {
+        toast.info("No passenger records found for this date");
+        return;
+      }
+
+      exportTripBookingsToExcel({
+        passengerHistory,
+        tripName: tripDisplayName,
+        selectedDate: result?.selectedDate || date,
+      });
+      toast.success("Excel downloaded successfully");
+    } catch (err: any) {
+      console.error("Excel export failed:", err);
+      toast.error(
+        err?.data?.message ||
+          err?.message ||
+          "Failed to export bookings. Please try again."
+      );
+    } finally {
+      setExportingDate(null);
+    }
   };
 
   return (
@@ -89,45 +139,71 @@ const Booked = () => {
       <div className="bg-white shadow rounded-lg p-6 overflow-x-auto">
         <h2 className="text-xl font-semibold mb-4">Daily Statistics</h2>
         <div className="w-full min-w-full">
-          <Table className="w-full min-w-full table-fixed">
+          <Table className="w-full min-w-full">
             <TableHeader>
               <TableRow>
-                <TableHead className="w-1/5">Date</TableHead>
-                <TableHead className="w-1/5 text-right">Bookings</TableHead>
-                <TableHead className="w-1/5 text-right">Passengers</TableHead>
-                <TableHead className="w-1/5 text-right">Seats Booked</TableHead>
-                <TableHead className="w-1/5 text-center">Actions</TableHead>
+                <TableHead>Date</TableHead>
+                <TableHead className="text-right">Bookings</TableHead>
+                <TableHead className="text-right">Passengers</TableHead>
+                <TableHead className="text-right">Seats Booked</TableHead>
+                <TableHead className="text-center min-w-[200px]">
+                  Actions
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {sortedDates.length > 0 ? (
-                sortedDates.map((date) => (
-                  <TableRow key={date}>
-                    <TableCell className="font-medium w-1/5">
-                      {stats.dailyStats[date].date}
-                    </TableCell>
-                    <TableCell className="text-right w-1/5">
-                      {stats.dailyStats[date].totalBookings || 0}
-                    </TableCell>
-                    <TableCell className="text-right w-1/5">
-                      {stats.dailyStats[date].totalPassengers || 0}
-                    </TableCell>
-                    <TableCell className="text-right w-1/5">
-                      {stats.dailyStats[date].totalSeatsBooked || 0}
-                    </TableCell>
-                    <TableCell className="text-center w-1/5">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleViewBookings(stats.dailyStats[date].date)}
-                        className="flex items-center gap-1 mx-auto"
-                      >
-                        <FaEye className="text-gray-600" />
-                        <span>View</span>
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))
+                sortedDates.map((date) => {
+                  const day = stats.dailyStats[date];
+                  const travelDate = day.date;
+                  const isExporting = exportingDate === travelDate;
+                  return (
+                    <TableRow key={date}>
+                      <TableCell className="font-medium">
+                        {travelDate}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {day.totalBookings || 0}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {day.totalPassengers || 0}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {day.totalSeatsBooked || 0}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <div className="flex items-center justify-center gap-2 flex-wrap">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleViewBookings(travelDate)}
+                            className="flex items-center gap-1"
+                          >
+                            <FaEye className="text-gray-600" />
+                            <span>View</span>
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleExportExcel(travelDate)}
+                            disabled={
+                              isExporting || (day.totalBookings ?? 0) === 0
+                            }
+                            className="flex items-center gap-1 text-green-700 border-green-200 hover:bg-green-50"
+                            title="Download Excel for this date"
+                          >
+                            {isExporting ? (
+                              <FaSpinner className="animate-spin" />
+                            ) : (
+                              <FaFileExcel className="text-green-600" />
+                            )}
+                            <span>Excel</span>
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
               ) : (
                 <TableRow>
                   <TableCell colSpan={5} className="text-center text-gray-500">
@@ -136,17 +212,17 @@ const Booked = () => {
                 </TableRow>
               )}
               <TableRow className="bg-gray-50 font-bold">
-                <TableCell className="w-1/5">Total</TableCell>
-                <TableCell className="text-right w-1/5">
+                <TableCell>Total</TableCell>
+                <TableCell className="text-right">
                   {stats.totalBookings}
                 </TableCell>
-                <TableCell className="text-right w-1/5">
+                <TableCell className="text-right">
                   {stats.totalPassengers}
                 </TableCell>
-                <TableCell className="text-right w-1/5">
+                <TableCell className="text-right">
                   {stats.totalSeatsBooked}
                 </TableCell>
-                <TableCell className="w-1/5"></TableCell>
+                <TableCell />
               </TableRow>
             </TableBody>
           </Table>

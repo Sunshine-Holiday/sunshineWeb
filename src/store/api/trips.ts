@@ -105,7 +105,19 @@ export const TripsApiSlice = apiWithTag.injectEndpoints({
 
       invalidatesTags: ["trips"],
     }),
-       deleteBooking: builder.mutation<any, any>({
+    /** Update trip preference order; other trips auto-reorder */
+    updateTripDisplayIndex: builder.mutation<
+      any,
+      { id: string; displayIndex: number }
+    >({
+      query: ({ id, displayIndex }) => ({
+        url: `/api/v1/trips/${id}/display-index`,
+        method: "PUT",
+        body: { displayIndex },
+      }),
+      invalidatesTags: ["trips"],
+    }),
+    deleteBooking: builder.mutation<any, any>({
       query: (id) => ({
         url: `/api/v1/booking/delete/${id}`,
         method: "DELETE",
@@ -129,5 +141,6 @@ export const {
   useSpecial_sectionsIDQuery,
   useUpdateSpecialSectionMutation,
   useDeleteSpecialSectionMutation,
-  useDeleteBookingMutation
+  useUpdateTripDisplayIndexMutation,
+  useDeleteBookingMutation,
 } = TripsApiSlice;

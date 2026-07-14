@@ -2,9 +2,11 @@
 import { useGetTermsQuery } from "@/store/api/terms";
 import React, { useEffect, useState } from "react";
 import Skeleton from "react-loading-skeleton";
-import "react-loading-skeleton/dist/skeleton.css"; // Import skeleton styles
+import "react-loading-skeleton/dist/skeleton.css";
+import { useTranslation } from "react-i18next";
 
 const TermsAndConditionsPage: React.FC = () => {
+  const { t } = useTranslation();
   const [termsText, setTermsText] = useState("");
   const { data, isLoading, error } = useGetTermsQuery();
 
@@ -39,7 +41,7 @@ const TermsAndConditionsPage: React.FC = () => {
     return (
       <div className="min-h-screen bg-white pt-24 pb-16 flex items-center justify-center">
         <div className="text-2xl font-semibold text-gray-800">
-          Error loading Terms and Conditions. Please try again later.
+          {t("terms.loadError")}
         </div>
       </div>
     );
@@ -50,7 +52,7 @@ const TermsAndConditionsPage: React.FC = () => {
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="bg-white/90 backdrop-blur-md rounded-lg shadow-md p-8 space-y-8 border border-gray-200 hover:shadow-lg hover:border-orange-200 transition-all duration-200">
           <h1 className="text-4xl font-semibold text-gray-800 mb-4 text-center">
-            Terms and Conditions
+            {t("terms.title")}
           </h1>
           <div className="space-y-6">
             <div className="prose max-w-none bg-white p-4 rounded-md border border-gray-200 text-gray-600">

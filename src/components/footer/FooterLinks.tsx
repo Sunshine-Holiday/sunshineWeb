@@ -1,35 +1,39 @@
-
-import React from 'react';
-import { Link } from 'react-router-dom';
-
-const links = {
-  Company: [
-    { name: 'About Us', path: '/about-us' },
-    { name: 'Contact', path: '/contact' },
-  ],
-  Support: [
-    { name: 'Help Center', path: '/contact' },
-    { name: 'Safety', path: '/terms-condition' },
-    { name: 'Cancellation Options', path: '/privacy-policy' },
-  ],
-  Legal: [
-    { name: 'Privacy Policy', path: '/privacy-policy' },
-    { name: 'Terms and condition', path: '/terms-condition' },
-  ],
-};
+import React from "react";
+import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 
 export const FooterLinks = () => {
+  const { t } = useTranslation();
+
+  const links = {
+    [t("footer.company")]: [
+      { name: t("footer.aboutUs"), path: "/about-us" },
+      { name: t("footer.contact"), path: "/contact" },
+    ],
+    [t("footer.support")]: [
+      { name: t("footer.helpCenter"), path: "/contact" },
+      { name: t("footer.safety"), path: "/terms-condition" },
+      { name: t("footer.cancellation"), path: "/privacy-policy" },
+    ],
+    [t("footer.legal")]: [
+      { name: t("footer.privacy"), path: "/privacy-policy" },
+      { name: t("footer.terms"), path: "/terms-condition" },
+    ],
+  };
+
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 gap-10">
+    <div className="grid grid-cols-2 gap-10 md:grid-cols-3">
       {Object.entries(links).map(([category, items]) => (
         <div key={category}>
-          <h3 className="font-semibold text-lg text-gray-800 mb-4">{category}</h3>
+          <h3 className="mb-4 text-base font-semibold text-white">
+            {category}
+          </h3>
           <ul className="space-y-3">
             {items.map(({ name, path }) => (
-              <li key={name}>
+              <li key={`${category}-${name}`}>
                 <Link
                   to={path}
-                  className="footer-link text-gray-600 hover:text-orange-500 transition-colors duration-200"
+                  className="text-sm font-medium text-slate-400 transition-colors duration-200 hover:text-orange-400"
                 >
                   {name}
                 </Link>
@@ -38,39 +42,6 @@ export const FooterLinks = () => {
           </ul>
         </div>
       ))}
-      <style jsx>{`
-        .footer-link {
-          font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-          font-size: 0.95rem;
-          font-weight: 500;
-          position: relative;
-          display: inline-block;
-        }
-        .footer-link:hover::after {
-          content: '';
-          position: absolute;
-          bottom: -2px;
-          left: 0;
-          width: 100%;
-          height: 1px;
-          background-color: #F97316;
-          transform: scaleX(1);
-          transform-origin: bottom right;
-          transition: transform 0.2s ease-out;
-        }
-        .footer-link::after {
-          content: '';
-          position: absolute;
-          bottom: -2px;
-          left: 0;
-          width: 100%;
-          height: 1px;
-          background-color: #F97316;
-          transform: scaleX(0);
-          transform-origin: bottom right;
-          transition: transform 0.2s ease-out;
-        }
-      `}</style>
     </div>
   );
 };
