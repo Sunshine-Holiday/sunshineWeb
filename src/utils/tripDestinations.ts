@@ -46,6 +46,7 @@ export const DESTINATION_KEYWORDS = [...PRESET_STATES];
 export const TOUR_TYPE_LABELS: Record<string, string> = {
   "One Day Tours": "One Day Tour",
   "Stay Package": "Stay Packages",
+  "Interconnected Tours": "Interconnected Tours",
   "Domestic Tours": "Domestic Packages",
   "Educational Tours": "Educational Tours",
 };
@@ -127,6 +128,7 @@ export function getCategoriesFromTrips(trips: any[]): string[] {
   const order = [
     "One Day Tours",
     "Stay Package",
+    "Interconnected Tours",
     "Domestic Tours",
     "Educational Tours",
   ];

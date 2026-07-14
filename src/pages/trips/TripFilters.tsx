@@ -7,6 +7,7 @@ export const TRIP_CATEGORIES = [
   "All",
   "One Day Tours",
   "Stay Package",
+  "Interconnected Tours",
   "Domestic Tours",
   "Educational Tours",
 ] as const;
@@ -15,6 +16,7 @@ const categoryKey: Record<string, string> = {
   All: "trips.categoryAll",
   "One Day Tours": "trips.categoryOneDay",
   "Stay Package": "trips.categoryStay",
+  "Interconnected Tours": "trips.categoryInterconnected",
   "Domestic Tours": "trips.categoryDomestic",
   "Educational Tours": "trips.categoryEdu",
 };

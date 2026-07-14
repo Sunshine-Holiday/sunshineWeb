@@ -29,9 +29,12 @@ export const TripsApiSlice = apiWithTag.injectEndpoints({
       invalidatesTags: ["trips"],
     }),
     selectedDateBooking: builder.query<any, any>({
-      query: ({ trip_id, selectedDate }: any) => {
+      query: ({ trip_id, selectedDate, leg }: any) => {
+        const params = new URLSearchParams();
+        if (selectedDate) params.set("selectedDate", selectedDate);
+        if (leg) params.set("leg", leg);
         return {
-          url: `/api/v1/booking/stats/trip-date/${trip_id}?selectedDate=${selectedDate}`,
+          url: `/api/v1/booking/stats/trip-date/${trip_id}?${params.toString()}`,
           method: "GET",
         };
       },

@@ -528,18 +528,59 @@ const BookingPage = () => {
     isError: tripError,
   } = useGettripsIDQuery({ id: tripId });
 
+  const [createBooking] = useCreatebookingMutation();
+  const [createPayment] = useCreatePaymentIntentMutation();
+
+  // Interconnection helpers (available after trip loads; re-evaluated each render)
+  const ic = (trip as any)?.interconnection || tripData?.trip?.interconnection;
+  const isStayInterconnected =
+    Boolean(ic?.enabled) && ic?.role === "stay";
+  const stayDayOffset = Math.max(1, Number(ic?.dayOffset) || 1);
+
+  const selectedDateApi = selectedDate ? formatDateForAPI(selectedDate) : "";
+
+  // Day-trip / default seat occupancy (also used for outbound/return IC via backend merge)
   const {
     data: bookingData,
     isLoading: bookingLoading,
     isError: bookingError,
-  } = useSelectedDateBookingQuery({
-    trip_id: tripId,
-    selectedDate: selectedDate ? formatDateForAPI(selectedDate) : "",
-  });
+  } = useSelectedDateBookingQuery(
+    {
+      trip_id: tripId,
+      selectedDate: selectedDateApi,
+      leg: "single",
+    },
+    { skip: !tripId || !selectedDateApi || isStayInterconnected },
+  );
 
-  console.log("Booking Data:", bookingData);
-  const [createBooking] = useCreatebookingMutation();
-  const [createPayment] = useCreatePaymentIntentMutation();
+  // Stay package: dual maps (Going + Coming) — same start date, different legs
+  const { data: goingBookingData, isLoading: goingLoading } =
+    useSelectedDateBookingQuery(
+      {
+        trip_id: tripId,
+        selectedDate: selectedDateApi,
+        leg: "going",
+      },
+      { skip: !tripId || !selectedDateApi || !isStayInterconnected },
+    );
+  const { data: comingBookingData, isLoading: comingLoading } =
+    useSelectedDateBookingQuery(
+      {
+        trip_id: tripId,
+        selectedDate: selectedDateApi,
+        leg: "coming",
+      },
+      { skip: !tripId || !selectedDateApi || !isStayInterconnected },
+    );
+
+  const [selectedGoingSeats, setSelectedGoingSeats] = useState<string[]>([]);
+  const [selectedComingSeats, setSelectedComingSeats] = useState<string[]>([]);
+  const [bookedGoingSeats, setBookedGoingSeats] = useState<
+    { seat: string; busIndex: number }[]
+  >([]);
+  const [bookedComingSeats, setBookedComingSeats] = useState<
+    { seat: string; busIndex: number }[]
+  >([]);
 
   // Effects
   useEffect(() => {
@@ -556,27 +597,33 @@ const BookingPage = () => {
     }
   }, [tripData]);
 
-  useEffect(() => {
-    if (!bookingData?.selectedSeatsByBus) {
-      setBookedSeats([]);
-      return;
-    }
-
-    const mappedBookedSeats: { seat: string; busIndex: number }[] = [];
-
-    Object.entries(bookingData.selectedSeatsByBus).forEach(
-      ([busIndex, seats]) => {
-        seats.forEach((seat: string) => {
-          mappedBookedSeats.push({
-            seat,
-            busIndex: Number(busIndex),
-          });
+  const mapSeatsByBus = (data: any) => {
+    const mapped: { seat: string; busIndex: number }[] = [];
+    if (!data?.selectedSeatsByBus) return mapped;
+    Object.entries(data.selectedSeatsByBus).forEach(
+      ([busIndex, seats]: any) => {
+        (seats as string[]).forEach((seat: string) => {
+          mapped.push({ seat, busIndex: Number(busIndex) });
         });
       },
     );
+    return mapped;
+  };
 
-    setBookedSeats(mappedBookedSeats);
-  }, [bookingData]);
+  useEffect(() => {
+    if (isStayInterconnected) return;
+    setBookedSeats(mapSeatsByBus(bookingData));
+  }, [bookingData, isStayInterconnected]);
+
+  useEffect(() => {
+    if (!isStayInterconnected) return;
+    setBookedGoingSeats(mapSeatsByBus(goingBookingData));
+  }, [goingBookingData, isStayInterconnected]);
+
+  useEffect(() => {
+    if (!isStayInterconnected) return;
+    setBookedComingSeats(mapSeatsByBus(comingBookingData));
+  }, [comingBookingData, isStayInterconnected]);
   const minSeatsPerBooking = selectedDate?.minSeatsPerBooking || 1;
   const seatsPerBus =
     typeof selectedDate?.seats === "number" ? selectedDate.seats : 0;
@@ -589,7 +636,24 @@ const BookingPage = () => {
   useEffect(() => {
     if (selectedDate) {
       const totalSeats = selectedDate.seats;
-      if (totalSeats !== 20 && totalSeats !== 32) {
+      const stayIC =
+        Boolean(
+          (trip as any)?.interconnection?.enabled ||
+            tripData?.trip?.interconnection?.enabled,
+        ) &&
+        ((trip as any)?.interconnection?.role === "stay" ||
+          tripData?.trip?.interconnection?.role === "stay");
+
+      // Stay interconnected always uses dual seat maps
+      if (stayIC || totalSeats === 20 || totalSeats === 32) {
+        setStep(INITIAL_STEP);
+        setSelectedSeats([]);
+        setSelectedGoingSeats([]);
+        setSelectedComingSeats([]);
+        if (!selectedPackage && !selectedRoomChoice) {
+          setPassengers([]);
+        }
+      } else {
         setStep("passenger-details");
         setSelectedSeats([]);
         setPassengers([
@@ -604,23 +668,51 @@ const BookingPage = () => {
             email: "",
           },
         ]);
-      } else {
-        setStep(INITIAL_STEP);
-        setSelectedSeats([]);
-        if (!selectedPackage && !selectedRoomChoice) {
-          setPassengers([]);
-        }
       }
     }
-  }, [selectedDate, selectedPackage, selectedRoomChoice]);
+  }, [selectedDate, selectedPackage, selectedRoomChoice, trip, tripData]);
 
   // Handlers
   const changeDate = (date: StartDate) => {
     setSelectedDate(date);
     setSelectedSeats([]);
+    setSelectedGoingSeats([]);
+    setSelectedComingSeats([]);
     if (!selectedPackage && !selectedRoomChoice) {
       setPassengers([]);
     }
+  };
+
+  const handleGoingSeatSelect = (seatId: string, busIndex: number) => {
+    if (isSubmitting) return;
+    const key = `${busIndex}-${seatId}`;
+    if (
+      bookedGoingSeats.some(
+        (b) => b.busIndex === busIndex && b.seat === seatId,
+      )
+    ) {
+      toast.error("This seat is already booked (Going)");
+      return;
+    }
+    setSelectedGoingSeats((prev) =>
+      prev.includes(key) ? prev.filter((s) => s !== key) : [...prev, key],
+    );
+  };
+
+  const handleComingSeatSelect = (seatId: string, busIndex: number) => {
+    if (isSubmitting) return;
+    const key = `${busIndex}-${seatId}`;
+    if (
+      bookedComingSeats.some(
+        (b) => b.busIndex === busIndex && b.seat === seatId,
+      )
+    ) {
+      toast.error("This seat is already booked (Coming)");
+      return;
+    }
+    setSelectedComingSeats((prev) =>
+      prev.includes(key) ? prev.filter((s) => s !== key) : [...prev, key],
+    );
   };
 
   const handleSeatSelect = (seatId: string, busIndex: number) => {
@@ -866,18 +958,38 @@ const BookingPage = () => {
             // -------------------------------
             // 🟢 TRANSFORM SEATS (IMPORTANT)
             // -------------------------------
-            const formattedSeats =
-              selectedDate?.seats === 20 || selectedDate?.seats === 32
+            const formattedSeats = isStayInterconnected
+              ? [
+                  ...selectedGoingSeats.map((s) => {
+                    const [busIndex, seat] = s.split("-");
+                    return {
+                      seat,
+                      busIndex: Number(busIndex),
+                      leg: "going" as const,
+                    };
+                  }),
+                  ...selectedComingSeats.map((s) => {
+                    const [busIndex, seat] = s.split("-");
+                    return {
+                      seat,
+                      busIndex: Number(busIndex),
+                      leg: "coming" as const,
+                    };
+                  }),
+                ]
+              : selectedDate?.seats === 20 || selectedDate?.seats === 32
                 ? selectedSeats.map((s) => {
                     const [busIndex, seat] = s.split("-");
                     return {
                       seat,
                       busIndex: Number(busIndex),
+                      leg: "single" as const,
                     };
                   })
                 : passengers.map(() => ({
                     seat: "N/A",
                     busIndex: 0,
+                    leg: "single" as const,
                   }));
 
             // -------------------------------
@@ -1023,12 +1135,51 @@ const BookingPage = () => {
 const handleProceed = async () => {
   if (isSubmitting) return;
 
-  const isSeatTrip = selectedDate?.seats === 20 || selectedDate?.seats === 32;
+  const isSeatTrip =
+    isStayInterconnected ||
+    selectedDate?.seats === 20 ||
+    selectedDate?.seats === 32;
+
+  // ---------------------------
+  // ✅ STAY INTERCONNECTION RULES
+  // ---------------------------
+  if (isStayInterconnected && step === "select-seats") {
+    if (selectedGoingSeats.length === 0 || selectedComingSeats.length === 0) {
+      toast.error("Please select seats for both Going and Coming.");
+      return;
+    }
+    if (selectedGoingSeats.length !== selectedComingSeats.length) {
+      toast.error(
+        "Number of Going seats must match number of Coming seats.",
+      );
+      return;
+    }
+    if (selectedGoingSeats.length < minSeatsPerBooking) {
+      toast.error(
+        `You must select at least ${minSeatsPerBooking} seat(s) on each leg.`,
+      );
+      return;
+    }
+    setPassengers(
+      selectedGoingSeats.map(() => ({
+        name: "",
+        age: "",
+        gender: "",
+        idProof: "",
+        idProofNumber: "",
+        address: "",
+        phoneNumber: "",
+        email: "",
+      })),
+    );
+    setStep("passenger-details");
+    return;
+  }
 
   // ---------------------------
   // ✅ MINIMUM SEAT RULE
   // ---------------------------
-  if (isSeatTrip && selectedSeats.length < minSeatsPerBooking) {
+  if (isSeatTrip && !isStayInterconnected && selectedSeats.length < minSeatsPerBooking) {
     toast.error(
       `You must select at least ${minSeatsPerBooking} seat(s) to continue.`,
     );
@@ -1042,6 +1193,7 @@ const handleProceed = async () => {
   // ---------------------------
   if (
     isSeatTrip &&
+    !isStayInterconnected &&
     selectedPackage &&
     selectedSeats.length !== selectedPackage.personCount
   ) {
@@ -1054,7 +1206,7 @@ const handleProceed = async () => {
   // ---------------------------
   // STEP 1 → SEAT SELECTION
   // ---------------------------
-  if (step === "select-seats" && isSeatTrip) {
+  if (step === "select-seats" && isSeatTrip && !isStayInterconnected) {
     if (selectedPackage || selectedRoomChoice) {
       if (selectedSeats.length !== passengers.length) {
         toast.error(
@@ -1090,7 +1242,17 @@ const handleProceed = async () => {
     return;
   }
 
-  if (
+  if (isStayInterconnected) {
+    if (
+      selectedGoingSeats.length !== passengers.length ||
+      selectedComingSeats.length !== passengers.length
+    ) {
+      toast.error(
+        "Going and Coming seats must match the number of passengers.",
+      );
+      return;
+    }
+  } else if (
     (selectedPackage || selectedRoomChoice) &&
     isSeatTrip &&
     selectedSeats.length !== passengers.length
@@ -1105,9 +1267,11 @@ const handleProceed = async () => {
   setIsSubmitting(true);
 
   try {
-    const numPassengers = isSeatTrip
-      ? selectedSeats.length
-      : passengers.length;
+    const numPassengers = isStayInterconnected
+      ? selectedGoingSeats.length
+      : isSeatTrip
+        ? selectedSeats.length
+        : passengers.length;
 
     const baseSeatPrice = parseInt(trip?.price) || 1000;
 
@@ -1174,7 +1338,13 @@ const handleProceed = async () => {
   }
 };
 
-  if (tripLoading || (bookingLoading && selectedDate)) {
+  if (
+    tripLoading ||
+    (selectedDate &&
+      (isStayInterconnected
+        ? goingLoading || comingLoading
+        : bookingLoading))
+  ) {
     return (
       <div className="flex justify-center items-center min-h-screen">
         <FaSpinner className="animate-spin text-4xl text-gray-500" />
@@ -1202,7 +1372,24 @@ const handleProceed = async () => {
     advancePaymentPercentage: trip.advancePaymentPercentage,
   };
 
-  const totalSeats = selectedDate?.seats || Number(tripDetails.busSize);
+  const goingSeatsPerBus =
+    Number(goingBookingData?.stats?.seatsPerBus) ||
+    (typeof selectedDate?.seats === "number" ? selectedDate.seats : 0) ||
+    20;
+  const comingSeatsPerBus =
+    Number(comingBookingData?.stats?.seatsPerBus) || goingSeatsPerBus;
+  const goingBuses = Math.max(
+    1,
+    Number(goingBookingData?.stats?.numberOfBusesAvailable) || 1,
+  );
+  const comingBuses = Math.max(
+    1,
+    Number(comingBookingData?.stats?.numberOfBusesAvailable) || 1,
+  );
+
+  const totalSeats = isStayInterconnected
+    ? goingSeatsPerBus
+    : selectedDate?.seats || Number(tripDetails.busSize);
   const maxAvailableSeats =
     selectedPackage || selectedRoomChoice
       ? Math.min(
@@ -1210,6 +1397,12 @@ const handleProceed = async () => {
           selectedPackage?.personCount || 0,
         )
       : totalSeats - bookedSeats.length;
+
+  const isSeatLayoutTrip =
+    isStayInterconnected ||
+    totalSeats === 20 ||
+    totalSeats === 32;
+
   return (
     <div className="min-h-screen bg-gray-50 pt-24 pb-16 relative">
       {isSubmitting && (
@@ -1312,8 +1505,84 @@ const handleProceed = async () => {
 
         <div className="grid md:grid-cols-3 gap-8">
           <div className="md:col-span-2">
-            {step === "select-seats" &&
-            (totalSeats === 20 || totalSeats === 32) ? (
+            {step === "select-seats" && isStayInterconnected ? (
+              <div className="space-y-4">
+                <div className="rounded-2xl border border-violet-200 bg-violet-50/60 px-4 py-3 text-sm text-violet-900">
+                  <p className="font-semibold">Interconnected stay package</p>
+                  <p className="mt-0.5 text-violet-800/80">
+                    Select seats for <strong>Going</strong> (shares Saturday
+                    bus) and <strong>Coming</strong> (shares Sunday bus). Same
+                    seats cannot be booked on linked day trips.
+                  </p>
+                </div>
+                <div className="grid gap-4 lg:grid-cols-2">
+                  <div className="rounded-2xl border border-orange-200 bg-white p-2 shadow-sm">
+                    <h3 className="mb-2 px-2 pt-2 text-center text-sm font-bold text-orange-700">
+                      Select seat for Going
+                      <span className="mt-0.5 block text-xs font-normal text-slate-500">
+                        Mahabaleshwar outbound bus
+                      </span>
+                    </h3>
+                    <SeatLayout
+                      numberOfBuses={goingBuses}
+                      totalSeats={
+                        goingSeatsPerBus === 32 || goingSeatsPerBus === 20
+                          ? goingSeatsPerBus
+                          : 20
+                      }
+                      selectedSeats={selectedGoingSeats}
+                      onSeatSelect={handleGoingSeatSelect}
+                      bookedSeats={bookedGoingSeats}
+                      seatPrice={tripDetails.baseSeatPrice}
+                      disabled={isSubmitting}
+                      vehicles={
+                        (ic as any)?.outboundTripPopulated?.startDates?.find(
+                          (d: any) => d.date === selectedDateApi,
+                        )?.vehicles || selectedDate?.vehicles
+                      }
+                    />
+                  </div>
+                  <div className="rounded-2xl border border-sky-200 bg-white p-2 shadow-sm">
+                    <h3 className="mb-2 px-2 pt-2 text-center text-sm font-bold text-sky-700">
+                      Select seat for Coming
+                      <span className="mt-0.5 block text-xs font-normal text-slate-500">
+                        Return bus (+{stayDayOffset} day
+                        {stayDayOffset === 1 ? "" : "s"})
+                      </span>
+                    </h3>
+                    <SeatLayout
+                      numberOfBuses={comingBuses}
+                      totalSeats={
+                        comingSeatsPerBus === 32 || comingSeatsPerBus === 20
+                          ? comingSeatsPerBus
+                          : 20
+                      }
+                      selectedSeats={selectedComingSeats}
+                      onSeatSelect={handleComingSeatSelect}
+                      bookedSeats={bookedComingSeats}
+                      seatPrice={tripDetails.baseSeatPrice}
+                      disabled={isSubmitting}
+                      vehicles={
+                        (ic as any)?.returnTripPopulated?.startDates?.[0]
+                          ?.vehicles || selectedDate?.vehicles
+                      }
+                    />
+                  </div>
+                </div>
+                {(selectedGoingSeats.length > 0 ||
+                  selectedComingSeats.length > 0) && (
+                  <div className="flex flex-wrap gap-3 text-xs">
+                    <span className="rounded-full bg-orange-100 px-3 py-1 font-semibold text-orange-800">
+                      Going: {selectedGoingSeats.join(", ") || "—"}
+                    </span>
+                    <span className="rounded-full bg-sky-100 px-3 py-1 font-semibold text-sky-800">
+                      Coming: {selectedComingSeats.join(", ") || "—"}
+                    </span>
+                  </div>
+                )}
+              </div>
+            ) : step === "select-seats" &&
+              (totalSeats === 20 || totalSeats === 32) ? (
               <SeatLayout
                 numberOfBuses={numberOfBuses}
                 totalSeats={totalSeats}

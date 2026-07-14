@@ -30,6 +30,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import BoardingPointsEditor from "@/components/admin/BoardingPointsEditor";
+import InterconnectionEditor, {
+  defaultInterconnection,
+  type InterconnectionConfig,
+} from "@/components/admin/InterconnectionEditor";
 import { getStateOptions } from "@/utils/tripDestinations";
 
 // =====================
@@ -108,6 +112,7 @@ interface TripDetails {
   faqs: { question: string; answer: string }[];
   brochureImage?: string;
   brochureFile?: string;
+  interconnection: InterconnectionConfig;
 }
 
 const OTHER_STATE = "__other__";
@@ -227,6 +232,7 @@ const validateMinSeats = (value: number) => {
     faqs: [{ question: "", answer: "" }],
     brochureImage: "",
     brochureFile: "",
+    interconnection: defaultInterconnection(),
   });
 
   const [errors, setErrors] = useState<FormErrors>({});
@@ -973,6 +979,17 @@ setMinSeatsError("");
 
       formData.append("price", tripDetails.price.toString());
       formData.append("category", tripDetails.category);
+      formData.append(
+        "interconnection",
+        JSON.stringify({
+          enabled: tripDetails.interconnection.enabled,
+          role: tripDetails.interconnection.role,
+          outboundTrip: tripDetails.interconnection.outboundTrip || null,
+          returnTrip: tripDetails.interconnection.returnTrip || null,
+          stayTrip: tripDetails.interconnection.stayTrip || null,
+          dayOffset: tripDetails.interconnection.dayOffset || 1,
+        }),
+      );
       formData.append("amenities", JSON.stringify(tripDetails.amenities));
       formData.append(
         "boardingPoints",
@@ -1293,6 +1310,9 @@ setMinSeatsError("");
                   <SelectContent>
                     <SelectItem value="One Day Tours">One Day Tours</SelectItem>
                     <SelectItem value="Stay Package">Stay Package</SelectItem>
+                    <SelectItem value="Interconnected Tours">
+                      Interconnected Tours
+                    </SelectItem>
                     <SelectItem value="Domestic Tours">
                       Domestic Tours
                     </SelectItem>
@@ -1401,6 +1421,22 @@ setMinSeatsError("");
                 </p>
               )}
             </div>
+
+            <InterconnectionEditor
+              value={tripDetails.interconnection}
+              onChange={(next) =>
+                setTripDetails((prev) => ({ ...prev, interconnection: next }))
+              }
+              trips={(Array.isArray(allTripsData)
+                ? allTripsData
+                : (allTripsData as any)?.data ?? []
+              ).map((t: any) => ({
+                _id: t._id,
+                title: t.title,
+                category: t.category,
+                state: t.state,
+              }))}
+            />
             </>
             )}
 

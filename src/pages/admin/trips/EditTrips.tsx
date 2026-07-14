@@ -41,6 +41,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import BoardingPointsEditor from "@/components/admin/BoardingPointsEditor";
+import InterconnectionEditor, {
+  defaultInterconnection,
+  type InterconnectionConfig,
+} from "@/components/admin/InterconnectionEditor";
 import { getStateOptions } from "@/utils/tripDestinations";
 
 const locales = { "en-US": enUS };
@@ -105,6 +109,7 @@ interface TripDetails {
   file?: File | null;
   advancePaymentPercentage?: number;
   discountPercentage?: number;
+  interconnection: InterconnectionConfig;
 }
 
 const OTHER_STATE = "__other__";
@@ -174,6 +179,7 @@ const EditTrips: React.FC = () => {
     file: null,
     advancePaymentPercentage: undefined,
     discountPercentage: undefined,
+    interconnection: defaultInterconnection(),
   });
 
   // ✅ MODAL: buses + vehicles state
@@ -393,6 +399,23 @@ const EditTrips: React.FC = () => {
         description: data.trip.description || "",
         startDates: parsedDates,
         category: data.trip.category || "",
+        interconnection: (() => {
+          const ic = data.trip.interconnection || {};
+          return {
+            enabled: Boolean(ic.enabled) && ic.role && ic.role !== "none",
+            role: (ic.role || "none") as InterconnectionConfig["role"],
+            outboundTrip: ic.outboundTrip
+              ? String(ic.outboundTrip._id || ic.outboundTrip)
+              : "",
+            returnTrip: ic.returnTrip
+              ? String(ic.returnTrip._id || ic.returnTrip)
+              : "",
+            stayTrip: ic.stayTrip
+              ? String(ic.stayTrip._id || ic.stayTrip)
+              : "",
+            dayOffset: Math.max(1, Number(ic.dayOffset) || 1),
+          };
+        })(),
         amenities:
           Array.isArray(data.trip.amenities) && data.trip.amenities.length > 0
             ? data.trip.amenities
@@ -989,6 +1012,17 @@ const EditTrips: React.FC = () => {
 );
 
       formData.append("category", tripDetails.category);
+      formData.append(
+        "interconnection",
+        JSON.stringify({
+          enabled: tripDetails.interconnection.enabled,
+          role: tripDetails.interconnection.role,
+          outboundTrip: tripDetails.interconnection.outboundTrip || null,
+          returnTrip: tripDetails.interconnection.returnTrip || null,
+          stayTrip: tripDetails.interconnection.stayTrip || null,
+          dayOffset: tripDetails.interconnection.dayOffset || 1,
+        }),
+      );
       formData.append("amenities", JSON.stringify(tripDetails.amenities));
       formData.append(
         "boardingPoints",
@@ -1237,6 +1271,9 @@ const EditTrips: React.FC = () => {
                   <SelectContent>
                     <SelectItem value="One Day Tours">One Day Tours</SelectItem>
                     <SelectItem value="Stay Package">Stay Package</SelectItem>
+                    <SelectItem value="Interconnected Tours">
+                      Interconnected Tours
+                    </SelectItem>
                     <SelectItem value="Domestic Tours">
                       Domestic Tours
                     </SelectItem>
@@ -1327,6 +1364,23 @@ const EditTrips: React.FC = () => {
                 </p>
               )}
             </div>
+
+            <InterconnectionEditor
+              value={tripDetails.interconnection}
+              onChange={(next) =>
+                setTripDetails((prev) => ({ ...prev, interconnection: next }))
+              }
+              currentTripId={tripDetails._id}
+              trips={(Array.isArray(allTripsData)
+                ? allTripsData
+                : (allTripsData as any)?.data ?? []
+              ).map((t: any) => ({
+                _id: t._id,
+                title: t.title,
+                category: t.category,
+                state: t.state,
+              }))}
+            />
 
             {/* Calendar */}
             <div>
