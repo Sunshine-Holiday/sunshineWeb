@@ -105,6 +105,7 @@ export const TripCard = ({ trip }: TripCardProps) => {
     navigate(`/admin/block-trip/${trip._id}`, {
       state: {
         trip,
+        // Pass date string (BlockTrip also accepts { date } objects)
         startDate: displayDate ? formatDate(displayDate.date) : null,
       },
     });

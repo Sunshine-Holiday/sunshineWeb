@@ -102,19 +102,12 @@ useEffect(() => {
   const shouldShowLayoutChange = selectedSeats.length > 11;
   const busesCount = Math.max(1, Number(numberOfBuses) || 1);
 
-  // Jump to first bus that still has free seats (skip full buses)
+  // Keep currentBus in range when bus count changes (do not force-jump to bus 1)
   useEffect(() => {
-    if (busesCount <= 1 || !totalSeats) return;
-    for (let bus = 0; bus < busesCount; bus++) {
-      const bookedOnBus = bookedSeats.filter((s) =>
-        s.startsWith(`${bus}-`),
-      ).length;
-      if (bookedOnBus < totalSeats) {
-        if (currentBus !== bus) onBusChange(bus);
-        return;
-      }
+    if (currentBus > busesCount - 1) {
+      onBusChange(Math.max(0, busesCount - 1));
     }
-  }, [bookedSeats, busesCount, totalSeats, currentBus, onBusChange]);
+  }, [busesCount, currentBus, onBusChange]);
 
   useEffect(() => {
     if (bookedSeats.length === seats.flat().filter(Boolean).length) {

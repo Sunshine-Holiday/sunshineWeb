@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { SeatLayout } from "./components/SeatLayout";
 import { BookingSummary } from "./components/BookingSummary";
 import { fadeInUp } from "@/utils/animations";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   useGettripsIDQuery,
   useSelectedDateBookingQuery,
@@ -59,16 +59,28 @@ interface TripDetails {
   busSize: string;
 }
 
+/** Normalize startDate from navigation state (string or { date }). */
+const resolveInitialDate = (raw: unknown): string => {
+  if (!raw) return "";
+  if (typeof raw === "string") return raw;
+  if (typeof raw === "object" && raw !== null && "date" in raw) {
+    const d = (raw as { date?: unknown }).date;
+    return typeof d === "string" ? d : "";
+  }
+  return "";
+};
+
 const BookingPage = () => {
   const { state } = useLocation();
+  const { id: routeTripId } = useParams<{ id: string }>();
   const userDetails = useSelector(selectCurrentUser);
-  const tripId = state?.trip?._id;
-  const startDate: StartDate | undefined = state?.startDate;
+  // Prefer URL param so /admin/block-trip/:id works on refresh / direct open
+  const tripId = routeTripId || state?.trip?._id;
   const navigate = useNavigate();
   const [deleteblock] = useDeleteBookingMutation();
   // State variables
-  const [selectedDate, setSelectedDate] = useState<string>(
-    startDate?.date || "",
+  const [selectedDate, setSelectedDate] = useState<string>(() =>
+    resolveInitialDate(state?.startDate),
   );
   const [selectedSeats, setSelectedSeats] = useState<string[]>([]);
   const [bookedSeats, setBookedSeats] = useState<string[]>([]);
@@ -76,6 +88,10 @@ const BookingPage = () => {
   const [trip, setTrip] = useState<Trip | null>(null);
   const [showSeatLayout, setShowSeatLayout] = useState<boolean>(false);
   const [blockReason, setBlockReason] = useState("");
+  // Only auto-pick first free bus once per date (user can then switch freely)
+  const [autoBusPickedForDate, setAutoBusPickedForDate] = useState<string | null>(
+    null,
+  );
 
   // Date formatting functions
   const formatDateToString = (dateInput: string | Date): string => {
@@ -229,25 +245,41 @@ const BookingPage = () => {
     setBookedSeats(mapped);
   }, [bookingData]);
 
-  // Auto-open first bus that still has free seats
+  // Auto-open first bus that still has free seats — once per selected date only
+  // Wait until booking data finished loading so we don't always stick on bus 1
   useEffect(() => {
-    if (!showSeatLayout || !seatsPerBus || numberOfBuses <= 1) return;
+    if (!showSeatLayout || !seatsPerBus || numberOfBuses <= 1 || !selectedDate)
+      return;
+    if (bookingLoading) return;
+    if (autoBusPickedForDate === selectedDate) return;
+
     for (let bus = 0; bus < numberOfBuses; bus++) {
       const bookedOnBus = bookedSeats.filter((s) =>
         s.startsWith(`${bus}-`),
       ).length;
       if (bookedOnBus < seatsPerBus) {
-        if (currentBus !== bus) setCurrentBus(bus);
+        setCurrentBus(bus);
+        setAutoBusPickedForDate(selectedDate);
         return;
       }
     }
-  }, [bookedSeats, seatsPerBus, numberOfBuses, showSeatLayout, selectedDate]);
+    setAutoBusPickedForDate(selectedDate);
+  }, [
+    bookedSeats,
+    seatsPerBus,
+    numberOfBuses,
+    showSeatLayout,
+    selectedDate,
+    autoBusPickedForDate,
+    bookingLoading,
+  ]);
 
   // Handlers
   const changeDate = (date: string) => {
     setSelectedDate(date);
     setSelectedSeats([]); // Reset selected seats when date changes
     setCurrentBus(0);
+    setAutoBusPickedForDate(null);
   };
 
   const handleSeatSelect = (seatKey: string) => {
