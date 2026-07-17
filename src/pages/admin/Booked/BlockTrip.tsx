@@ -18,6 +18,7 @@ import { selectCurrentUser } from "@/store/reducer/auth";
 import { FaSpinner } from "react-icons/fa";
 import { format, parse, isValid } from "date-fns";
 import { MapPin } from "lucide-react";
+import { bookableSeatsPerBus } from "@/utils/seatCapacity";
 
 interface StartDate {
   date: string;
@@ -154,7 +155,9 @@ const BookingPage = () => {
   const totalSeats = getTotalSeats();
 
   console.log("Total Seats:", totalSeats);
-  const seatsPerBus = typeof totalSeats === "number" ? totalSeats : 0;
+  // Driver seat blocked: 20→19, 32→31 bookable passenger seats
+  const seatsPerBus =
+    typeof totalSeats === "number" ? bookableSeatsPerBus(totalSeats) : 0;
 
   const numberOfBuses = Math.max(
     1,

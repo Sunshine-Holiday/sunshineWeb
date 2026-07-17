@@ -32,6 +32,11 @@ import { Button } from "@/components/ui/button";
 import { Armchair, Calendar, MapPin } from "lucide-react";
 import TermsModal from "@/components/TermsModal";
 import { useTranslation } from "react-i18next";
+import {
+  bookableSeatsPerBus,
+  maxBookableSeatNumber,
+  totalBookableCapacity,
+} from "@/utils/seatCapacity";
 const INITIAL_STEP = "select-seats";
 
 interface Vehicle {
@@ -625,13 +630,18 @@ const BookingPage = () => {
     setBookedComingSeats(mapSeatsByBus(comingBookingData));
   }, [comingBookingData, isStayInterconnected]);
   const minSeatsPerBooking = selectedDate?.minSeatsPerBooking || 1;
-  const seatsPerBus =
+  // Configured size is 20/32; bookable excludes blocked driver seat (19/31)
+  const configuredSeatsPerBus =
     typeof selectedDate?.seats === "number" ? selectedDate.seats : 0;
+  const seatsPerBus = bookableSeatsPerBus(configuredSeatsPerBus);
   const numberOfBuses = Math.max(
     1,
     Number(selectedDate?.numberOfBusesAvailable || 1) || 1,
   );
-  const totalCapacity = seatsPerBus * numberOfBuses;
+  const totalCapacity = totalBookableCapacity(
+    configuredSeatsPerBus,
+    numberOfBuses,
+  );
 
   useEffect(() => {
     if (selectedDate) {
@@ -782,11 +792,13 @@ const BookingPage = () => {
   const addPassenger = () => {
     if (isSubmitting) return;
 
-    // 🧠 Total available seats (consider booked + buses)
+    // 🧠 Total available seats (bookable only — driver seat excluded)
     const availableSeats =
       selectedDate?.seats && selectedDate?.numberOfBusesAvailable
-        ? selectedDate.seats * selectedDate.numberOfBusesAvailable -
-          bookedSeats.length
+        ? totalBookableCapacity(
+            selectedDate.seats,
+            selectedDate.numberOfBusesAvailable,
+          ) - bookedSeats.length
         : 0;
 
     // 🔒 Package limit (if package selected)
@@ -823,11 +835,11 @@ const BookingPage = () => {
       (selectedDate?.seats === 20 || selectedDate?.seats === 32) &&
       !selectedPackage // package users select seats manually
     ) {
-      const totalSeats = selectedDate.seats;
+      const maxSeat = maxBookableSeatNumber(selectedDate.seats);
       const totalBuses = Number(selectedDate.numberOfBusesAvailable || 1);
 
       for (let busIndex = 0; busIndex < totalBuses; busIndex++) {
-        for (let seat = 1; seat <= totalSeats; seat++) {
+        for (let seat = 1; seat <= maxSeat; seat++) {
           const key = `${busIndex}-${seat}`;
 
           const isBooked = bookedSeats.some(
@@ -1372,12 +1384,15 @@ const handleProceed = async () => {
     advancePaymentPercentage: trip.advancePaymentPercentage,
   };
 
-  const goingSeatsPerBus =
+  // Raw configured size (20/32) — used to pick layout; bookable is 19/31
+  const goingConfiguredSeats =
     Number(goingBookingData?.stats?.seatsPerBus) ||
     (typeof selectedDate?.seats === "number" ? selectedDate.seats : 0) ||
     20;
-  const comingSeatsPerBus =
-    Number(comingBookingData?.stats?.seatsPerBus) || goingSeatsPerBus;
+  const comingConfiguredSeats =
+    Number(comingBookingData?.stats?.seatsPerBus) || goingConfiguredSeats;
+  const goingSeatsPerBus = bookableSeatsPerBus(goingConfiguredSeats);
+  const comingSeatsPerBus = bookableSeatsPerBus(comingConfiguredSeats);
   const goingBuses = Math.max(
     1,
     Number(goingBookingData?.stats?.numberOfBusesAvailable) || 1,
@@ -1387,21 +1402,26 @@ const handleProceed = async () => {
     Number(comingBookingData?.stats?.numberOfBusesAvailable) || 1,
   );
 
-  const totalSeats = isStayInterconnected
-    ? goingSeatsPerBus
+  const configuredTotalSeats = isStayInterconnected
+    ? goingConfiguredSeats
     : selectedDate?.seats || Number(tripDetails.busSize);
+  // Keep totalSeats as configured size for layout detection (20 vs 32)
+  const totalSeats = configuredTotalSeats;
+  const bookableCapacity = isStayInterconnected
+    ? goingSeatsPerBus * goingBuses
+    : totalBookableCapacity(configuredTotalSeats, numberOfBuses);
   const maxAvailableSeats =
     selectedPackage || selectedRoomChoice
       ? Math.min(
-          totalSeats - bookedSeats.length,
+          Math.max(0, bookableCapacity - bookedSeats.length),
           selectedPackage?.personCount || 0,
         )
-      : totalSeats - bookedSeats.length;
+      : Math.max(0, bookableCapacity - bookedSeats.length);
 
   const isSeatLayoutTrip =
     isStayInterconnected ||
-    totalSeats === 20 ||
-    totalSeats === 32;
+    Number(totalSeats) === 20 ||
+    Number(totalSeats) === 32;
 
   return (
     <div className="min-h-screen bg-gray-50 pt-24 pb-16 relative">
@@ -1526,8 +1546,9 @@ const handleProceed = async () => {
                     <SeatLayout
                       numberOfBuses={goingBuses}
                       totalSeats={
-                        goingSeatsPerBus === 32 || goingSeatsPerBus === 20
-                          ? goingSeatsPerBus
+                        goingConfiguredSeats === 32 ||
+                        goingConfiguredSeats === 20
+                          ? goingConfiguredSeats
                           : 20
                       }
                       selectedSeats={selectedGoingSeats}
@@ -1553,8 +1574,9 @@ const handleProceed = async () => {
                     <SeatLayout
                       numberOfBuses={comingBuses}
                       totalSeats={
-                        comingSeatsPerBus === 32 || comingSeatsPerBus === 20
-                          ? comingSeatsPerBus
+                        comingConfiguredSeats === 32 ||
+                        comingConfiguredSeats === 20
+                          ? comingConfiguredSeats
                           : 20
                       }
                       selectedSeats={selectedComingSeats}
@@ -1846,13 +1868,15 @@ const SeatLayout = ({
   const busesCount = Math.max(1, Number(numberOfBuses) || 1);
   const [currentBus, setCurrentBus] = useState(0);
   const v = vehicles?.[currentBus];
+  // Driver seat is blocked: 20→19 bookable, 32→31 bookable
+  const bookablePerBus = bookableSeatsPerBus(totalSeats);
 
   const isBlockBooking = selectedSeats.includes("block");
   const bookedSeatsForBus = bookedSeats
     .filter((b) => Number(b.busIndex) === currentBus)
     .map((b) => b.seat);
 
-  const isCurrentBusFull = bookedSeatsForBus.length >= totalSeats;
+  const isCurrentBusFull = bookedSeatsForBus.length >= bookablePerBus;
 
   useEffect(() => {
     setIsTwoSeaterLayout(totalSeats === 32);
@@ -1860,12 +1884,12 @@ const SeatLayout = ({
 
   // Open the first bus that still has free seats (skip full buses)
   useEffect(() => {
-    if (busesCount <= 1 || !totalSeats) return;
+    if (busesCount <= 1 || !bookablePerBus) return;
     for (let bus = 0; bus < busesCount; bus++) {
       const bookedOnBus = bookedSeats.filter(
         (b) => Number(b.busIndex) === bus,
       ).length;
-      if (bookedOnBus < totalSeats) {
+      if (bookedOnBus < bookablePerBus) {
         setCurrentBus((prev) => (prev !== bus ? bus : prev));
         return;
       }
@@ -1874,7 +1898,7 @@ const SeatLayout = ({
     setCurrentBus((prev) =>
       prev !== busesCount - 1 ? busesCount - 1 : prev,
     );
-  }, [bookedSeats, busesCount, totalSeats]);
+  }, [bookedSeats, busesCount, bookablePerBus]);
 
   if (totalSeats !== 20 && totalSeats !== 32) {
     console.warn(`Invalid totalSeats value: ${totalSeats}. Expected 20 or 32.`);
@@ -2491,7 +2515,7 @@ const BookingSummary = ({
           <div className="flex justify-between text-slate-600">
             <span>Available</span>
             <span className="font-semibold text-green-600">
-              {totalCapacity - bookedSeats.length}
+              {Math.max(0, totalCapacity - bookedSeats.length)}
             </span>
           </div>
           <div className="flex items-start gap-2 border-t border-slate-100 pt-3 text-slate-700">

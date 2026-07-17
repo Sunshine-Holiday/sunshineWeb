@@ -242,6 +242,13 @@ const validateMinSeats = (value: number) => {
   // modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  /** True when modal is editing an already-saved calendar date (replace on confirm) */
+  const [isEditingExistingDate, setIsEditingExistingDate] = useState(false);
+  /** Ask Edit / Delete when user taps a date that already has seats */
+  const [dateActionOpen, setDateActionOpen] = useState(false);
+  const [dateActionTarget, setDateActionTarget] = useState<StartDate | null>(
+    null,
+  );
 
   const [selectedSeats, setSelectedSeats] = useState<number | "block" | null>(
     null,
@@ -477,6 +484,59 @@ const validateMinSeats = (value: number) => {
   // =====================
   // DATE SELECTION
   // =====================
+  const openNewDateModal = (normalizedDate: Date) => {
+    setIsEditingExistingDate(false);
+    setSelectedDate(normalizedDate);
+    setSelectedSeats(null);
+    setSeatSelectionType(null);
+    setBlockSeats("");
+    setBlockSeatsError("");
+    setNumberOfBuses("");
+    setNumberOfBusesError("");
+    setMinSeatsPerBooking(1);
+    setMinSeatsError("");
+    setVehiclesInputs([]);
+    setVehiclesError("");
+    setIsModalOpen(true);
+  };
+
+  const openEditDateModal = (entry: StartDate) => {
+    const normalizedDate = normalizeToMidnight(entry.date);
+    setIsEditingExistingDate(true);
+    setSelectedDate(normalizedDate);
+
+    if (entry.seats === 20 || entry.seats === 32) {
+      setSeatSelectionType("fixed");
+      setSelectedSeats(entry.seats);
+      setBlockSeats("");
+      setBlockSeatsError("");
+    } else {
+      // Custom / block seat count stored as a number (or legacy "block")
+      setSeatSelectionType("block");
+      setSelectedSeats(null);
+      const blockVal =
+        entry.seats === "block" ? "" : String(entry.seats ?? "");
+      setBlockSeats(blockVal);
+      setBlockSeatsError(
+        blockVal ? validateBlockSeats(blockVal) : "Number of seats is required",
+      );
+    }
+
+    setNumberOfBuses(entry.numberOfBusesAvailable || 1);
+    setNumberOfBusesError("");
+    setMinSeatsPerBooking(entry.minSeatsPerBooking || 1);
+    setMinSeatsError("");
+    setVehiclesInputs(
+      (entry.vehicles || []).map((v) => ({
+        instructorName: v.instructorName || "",
+        vehicleNumber: v.vehicleNumber || "",
+        phoneNumber: v.phoneNumber || "",
+      })),
+    );
+    setVehiclesError("");
+    setIsModalOpen(true);
+  };
+
   const handleDateSelection = (date: Date) => {
     const normalizedDate = normalizeToMidnight(date);
 
@@ -484,32 +544,35 @@ const validateMinSeats = (value: number) => {
       (d) => normalizeToMidnight(d.date).getTime() === normalizedDate.getTime(),
     );
 
-    // If already exists -> remove
+    // Already configured → ask Edit or Delete (do not wipe immediately)
     if (existingDate) {
-      setTripDetails({
-        ...tripDetails,
-        startDates: tripDetails.startDates.filter(
-          (d) =>
-            normalizeToMidnight(d.date).getTime() !== normalizedDate.getTime(),
-        ),
-      });
+      setDateActionTarget(existingDate);
+      setDateActionOpen(true);
       return;
     }
 
-    // else open modal
-    setSelectedDate(normalizedDate);
-    setSelectedSeats(null);
-    setSeatSelectionType(null);
-    setBlockSeats("");
-    setBlockSeatsError("");
+    openNewDateModal(normalizedDate);
+  };
 
-    setNumberOfBuses("");
-    setNumberOfBusesError("");
+  const handleDateActionEdit = () => {
+    if (!dateActionTarget) return;
+    const entry = dateActionTarget;
+    setDateActionOpen(false);
+    setDateActionTarget(null);
+    openEditDateModal(entry);
+  };
 
-    setVehiclesInputs([]);
-    setVehiclesError("");
-
-    setIsModalOpen(true);
+  const handleDateActionDelete = () => {
+    if (!dateActionTarget) return;
+    const targetTime = normalizeToMidnight(dateActionTarget.date).getTime();
+    setTripDetails({
+      ...tripDetails,
+      startDates: tripDetails.startDates.filter(
+        (d) => normalizeToMidnight(d.date).getTime() !== targetTime,
+      ),
+    });
+    setDateActionOpen(false);
+    setDateActionTarget(null);
   };
 
   // =====================
@@ -582,6 +645,7 @@ const validateMinSeats = (value: number) => {
   const resetModalState = () => {
     setIsModalOpen(false);
     setSelectedDate(null);
+    setIsEditingExistingDate(false);
 
     setSelectedSeats(null);
     setSeatSelectionType(null);
@@ -590,8 +654,8 @@ const validateMinSeats = (value: number) => {
 
     setNumberOfBuses("");
     setNumberOfBusesError("");
-setMinSeatsPerBooking(1);
-setMinSeatsError("");
+    setMinSeatsPerBooking(1);
+    setMinSeatsError("");
     setVehiclesInputs([]);
     setVehiclesError("");
   };
@@ -631,19 +695,27 @@ setMinSeatsError("");
 
     if (finalSeats === null) return;
 
-   const newStartDate: StartDate = {
-  date: selectedDate,
-  seats: finalSeats,
-  numberOfBusesAvailable: Number(numberOfBuses),
-  minSeatsPerBooking: minSeatsPerBooking, // ✅ NEW
-  vehicles: vehiclesInputs.map((v) => ({
-    instructorName: v.instructorName.trim(),
-    vehicleNumber: v.vehicleNumber.trim(),
-    phoneNumber: v.phoneNumber.trim(),
-  })),
-};
+    const newStartDate: StartDate = {
+      date: selectedDate,
+      seats: finalSeats,
+      numberOfBusesAvailable: Number(numberOfBuses),
+      minSeatsPerBooking: minSeatsPerBooking,
+      vehicles: vehiclesInputs.map((v) => ({
+        instructorName: v.instructorName.trim(),
+        vehicleNumber: v.vehicleNumber.trim(),
+        phoneNumber: v.phoneNumber.trim(),
+      })),
+    };
 
-    const newDates = [...tripDetails.startDates, newStartDate].sort(
+    const selectedTime = normalizeToMidnight(selectedDate).getTime();
+    // Edit replaces the same date; add appends a new one
+    const baseDates = isEditingExistingDate
+      ? tripDetails.startDates.filter(
+          (d) => normalizeToMidnight(d.date).getTime() !== selectedTime,
+        )
+      : tripDetails.startDates;
+
+    const newDates = [...baseDates, newStartDate].sort(
       (a, b) => a.date.getTime() - b.date.getTime(),
     );
 
@@ -1448,11 +1520,20 @@ setMinSeatsError("");
               <h2 className="text-xl font-semibold mb-4">
                 Select Trip Dates *
               </h2>
+              <p className="mb-2 text-sm text-slate-500">
+                Click an empty day to add seats. Click an existing date to edit
+                or delete buses and vehicles.
+              </p>
               <BigCalendar
                 localizer={localizer}
                 events={calendarEvents}
                 selectable
                 onSelectSlot={(slotInfo) => handleDateSelection(slotInfo.start)}
+                onSelectEvent={(event) =>
+                  handleDateSelection(
+                    (event as { start?: Date }).start || new Date(),
+                  )
+                }
                 views={["month"]}
                 defaultView="month"
                 className="rounded-lg border border-gray-300"
@@ -1471,18 +1552,30 @@ setMinSeatsError("");
                   <h3 className="text-lg font-medium text-gray-700">
                     Selected Dates:
                   </h3>
-                  <ul className="mt-2 list-disc pl-5 text-gray-600 space-y-1">
+                  <ul className="mt-2 space-y-2 text-gray-600">
                     {tripDetails.startDates.map((d, index) => (
-                      <li key={index}>
-                        {formatDateToString(d.date)} -{" "}
-                        {d.seats === "block" ? "Block" : `${d.seats} Seats`} -{" "}
-                        {d.numberOfBusesAvailable} Bus(es)
+                      <li
+                        key={index}
+                        className="cursor-pointer rounded-lg border border-slate-200 bg-white px-3 py-2 list-none hover:border-orange-300 hover:bg-orange-50"
+                        onClick={() => {
+                          setDateActionTarget(d);
+                          setDateActionOpen(true);
+                        }}
+                      >
+                        <div className="font-medium text-slate-800">
+                          {formatDateToString(d.date)} —{" "}
+                          {d.seats === "block" ? "Block" : `${d.seats} Seats`} —{" "}
+                          {d.numberOfBusesAvailable} Bus(es)
+                          <span className="ml-2 text-xs font-normal text-orange-600">
+                            Tap to edit / delete
+                          </span>
+                        </div>
                         {Array.isArray(d.vehicles) && d.vehicles.length > 0 ? (
                           <div className="mt-1 text-sm text-gray-500">
                             {d.vehicles.map((v, vi) => (
                               <div key={vi}>
-                              Bus #{vi + 1}: {v.instructorName} • {v.vehicleNumber} • {v.phoneNumber}
-
+                                Bus #{vi + 1}: {v.instructorName} •{" "}
+                                {v.vehicleNumber} • {v.phoneNumber}
                               </div>
                             ))}
                           </div>
@@ -2027,12 +2120,69 @@ setMinSeatsError("");
           </div>
         </div>
 
+        {/* ===================== EDIT / DELETE DATE ===================== */}
+        <Dialog
+          open={dateActionOpen}
+          onOpenChange={(open) => {
+            setDateActionOpen(open);
+            if (!open) setDateActionTarget(null);
+          }}
+        >
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>
+                {dateActionTarget
+                  ? formatDateToString(dateActionTarget.date)
+                  : "Date"}{" "}
+                already configured
+              </DialogTitle>
+            </DialogHeader>
+            <p className="text-sm text-slate-600">
+              This date already has seats
+              {dateActionTarget
+                ? ` (${
+                    dateActionTarget.seats === "block"
+                      ? "Block"
+                      : `${dateActionTarget.seats} seats`
+                  }, ${dateActionTarget.numberOfBusesAvailable} bus(es))`
+                : ""}
+              . Do you want to edit buses / vehicles, or delete this date?
+            </p>
+            <DialogFooter className="flex-col gap-2 sm:flex-row sm:justify-end">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setDateActionOpen(false);
+                  setDateActionTarget(null);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button variant="destructive" onClick={handleDateActionDelete}>
+                Delete
+              </Button>
+              <Button
+                className="bg-orange-500 hover:bg-orange-600"
+                onClick={handleDateActionEdit}
+              >
+                Edit
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
         {/* ===================== MODAL ===================== */}
-        <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        <Dialog
+          open={isModalOpen}
+          onOpenChange={(open) => {
+            if (!open) resetModalState();
+            else setIsModalOpen(true);
+          }}
+        >
           <DialogContent>
             <DialogHeader>
               <DialogTitle>
-                Select Seats for{" "}
+                {isEditingExistingDate ? "Edit" : "Select"} Seats for{" "}
                 {selectedDate && formatDateToString(selectedDate)}
               </DialogTitle>
             </DialogHeader>
@@ -2238,7 +2388,7 @@ setMinSeatsError("");
                     vehiclesInputs.length !== Number(numberOfBuses))
                 }
               >
-                Confirm
+                {isEditingExistingDate ? "Save changes" : "Confirm"}
               </Button>
             </DialogFooter>
           </DialogContent>

@@ -195,6 +195,13 @@ const EditTrips: React.FC = () => {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  /** True when modal is editing an already-saved calendar date (replace on confirm) */
+  const [isEditingExistingDate, setIsEditingExistingDate] = useState(false);
+  /** Ask Edit / Delete when user taps a date that already has seats */
+  const [dateActionOpen, setDateActionOpen] = useState(false);
+  const [dateActionTarget, setDateActionTarget] = useState<StartDate | null>(
+    null,
+  );
 
   const [selectedSeats, setSelectedSeats] = useState<number | "block" | null>(
     null,
@@ -246,6 +253,7 @@ const EditTrips: React.FC = () => {
   const resetModal = useCallback(() => {
     setIsModalOpen(false);
     setSelectedDate(null);
+    setIsEditingExistingDate(false);
 
     setSelectedSeats(null);
     setSeatSelectionType(null);
@@ -259,8 +267,8 @@ const EditTrips: React.FC = () => {
     setVehiclesInputs([]);
     setVehiclesError("");
 
-    setMinSeatsPerBooking(1); // ✅ NEW
-    setMinSeatsError(""); // ✅ NEW
+    setMinSeatsPerBooking(1);
+    setMinSeatsError("");
   }, []);
 
   // ✅ auto-create vehicle inputs based on buses
@@ -748,6 +756,63 @@ const EditTrips: React.FC = () => {
   // =========================
   // DATE SELECTION (open modal)
   // =========================
+  const openNewDateModal = useCallback((normalizedDate: Date) => {
+    setIsEditingExistingDate(false);
+    setSelectedDate(normalizedDate);
+    setSelectedSeats(null);
+    setSeatSelectionType(null);
+    setBlockSeats("");
+    setBlockSeatsError("");
+    setNumberOfBuses("");
+    setNumberOfBusesError("");
+    setMinSeatsPerBooking(1);
+    setMinSeatsError("");
+    setVehiclesInputs([]);
+    setVehiclesError("");
+    setIsModalOpen(true);
+  }, []);
+
+  const openEditDateModal = useCallback(
+    (entry: StartDate) => {
+      const normalizedDate = startOfDay(entry.date);
+      setIsEditingExistingDate(true);
+      setSelectedDate(normalizedDate);
+
+      if (entry.seats === 20 || entry.seats === 32) {
+        setSeatSelectionType("fixed");
+        setSelectedSeats(entry.seats);
+        setBlockSeats("");
+        setBlockSeatsError("");
+      } else {
+        setSeatSelectionType("block");
+        setSelectedSeats(null);
+        const blockVal =
+          entry.seats === "block" ? "" : String(entry.seats ?? "");
+        setBlockSeats(blockVal);
+        setBlockSeatsError(
+          blockVal
+            ? validateBlockSeats(blockVal)
+            : "Number of seats is required",
+        );
+      }
+
+      setNumberOfBuses(entry.numberOfBusesAvailable || 1);
+      setNumberOfBusesError("");
+      setMinSeatsPerBooking(entry.minSeatsPerBooking || 1);
+      setMinSeatsError("");
+      setVehiclesInputs(
+        (entry.vehicles || []).map((v) => ({
+          instructorName: v.instructorName || "",
+          vehicleNumber: v.vehicleNumber || "",
+          phoneNumber: v.phoneNumber || "",
+        })),
+      );
+      setVehiclesError("");
+      setIsModalOpen(true);
+    },
+    [validateBlockSeats],
+  );
+
   const handleDateSelection = useCallback(
     (date: Date) => {
       const normalizedDate = startOfDay(date);
@@ -756,34 +821,38 @@ const EditTrips: React.FC = () => {
         (d) => d.date.getTime() === normalizedDate.getTime(),
       );
 
-      // click existing -> remove it
+      // Already configured → ask Edit or Delete (do not wipe immediately)
       if (existingDate) {
-        setTripDetails((prev) => ({
-          ...prev,
-          startDates: prev.startDates.filter(
-            (d) => d.date.getTime() !== normalizedDate.getTime(),
-          ),
-        }));
+        setDateActionTarget(existingDate);
+        setDateActionOpen(true);
         return;
       }
 
-      // else open modal to add
-      setSelectedDate(normalizedDate);
-      setSelectedSeats(null);
-      setSeatSelectionType(null);
-      setBlockSeats("");
-      setBlockSeatsError("");
-
-      setNumberOfBuses("");
-      setNumberOfBusesError("");
-
-      setVehiclesInputs([]);
-      setVehiclesError("");
-
-      setIsModalOpen(true);
+      openNewDateModal(normalizedDate);
     },
-    [tripDetails.startDates],
+    [tripDetails.startDates, openNewDateModal],
   );
+
+  const handleDateActionEdit = useCallback(() => {
+    if (!dateActionTarget) return;
+    const entry = dateActionTarget;
+    setDateActionOpen(false);
+    setDateActionTarget(null);
+    openEditDateModal(entry);
+  }, [dateActionTarget, openEditDateModal]);
+
+  const handleDateActionDelete = useCallback(() => {
+    if (!dateActionTarget) return;
+    const targetTime = startOfDay(dateActionTarget.date).getTime();
+    setTripDetails((prev) => ({
+      ...prev,
+      startDates: prev.startDates.filter(
+        (d) => d.date.getTime() !== targetTime,
+      ),
+    }));
+    setDateActionOpen(false);
+    setDateActionTarget(null);
+  }, [dateActionTarget]);
 
   const handleVehicleChange = useCallback(
     (index: number, field: keyof VehicleInput, value: string) => {
@@ -836,7 +905,7 @@ const EditTrips: React.FC = () => {
       date: selectedDate,
       seats: finalSeats,
       numberOfBusesAvailable: Number(numberOfBuses),
-      minSeatsPerBooking: minSeatsPerBooking, // ✅ ADD
+      minSeatsPerBooking: minSeatsPerBooking,
       vehicles: vehiclesInputs.map((v) => ({
         instructorName: v.instructorName.trim(),
         vehicleNumber: v.vehicleNumber.trim(),
@@ -844,7 +913,13 @@ const EditTrips: React.FC = () => {
       })),
     };
 
-    const newDates = [...tripDetails.startDates, newStartDate].sort(
+    const selectedTime = startOfDay(selectedDate).getTime();
+    // Edit replaces the same date; add appends a new one
+    const baseDates = isEditingExistingDate
+      ? tripDetails.startDates.filter((d) => d.date.getTime() !== selectedTime)
+      : tripDetails.startDates;
+
+    const newDates = [...baseDates, newStartDate].sort(
       (a, b) => a.date.getTime() - b.date.getTime(),
     );
 
@@ -864,6 +939,8 @@ const EditTrips: React.FC = () => {
     validateVehicles,
     validateBlockSeats,
     resetModal,
+    isEditingExistingDate,
+    minSeatsPerBooking,
   ]);
 
   // =========================
@@ -1387,11 +1464,20 @@ const EditTrips: React.FC = () => {
               <h2 className="text-xl font-semibold mb-4">
                 Select Trip Dates *
               </h2>
+              <p className="mb-2 text-sm text-slate-500">
+                Click an empty day to add seats. Click an existing date to edit
+                or delete buses and vehicles.
+              </p>
               <BigCalendar
                 localizer={localizer}
                 events={calendarEvents}
                 selectable
                 onSelectSlot={(slotInfo) => handleDateSelection(slotInfo.start)}
+                onSelectEvent={(event) =>
+                  handleDateSelection(
+                    (event as { start?: Date }).start || new Date(),
+                  )
+                }
                 views={["month"]}
                 defaultView="month"
                 className="rounded-lg border border-gray-300"
@@ -1410,16 +1496,26 @@ const EditTrips: React.FC = () => {
                   <h3 className="text-lg font-medium text-gray-700">
                     Selected Dates:
                   </h3>
-                  <ul className="mt-2 list-disc pl-5 text-gray-600 space-y-2">
+                  <ul className="mt-2 space-y-2 text-gray-600">
                     {tripDetails.startDates
                       .slice()
                       .sort((a, b) => a.date.getTime() - b.date.getTime())
                       .map((d, index) => (
-                        <li key={index}>
-                          <div>
-                            {formatDateToString(d.date)} -{" "}
+                        <li
+                          key={index}
+                          className="cursor-pointer list-none rounded-lg border border-slate-200 bg-white px-3 py-2 hover:border-orange-300 hover:bg-orange-50"
+                          onClick={() => {
+                            setDateActionTarget(d);
+                            setDateActionOpen(true);
+                          }}
+                        >
+                          <div className="font-medium text-slate-800">
+                            {formatDateToString(d.date)} —{" "}
                             {d.seats === "block" ? "Block" : `${d.seats} Seats`}{" "}
-                            - {d.numberOfBusesAvailable} Bus(es)
+                            — {d.numberOfBusesAvailable} Bus(es)
+                            <span className="ml-2 text-xs font-normal text-orange-600">
+                              Tap to edit / delete
+                            </span>
                           </div>
 
                           {Array.isArray(d.vehicles) &&
@@ -1739,12 +1835,69 @@ const EditTrips: React.FC = () => {
         </div>
       </div>
 
+      {/* ===================== EDIT / DELETE DATE ===================== */}
+      <Dialog
+        open={dateActionOpen}
+        onOpenChange={(open) => {
+          setDateActionOpen(open);
+          if (!open) setDateActionTarget(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {dateActionTarget
+                ? formatDateToString(dateActionTarget.date)
+                : "Date"}{" "}
+              already configured
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-slate-600">
+            This date already has seats
+            {dateActionTarget
+              ? ` (${
+                  dateActionTarget.seats === "block"
+                    ? "Block"
+                    : `${dateActionTarget.seats} seats`
+                }, ${dateActionTarget.numberOfBusesAvailable} bus(es))`
+              : ""}
+            . Do you want to edit buses / vehicles, or delete this date?
+          </p>
+          <DialogFooter className="flex-col gap-2 sm:flex-row sm:justify-end">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDateActionOpen(false);
+                setDateActionTarget(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleDateActionDelete}>
+              Delete
+            </Button>
+            <Button
+              className="bg-orange-500 hover:bg-orange-600"
+              onClick={handleDateActionEdit}
+            >
+              Edit
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* ===================== MODAL ===================== */}
-      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+      <Dialog
+        open={isModalOpen}
+        onOpenChange={(open) => {
+          if (!open) resetModal();
+          else setIsModalOpen(true);
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              Select Seats for{" "}
+              {isEditingExistingDate ? "Edit" : "Select"} Seats for{" "}
               {selectedDate && formatDateToString(selectedDate)}
             </DialogTitle>
           </DialogHeader>
@@ -1946,7 +2099,7 @@ const EditTrips: React.FC = () => {
                   vehiclesInputs.length !== Number(numberOfBuses))
               }
             >
-              Confirm
+              {isEditingExistingDate ? "Save changes" : "Confirm"}
             </Button>
           </DialogFooter>
         </DialogContent>
