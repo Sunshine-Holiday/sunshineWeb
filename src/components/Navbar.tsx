@@ -21,7 +21,6 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { cn } from "@/lib/utils";
 import { useGettripsQuery, useSpecial_sectionsQuery } from "@/store/api/trips";
 import { useTranslation } from "react-i18next";
-import LanguageSwitcher from "./LanguageSwitcher";
 import {
   TOUR_TYPE_LABELS,
   filterTripsByCategory,
@@ -199,7 +198,6 @@ export const Navbar: React.FC = () => {
                 <Phone className="h-3.5 w-3.5" />
                 {HELPLINE}
               </a>
-              <LanguageSwitcher />
               {user ? (
                 <button
                   type="button"
@@ -229,7 +227,6 @@ export const Navbar: React.FC = () => {
               >
                 <Phone className="h-4 w-4" />
               </a>
-              <LanguageSwitcher />
               <button
                 type="button"
                 className="rounded-lg p-2 hover:bg-slate-100"

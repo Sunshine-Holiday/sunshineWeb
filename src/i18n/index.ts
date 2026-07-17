@@ -1,44 +1,41 @@
 import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
-import LanguageDetector from "i18next-browser-languagedetector";
 
 import en from "./locales/en.json";
-import mr from "./locales/mr.json";
 
 const STORAGE_KEY = "sunshine_lang";
 
-void i18n
-  .use(LanguageDetector)
-  .use(initReactI18next)
-  .init({
-    resources: {
-      en: { translation: en },
-      mr: { translation: mr },
-    },
-    fallbackLng: "en",
-    supportedLngs: ["en", "mr"],
-    interpolation: {
-      escapeValue: false,
-    },
-    detection: {
-      order: ["localStorage", "navigator"],
-      lookupLocalStorage: STORAGE_KEY,
-      caches: ["localStorage"],
-    },
-  });
+// English only — clear any previously saved Marathi preference
+try {
+  localStorage.setItem(STORAGE_KEY, "en");
+} catch {
+  /* ignore */
+}
+
+void i18n.use(initReactI18next).init({
+  resources: {
+    en: { translation: en },
+  },
+  lng: "en",
+  fallbackLng: "en",
+  supportedLngs: ["en"],
+  interpolation: {
+    escapeValue: false,
+  },
+});
 
 // Keep <html lang="..."> in sync
-i18n.on("languageChanged", (lng) => {
-  document.documentElement.lang = lng === "mr" ? "mr" : "en";
+i18n.on("languageChanged", () => {
+  document.documentElement.lang = "en";
   try {
-    localStorage.setItem(STORAGE_KEY, lng);
+    localStorage.setItem(STORAGE_KEY, "en");
   } catch {
     /* ignore */
   }
 });
 
 // Set initial lang attribute
-document.documentElement.lang = i18n.language?.startsWith("mr") ? "mr" : "en";
+document.documentElement.lang = "en";
 
 export default i18n;
 export { STORAGE_KEY };
