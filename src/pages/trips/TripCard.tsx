@@ -1,5 +1,5 @@
-import React from "react";
-import { motion } from "framer-motion";
+import React, { useEffect, useMemo, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   MapPin,
   Calendar,
@@ -13,6 +13,8 @@ import {
   MessageCircle,
   FileText,
   Armchair,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { parse, isValid, format } from "date-fns";
@@ -38,6 +40,7 @@ export interface TripCardTrip {
   startDates?: (StartDate | null | undefined)[];
   price?: number | string;
   banner?: string;
+  banners?: string[];
   image?: string;
   discountPercentage?: number;
   amenities?: string[];
@@ -97,11 +100,35 @@ const mediaUrl = (path?: string) => {
 export const TripCard = ({ trip, className = "" }: TripCardProps) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const [bannerIndex, setBannerIndex] = useState(0);
 
-  const bannerPath = trip.banner || trip.image;
+  const gallery = useMemo(() => {
+    const list = [
+      trip.banner,
+      trip.image,
+      ...(Array.isArray(trip.banners) ? trip.banners : []),
+    ].filter((p): p is string => typeof p === "string" && !!p.trim());
+    return [...new Set(list)];
+  }, [trip.banner, trip.image, trip.banners]);
+
   const bannerURL =
-    mediaUrl(bannerPath) ||
+    mediaUrl(gallery[bannerIndex]) ||
+    mediaUrl(gallery[0]) ||
     "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b";
+
+  // Auto-rotate multiple banners (carousel / spinner)
+  useEffect(() => {
+    if (gallery.length <= 1) return;
+    const tmr = setInterval(() => {
+      setBannerIndex((i) => (i + 1) % gallery.length);
+    }, 4000);
+    return () => clearInterval(tmr);
+  }, [gallery.length, trip._id]);
+
+  // Reset index when trip changes
+  useEffect(() => {
+    setBannerIndex(0);
+  }, [trip._id]);
 
   const readonly = trip?.readonly || false;
   const priceNum = Number(trip.price) || 0;
@@ -200,19 +227,75 @@ export const TripCard = ({ trip, className = "" }: TripCardProps) => {
       transition={{ duration: 0.2 }}
       className={`group flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-md transition hover:border-orange-200 hover:shadow-xl ${className}`}
     >
-      {/* Banner */}
-      <div className="relative h-48 cursor-pointer overflow-hidden sm:h-52">
-        <img
-          src={bannerURL}
-          alt={trip.title}
-          className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
-          onClick={goDetails}
-        />
+      {/* Banner carousel */}
+      <div
+        className="relative h-48 cursor-pointer overflow-hidden sm:h-52"
+        onClick={goDetails}
+      >
+        <AnimatePresence mode="wait">
+          <motion.img
+            key={gallery[bannerIndex] || bannerURL}
+            src={bannerURL}
+            alt={trip.title}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.4 }}
+            className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-105"
+          />
+        </AnimatePresence>
         <div className="absolute inset-0 bg-gradient-to-t from-slate-900/55 via-transparent to-transparent" />
+
+        {gallery.length > 1 && (
+          <>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setBannerIndex(
+                  (i) => (i - 1 + gallery.length) % gallery.length,
+                );
+              }}
+              className="absolute left-2 top-1/2 z-10 -translate-y-1/2 rounded-full bg-white/90 p-1 shadow hover:bg-white"
+              aria-label="Previous image"
+            >
+              <ChevronLeft className="h-4 w-4 text-slate-800" />
+            </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setBannerIndex((i) => (i + 1) % gallery.length);
+              }}
+              className="absolute right-2 top-1/2 z-10 -translate-y-1/2 rounded-full bg-white/90 p-1 shadow hover:bg-white"
+              aria-label="Next image"
+            >
+              <ChevronRight className="h-4 w-4 text-slate-800" />
+            </button>
+            <div className="absolute bottom-2 left-1/2 z-10 flex -translate-x-1/2 gap-1">
+              {gallery.map((_, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setBannerIndex(i);
+                  }}
+                  className={`h-1.5 rounded-full transition-all ${
+                    i === bannerIndex
+                      ? "w-4 bg-orange-500"
+                      : "w-1.5 bg-white/75"
+                  }`}
+                  aria-label={`Image ${i + 1}`}
+                />
+              ))}
+            </div>
+          </>
+        )}
 
         {/* Category tag */}
         {trip.category && (
-          <span className="absolute left-3 top-3 max-w-[60%] truncate rounded-full bg-white/95 px-2.5 py-1 text-[11px] font-bold text-orange-700 shadow backdrop-blur">
+          <span className="absolute left-3 top-3 z-10 max-w-[60%] truncate rounded-full bg-white/95 px-2.5 py-1 text-[11px] font-bold text-orange-700 shadow backdrop-blur">
             {trip.category}
           </span>
         )}
@@ -222,7 +305,7 @@ export const TripCard = ({ trip, className = "" }: TripCardProps) => {
           <button
             type="button"
             onClick={openMap}
-            className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full bg-white/95 px-2.5 py-1 text-[11px] font-bold text-slate-800 shadow backdrop-blur transition hover:bg-orange-500 hover:text-white"
+            className="absolute right-3 top-3 z-10 inline-flex items-center gap-1 rounded-full bg-white/95 px-2.5 py-1 text-[11px] font-bold text-slate-800 shadow backdrop-blur transition hover:bg-orange-500 hover:text-white"
           >
             <Map className="h-3.5 w-3.5" />
             Map

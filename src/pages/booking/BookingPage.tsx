@@ -72,6 +72,7 @@ interface RoomChoice {
 
 interface Trip {
   _id: string;
+  title?: string;
   location: string;
   category: string;
   startDates: StartDate[];
@@ -231,39 +232,59 @@ const BookingPage = () => {
       reader.readAsDataURL(blob);
     });
   };
-  const buildBusSeatVehicleSummary = (
-    selectedSeats: string[],
-    selectedDate: StartDate | null,
-  ) => {
-    if (!selectedDate) return "N/A";
-
-    const vehicles = selectedDate.vehicles || [];
-
-    // group seats by busIndex
-    const grouped = selectedSeats.reduce(
+  /** Group selected seats by bus index for invoice tables */
+  const groupSeatsByBus = (seatKeys: string[]) => {
+    return seatKeys.reduce(
       (acc: Record<number, string[]>, key) => {
         const [busIndexStr, seat] = key.split("-");
         const busIndex = Number(busIndexStr);
+        if (!Number.isFinite(busIndex)) return acc;
         if (!acc[busIndex]) acc[busIndex] = [];
-        acc[busIndex].push(seat);
+        if (seat) acc[busIndex].push(seat);
         return acc;
       },
       {},
     );
+  };
 
-    // format per bus
+  /** Rows for Bus Details table: Bus No | Vehicle No | Instructor | Contact | Seats */
+  const buildBusDetailsRows = (
+    seatKeys: string[],
+    dateInfo: StartDate | null,
+  ): string[][] => {
+    if (!dateInfo || !seatKeys.length) return [];
+    const vehicles = dateInfo.vehicles || [];
+    const grouped = groupSeatsByBus(seatKeys);
     return Object.entries(grouped)
       .sort(([a], [b]) => Number(a) - Number(b))
       .map(([busIndexStr, seats]) => {
         const busIndex = Number(busIndexStr);
         const v = vehicles[busIndex];
+        return [
+          `Bus ${busIndex + 1}`,
+          v?.vehicleNumber || "—",
+          v?.instructorName || "—",
+          v?.phoneNumber || "—",
+          seats
+            .slice()
+            .sort((x, y) => Number(x) - Number(y))
+            .join(", ") || "—",
+        ];
+      });
+  };
 
-        const instructor = v?.instructorName || "—";
-        const vehicleNo = v?.vehicleNumber || "—";
-        const phone = v?.phoneNumber || "—";
-        return `Bus ${busIndex + 1} (Vehicle: ${vehicleNo}, Instructor: ${instructor}, Phone: ${phone}) Seats: ${seats
+  /** Simple seat list for payment summary (no bus staff details) */
+  const buildSeatsOnlySummary = (seatKeys: string[]) => {
+    if (!seatKeys.length) return "N/A";
+    const grouped = groupSeatsByBus(seatKeys);
+    return Object.entries(grouped)
+      .sort(([a], [b]) => Number(a) - Number(b))
+      .map(([busIndexStr, seats]) => {
+        const seatList = seats
+          .slice()
           .sort((x, y) => Number(x) - Number(y))
-          .join(", ")}`;
+          .join(", ");
+        return `Bus ${Number(busIndexStr) + 1}: ${seatList}`;
       })
       .join(" | ");
   };
@@ -276,6 +297,7 @@ const BookingPage = () => {
     amountPaid,
     remaining,
     selectedSeatsFormatted,
+    busDetailsRows,
   }: {
     bookingId: string;
     paymentStatus: string;
@@ -283,6 +305,7 @@ const BookingPage = () => {
     amountPaid: number;
     remaining: number;
     selectedSeatsFormatted: string;
+    busDetailsRows: string[][];
   }) => {
     const doc = new jsPDF({
       orientation: "portrait",
@@ -312,8 +335,15 @@ const BookingPage = () => {
 
     const bookingShort = bookingId ? `${bookingId.substring(0, 8)}...` : "—";
 
-    const tripNamePDF = trip?.location || "Trip";
-    const destinationPDF = trip?.category || "N/A";
+    // Prefer trip title; fall back to location if title missing
+    const tripNamePDF =
+      (trip as any)?.title ||
+      tripData?.trip?.title ||
+      trip?.location ||
+      "Trip";
+    const destinationPDF =
+      trip?.location || trip?.category || tripData?.trip?.location || "N/A";
+    const categoryPDF = trip?.category || tripData?.trip?.category || "N/A";
     const travelDatePDF = selectedDate
       ? formatDateToString(selectedDate)
       : "N/A";
@@ -322,9 +352,13 @@ const BookingPage = () => {
     doc.setFontSize(11);
     doc.text(`Booking ID: ${bookingShort}`, 14, y);
     y += 7;
-    doc.text(`Trip: ${tripNamePDF}`, 14, y);
+    // Trip name may be long — wrap within page margins
+    const tripLines = doc.splitTextToSize(`Trip: ${tripNamePDF}`, pageWidth - 28);
+    doc.text(tripLines, 14, y);
+    y += tripLines.length * 6 + 1;
+    doc.text(`Location: ${destinationPDF}`, 14, y);
     y += 7;
-    doc.text(`Category/Destination: ${destinationPDF}`, 14, y);
+    doc.text(`Category: ${categoryPDF}`, 14, y);
     y += 7;
     doc.text(`Travel Date: ${travelDatePDF}`, 14, y);
     y += 10;
@@ -351,7 +385,50 @@ const BookingPage = () => {
       styles: { fontSize: 9, cellPadding: 2.5, valign: "middle" },
     });
 
-    const afterPassengersY = (doc as any).lastAutoTable.finalY + 8;
+    let nextY = (doc as any).lastAutoTable.finalY + 8;
+
+    // Bus Details table (separate from payment)
+    if (busDetailsRows.length > 0) {
+      doc.setFontSize(11);
+      doc.setFont("helvetica", "bold");
+      doc.text("Bus Details", 14, nextY);
+      doc.setFont("helvetica", "normal");
+      nextY += 3;
+
+      autoTable(doc, {
+        startY: nextY,
+        head: [
+          [
+            "Bus No",
+            "Vehicle No",
+            "Instructor Name",
+            "Instructor Contact",
+            "Seat(s)",
+          ],
+        ],
+        body: busDetailsRows,
+        theme: "grid",
+        styles: {
+          fontSize: 9,
+          cellPadding: 2.5,
+          valign: "middle",
+          overflow: "linebreak",
+        },
+        headStyles: {
+          fillColor: [249, 115, 22],
+          textColor: 255,
+          fontStyle: "bold",
+        },
+        columnStyles: {
+          0: { cellWidth: 22 },
+          1: { cellWidth: 35 },
+          2: { cellWidth: 40 },
+          3: { cellWidth: 38 },
+          4: { cellWidth: 40 },
+        },
+      });
+      nextY = (doc as any).lastAutoTable.finalY + 8;
+    }
 
     // Pickup locations + Google Maps links (per passenger)
     const boardingPoints = trip?.boardingPoints || [];
@@ -367,7 +444,7 @@ const BookingPage = () => {
     });
 
     autoTable(doc, {
-      startY: afterPassengersY,
+      startY: nextY,
       head: [["Passenger", "Pickup Location", "Google Maps Link"]],
       body: pickupBody,
       theme: "grid",
@@ -422,15 +499,12 @@ const BookingPage = () => {
       paymentStartY = afterPickupY + 16;
     }
 
-    // Payment info table
+    // Payment info table (bus staff details live in Bus Details table above)
     autoTable(doc, {
       startY: paymentStartY,
       head: [["Payment Info", "Value"]],
       body: [
-        [
-          "Selected Seats / Bus Details",
-          (selectedSeatsFormatted || "—").split(" | ").join("\n"),
-        ],
+        ["Selected Seats", selectedSeatsFormatted || "—"],
         [
           "Pickup Location",
           primaryPickup.location
@@ -458,6 +532,7 @@ const BookingPage = () => {
       },
       columnStyles: { 0: { cellWidth: 55 }, 1: { cellWidth: 120 } },
       didDrawCell: (data: any) => {
+        // Google Maps row is now index 2 (0=seats, 1=pickup, 2=maps)
         if (
           data.section === "body" &&
           data.column.index === 1 &&
@@ -1054,11 +1129,15 @@ const BookingPage = () => {
             setInvoiceError(null);
 
             try {
-              // seats string (group by bus)
-              const selectedSeatsFormatted =
-                selectedDate?.seats === 20 || selectedDate?.seats === 32
-                  ? buildBusSeatVehicleSummary(selectedSeats, selectedDate)
-                  : "N/A";
+              // Seats summary (payment table) + full bus staff table separately
+              const isSeatLayout =
+                selectedDate?.seats === 20 || selectedDate?.seats === 32;
+              const selectedSeatsFormatted = isSeatLayout
+                ? buildSeatsOnlySummary(selectedSeats)
+                : "N/A";
+              const busDetailsRows = isSeatLayout
+                ? buildBusDetailsRows(selectedSeats, selectedDate)
+                : [];
 
               // payment numbers
               const advancePaid =
@@ -1075,7 +1154,8 @@ const BookingPage = () => {
                 totalAmount,
                 amountPaid: advancePaid,
                 remaining: remainingBalance,
-                selectedSeatsFormatted, // ✅ now includes Bus + Vehicle + Instructor
+                selectedSeatsFormatted,
+                busDetailsRows,
               });
 
               // store for manual download

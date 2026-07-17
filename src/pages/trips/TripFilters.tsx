@@ -2,12 +2,15 @@ import React from "react";
 import { motion } from "framer-motion";
 import { useTranslation } from "react-i18next";
 
-/** Internal category values (must match DB). Labels are translated. */
+/**
+ * Public website trip tabs only.
+ * Interconnected trips are not a separate product line — they combine
+ * One Day Tours + Stay Package via admin interconnection config.
+ */
 export const TRIP_CATEGORIES = [
   "All",
   "One Day Tours",
   "Stay Package",
-  "Interconnected Tours",
   "Domestic Tours",
   "Educational Tours",
 ] as const;
@@ -16,7 +19,6 @@ const categoryKey: Record<string, string> = {
   All: "trips.categoryAll",
   "One Day Tours": "trips.categoryOneDay",
   "Stay Package": "trips.categoryStay",
-  "Interconnected Tours": "trips.categoryInterconnected",
   "Domestic Tours": "trips.categoryDomestic",
   "Educational Tours": "trips.categoryEdu",
 };

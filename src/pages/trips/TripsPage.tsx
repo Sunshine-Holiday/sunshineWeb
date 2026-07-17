@@ -14,22 +14,30 @@ const TripsPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { data, isLoading, error } = useGettripsQuery({});
   const categoryFromUrl = searchParams.get("category") || "";
+  // Interconnected is not a public tab — fall back to All if linked via old URL
+  const normalizedUrlCategory =
+    categoryFromUrl === "Interconnected Tours" ? "All" : categoryFromUrl;
   const validCategory =
-    categoryFromUrl &&
-    (TRIP_CATEGORIES as readonly string[]).includes(categoryFromUrl)
-      ? categoryFromUrl
-      : categoryFromUrl
-        ? categoryFromUrl // allow dynamic categories from DB even if not in static list
+    normalizedUrlCategory &&
+    (TRIP_CATEGORIES as readonly string[]).includes(normalizedUrlCategory)
+      ? normalizedUrlCategory
+      : normalizedUrlCategory &&
+          normalizedUrlCategory !== "Interconnected Tours"
+        ? normalizedUrlCategory // allow other dynamic categories from DB
         : "One Day Tours";
   const [selectedCategory, setSelectedCategory] = useState(validCategory);
   const [searchQuery, setSearchQuery] = useState("");
 
   // Keep filter in sync when navigating via navbar ?category=
   useEffect(() => {
-    if (categoryFromUrl) {
-      setSelectedCategory(categoryFromUrl);
+    if (!categoryFromUrl) return;
+    if (categoryFromUrl === "Interconnected Tours") {
+      setSelectedCategory("All");
+      setSearchParams({});
+      return;
     }
-  }, [categoryFromUrl]);
+    setSelectedCategory(categoryFromUrl);
+  }, [categoryFromUrl, setSearchParams]);
 
   /* ================= FILTERED TRIPS ================= */
 

@@ -46,10 +46,12 @@ export const DESTINATION_KEYWORDS = [...PRESET_STATES];
 export const TOUR_TYPE_LABELS: Record<string, string> = {
   "One Day Tours": "One Day Tour",
   "Stay Package": "Stay Packages",
-  "Interconnected Tours": "Interconnected Tours",
   "Domestic Tours": "Domestic Packages",
   "Educational Tours": "Educational Tours",
 };
+
+/** Categories hidden from public website navigation / trip tabs */
+export const HIDDEN_PUBLIC_CATEGORIES = new Set(["Interconnected Tours"]);
 
 export function slugify(text: string): string {
   return String(text || "")
@@ -122,13 +124,14 @@ export function filterTripsByCategory(trips: any[], category: string): any[] {
 export function getCategoriesFromTrips(trips: any[]): string[] {
   const set = new Set<string>();
   for (const t of trips) {
-    if (t.category) set.add(t.category);
+    if (t.category && !HIDDEN_PUBLIC_CATEGORIES.has(t.category)) {
+      set.add(t.category);
+    }
   }
-  // Prefer known order
+  // Prefer known order (no Interconnected — shown via One Day / Stay instead)
   const order = [
     "One Day Tours",
     "Stay Package",
-    "Interconnected Tours",
     "Domestic Tours",
     "Educational Tours",
   ];

@@ -243,7 +243,9 @@ const validateMinSeats = (value: number) => {
 
   const [errors, setErrors] = useState<FormErrors>({});
   const [touched, setTouched] = useState<{ [key: string]: boolean }>({});
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  /** Multiple banner images (create) */
+  const [bannerFiles, setBannerFiles] = useState<File[]>([]);
+  const [bannerPreviews, setBannerPreviews] = useState<string[]>([]);
 
   // modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -297,26 +299,48 @@ const validateMinSeats = (value: number) => {
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const validTypes = ["image/png", "image/jpeg", "image/jpg"];
+    const picked = Array.from(e.target.files || []);
+    e.target.value = "";
+    if (!picked.length) return;
+
+    const validTypes = ["image/png", "image/jpeg", "image/jpg"];
+    const nextFiles: File[] = [...bannerFiles];
+    const nextPreviews: string[] = [...bannerPreviews];
+
+    for (const file of picked) {
       if (!validTypes.includes(file.type)) {
         setErrors({
           ...errors,
-          file: "Please upload a PNG, JPG, or JPEG file",
+          file: "Please upload PNG, JPG, or JPEG images only",
         });
-        return;
+        continue;
       }
       if (file.size > 5 * 1024 * 1024) {
-        setErrors({ ...errors, file: "File size must be less than 5MB" });
-        return;
+        setErrors({ ...errors, file: "Each image must be under 5MB" });
+        continue;
       }
-      setTripDetails({ ...tripDetails, file });
-      setErrors({ ...errors, file: "" });
-      const reader = new FileReader();
-      reader.onloadend = () => setImagePreview(reader.result as string);
-      reader.readAsDataURL(file);
+      if (nextFiles.length >= 12) {
+        setErrors({ ...errors, file: "Maximum 12 banner images" });
+        break;
+      }
+      nextFiles.push(file);
+      nextPreviews.push(URL.createObjectURL(file));
     }
+
+    setBannerFiles(nextFiles);
+    setBannerPreviews(nextPreviews);
+    setTripDetails({ ...tripDetails, file: nextFiles[0] || null });
+    if (nextFiles.length > 0) {
+      setErrors({ ...errors, file: "" });
+    }
+  };
+
+  const removeBannerAt = (index: number) => {
+    const nextFiles = bannerFiles.filter((_, i) => i !== index);
+    const nextPreviews = bannerPreviews.filter((_, i) => i !== index);
+    setBannerFiles(nextFiles);
+    setBannerPreviews(nextPreviews);
+    setTripDetails({ ...tripDetails, file: nextFiles[0] || null });
   };
 
   const handleBlur = (field: string) => {
@@ -349,7 +373,8 @@ const validateMinSeats = (value: number) => {
           newErrors.amenities = "At least one amenity is required";
         break;
       case "file":
-        if (!tripDetails.file) newErrors.file = "Banner image is required";
+        if (bannerFiles.length === 0)
+          newErrors.file = "At least one banner image is required";
         break;
       case "price":
         if (
@@ -745,7 +770,6 @@ const validateMinSeats = (value: number) => {
         "state",
         "description",
         "category",
-        "file",
       ] as const;
       requiredFields.forEach((field) => {
         if (!tripDetails[field as keyof TripDetails]) {
@@ -756,6 +780,10 @@ const validateMinSeats = (value: number) => {
           isValid = false;
         }
       });
+      if (bannerFiles.length === 0) {
+        newErrors.file = "At least one banner image is required";
+        isValid = false;
+      }
       if (stateSelectValue === OTHER_STATE && !customState.trim()) {
         newErrors.state = "Please enter a custom state / destination name";
         isValid = false;
@@ -889,7 +917,7 @@ const validateMinSeats = (value: number) => {
     const newErrors: FormErrors = {};
     let isValid = true;
 
-    (["title", "location", "state", "description", "category", "file"] as const).forEach(
+    (["title", "location", "state", "description", "category"] as const).forEach(
       (field) => {
         if (!tripDetails[field as keyof TripDetails]) {
           newErrors[field] =
@@ -900,6 +928,10 @@ const validateMinSeats = (value: number) => {
         }
       },
     );
+    if (bannerFiles.length === 0) {
+      newErrors.file = "At least one banner image is required";
+      isValid = false;
+    }
 
     if (tripDetails.startDates.length === 0) {
       newErrors.startDates = "At least one date with seats must be selected";
@@ -1107,7 +1139,11 @@ const validateMinSeats = (value: number) => {
       if (tripDetails.brochureId)
         formData.append("brochureId", tripDetails.brochureId);
 
-      if (tripDetails.file) formData.append("file", tripDetails.file);
+      // Multi-banner: primary as `file`, extras as `banners` (avoid double-upload of first)
+      bannerFiles.forEach((f, i) => {
+        if (i === 0) formData.append("file", f);
+        else formData.append("banners", f);
+      });
 
       if (tripDetails.advancePaymentPercentage !== undefined) {
         formData.append(
@@ -1239,57 +1275,78 @@ const validateMinSeats = (value: number) => {
             {/* ===================== STEP 1: BASIC INFO ===================== */}
             {currentStep === 1 && (
             <>
-            {/* ===================== BANNER ===================== */}
+            {/* ===================== BANNER(S) ===================== */}
             <div>
-              <h2 className="text-xl font-semibold mb-4">
-                Upload Trip Banner *
+              <h2 className="mb-1 text-xl font-semibold">
+                Upload Trip Banners *
               </h2>
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+              <p className="mb-4 text-sm text-slate-500">
+                Add one or more destination images. They rotate as a carousel on
+                trip cards and the trip details page (max 12, 5MB each).
+              </p>
+              <div className="rounded-lg border-2 border-dashed border-gray-300 p-6 text-center">
                 <Input
                   type="file"
                   accept=".png,.jpg,.jpeg"
+                  multiple
                   onChange={handleImageUpload}
                   className="hidden"
                   id="banner-upload"
                 />
-                <Label htmlFor="banner-upload" className="cursor-pointer block">
-                  {imagePreview ? (
-                    <div className="relative">
-                      <img
-                        src={imagePreview}
-                        alt="Banner preview"
-                        className="max-h-48 mx-auto rounded-lg"
+                <Label htmlFor="banner-upload" className="block cursor-pointer">
+                  <div>
+                    <svg
+                      className="mx-auto h-12 w-12 text-gray-400"
+                      stroke="currentColor"
+                      fill="none"
+                      viewBox="0 0 48 48"
+                    >
+                      <path
+                        d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
                       />
-                      <p className="mt-2 text-sm text-gray-600">
-                        Click to change image
-                      </p>
-                    </div>
-                  ) : (
-                    <div>
-                      <svg
-                        className="mx-auto h-12 w-12 text-gray-400"
-                        stroke="currentColor"
-                        fill="none"
-                        viewBox="0 0 48 48"
-                      >
-                        <path
-                          d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                      </svg>
-                      <p className="mt-1 text-sm text-gray-600">
-                        Drag and drop or click to upload a banner (PNG, JPG,
-                        JPEG)
-                      </p>
-                      <p className="mt-1 text-xs text-gray-500">
-                        Maximum file size: 5MB
-                      </p>
-                    </div>
-                  )}
+                    </svg>
+                    <p className="mt-1 text-sm text-gray-600">
+                      Click to add banner images (PNG, JPG, JPEG) — multiple
+                      allowed
+                    </p>
+                    <p className="mt-1 text-xs text-gray-500">
+                      Max 5MB each · up to 12 images · first image is primary
+                    </p>
+                  </div>
                 </Label>
               </div>
+
+              {bannerPreviews.length > 0 && (
+                <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+                  {bannerPreviews.map((src, index) => (
+                    <div
+                      key={`${src}-${index}`}
+                      className="group relative overflow-hidden rounded-xl border border-slate-200 bg-slate-50"
+                    >
+                      <img
+                        src={src}
+                        alt={`Banner ${index + 1}`}
+                        className="h-28 w-full object-cover"
+                      />
+                      {index === 0 && (
+                        <span className="absolute left-2 top-2 rounded-full bg-orange-500 px-2 py-0.5 text-[10px] font-bold text-white">
+                          Primary
+                        </span>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => removeBannerAt(index)}
+                        className="absolute right-2 top-2 rounded-full bg-red-500 px-2 py-0.5 text-[10px] font-bold text-white opacity-90 hover:opacity-100"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
               {touched.file && errors.file && (
                 <p className="mt-2 text-sm text-red-500">{errors.file}</p>
               )}

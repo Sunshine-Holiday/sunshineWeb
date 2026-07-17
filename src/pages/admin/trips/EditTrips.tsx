@@ -200,7 +200,10 @@ const EditTrips: React.FC = () => {
 
   const [errors, setErrors] = useState<FormErrors>({});
   const [touched, setTouched] = useState<{ [key: string]: boolean }>({});
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  /** Existing banner paths on server + newly added local files */
+  const [existingBanners, setExistingBanners] = useState<string[]>([]);
+  const [newBannerFiles, setNewBannerFiles] = useState<File[]>([]);
+  const [newBannerPreviews, setNewBannerPreviews] = useState<string[]>([]);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -474,9 +477,13 @@ const EditTrips: React.FC = () => {
 
       setTripDetails(updatedDetails);
 
-      if (data.trip.banner) {
-        setImagePreview(`${IMAGE_URL}${data.trip.banner}`);
-      }
+      const loadedBanners = [
+        data.trip.banner,
+        ...(Array.isArray(data.trip.banners) ? data.trip.banners : []),
+      ].filter((b): b is string => typeof b === "string" && !!b.trim());
+      setExistingBanners([...new Set(loadedBanners)]);
+      setNewBannerFiles([]);
+      setNewBannerPreviews([]);
     }
   }, [data?.trip, id]);
 
@@ -516,33 +523,69 @@ const EditTrips: React.FC = () => {
 
   const handleImageUpload = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (file) {
-        const validTypes = ["image/png", "image/jpeg", "image/jpg"];
-        if (!validTypes.includes(file.type)) {
-          setErrors((prev) => ({
-            ...prev,
-            file: "Please upload a PNG, JPG, or JPEG file",
-          }));
-          return;
-        }
-        if (file.size > 5 * 1024 * 1024) {
-          setErrors((prev) => ({
-            ...prev,
-            file: "File size must be less than 5MB",
-          }));
-          return;
-        }
-        setTripDetails((prev) => ({ ...prev, file }));
-        setErrors((prev) => ({ ...prev, file: "" }));
+      const picked = Array.from(e.target.files || []);
+      e.target.value = "";
+      if (!picked.length) return;
 
-        const reader = new FileReader();
-        reader.onloadend = () => setImagePreview(reader.result as string);
-        reader.readAsDataURL(file);
-      }
+      const validTypes = ["image/png", "image/jpeg", "image/jpg"];
+      setNewBannerFiles((prevFiles) => {
+        const nextFiles = [...prevFiles];
+        const nextPreviews: string[] = [];
+        // rebuild previews from remaining + new — handled after loop via setState
+        for (const file of picked) {
+          if (!validTypes.includes(file.type)) {
+            setErrors((prev) => ({
+              ...prev,
+              file: "Please upload PNG, JPG, or JPEG images only",
+            }));
+            continue;
+          }
+          if (file.size > 5 * 1024 * 1024) {
+            setErrors((prev) => ({
+              ...prev,
+              file: "Each image must be under 5MB",
+            }));
+            continue;
+          }
+          const total =
+            existingBanners.length + nextFiles.length;
+          if (total >= 12) {
+            setErrors((prev) => ({
+              ...prev,
+              file: "Maximum 12 banner images",
+            }));
+            break;
+          }
+          nextFiles.push(file);
+        }
+        setNewBannerPreviews((prevPrev) => {
+          // keep previews in sync with files that already had previews + new ones
+          const kept = prevPrev.slice(0, Math.min(prevPrev.length, nextFiles.length));
+          while (kept.length < nextFiles.length) {
+            const f = nextFiles[kept.length];
+            kept.push(URL.createObjectURL(f));
+          }
+          return kept;
+        });
+        setTripDetails((prev) => ({
+          ...prev,
+          file: nextFiles[0] || prev.file,
+        }));
+        setErrors((prev) => ({ ...prev, file: "" }));
+        return nextFiles;
+      });
     },
-    [],
+    [existingBanners.length],
   );
+
+  const removeExistingBanner = (index: number) => {
+    setExistingBanners((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const removeNewBanner = (index: number) => {
+    setNewBannerFiles((prev) => prev.filter((_, i) => i !== index));
+    setNewBannerPreviews((prev) => prev.filter((_, i) => i !== index));
+  };
 
   const validateField = useCallback(
     (field: string) => {
@@ -1126,7 +1169,19 @@ const EditTrips: React.FC = () => {
       formData.append("brochureFile", tripDetails.brochureFile || "");
       formData.append("brochureId", tripDetails.brochureId || "");
 
-      if (tripDetails.file) formData.append("file", tripDetails.file);
+      if (existingBanners.length === 0 && newBannerFiles.length === 0) {
+        toast.error("At least one banner image is required");
+        setLoading(false);
+        return;
+      }
+      // Kept existing paths (JSON) + new image files (multipart field "banners")
+      formData.append("existingBanners", JSON.stringify(existingBanners));
+      newBannerFiles.forEach((f, i) => {
+        if (i === 0 && existingBanners.length === 0) {
+          formData.append("file", f);
+        }
+        formData.append("banners", f);
+      });
 
       if (tripDetails.advancePaymentPercentage !== undefined) {
         formData.append(
@@ -1158,6 +1213,8 @@ const EditTrips: React.FC = () => {
     validateForm,
     stateSelectValue,
     customState,
+    existingBanners,
+    newBannerFiles,
   ]);
 
   // =========================
@@ -1206,57 +1263,103 @@ const EditTrips: React.FC = () => {
           <h1 className="text-3xl font-bold text-gray-900 mb-6">Edit Trip</h1>
 
           <div className="space-y-8">
-            {/* Banner */}
+            {/* Banners (multi) */}
             <div>
-              <h2 className="text-xl font-semibold mb-4">Update Trip Banner</h2>
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+              <h2 className="mb-1 text-xl font-semibold">Trip Banners</h2>
+              <p className="mb-4 text-sm text-slate-500">
+                Multiple images rotate on the trip card and details page. First
+                image is primary.
+              </p>
+
+              {(existingBanners.length > 0 || newBannerPreviews.length > 0) && (
+                <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+                  {existingBanners.map((path, index) => (
+                    <div
+                      key={`ex-${path}-${index}`}
+                      className="relative overflow-hidden rounded-xl border border-slate-200 bg-slate-50"
+                    >
+                      <img
+                        src={
+                          path.startsWith("http")
+                            ? path
+                            : `${IMAGE_URL}${path}`
+                        }
+                        alt={`Banner ${index + 1}`}
+                        className="h-28 w-full object-cover"
+                      />
+                      {index === 0 && newBannerFiles.length === 0 && (
+                        <span className="absolute left-2 top-2 rounded-full bg-orange-500 px-2 py-0.5 text-[10px] font-bold text-white">
+                          Primary
+                        </span>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => removeExistingBanner(index)}
+                        className="absolute right-2 top-2 rounded-full bg-red-500 px-2 py-0.5 text-[10px] font-bold text-white"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                  {newBannerPreviews.map((src, index) => (
+                    <div
+                      key={`new-${src}-${index}`}
+                      className="relative overflow-hidden rounded-xl border border-orange-200 bg-orange-50/40"
+                    >
+                      <img
+                        src={src}
+                        alt={`New banner ${index + 1}`}
+                        className="h-28 w-full object-cover"
+                      />
+                      <span className="absolute left-2 top-2 rounded-full bg-sky-500 px-2 py-0.5 text-[10px] font-bold text-white">
+                        New
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => removeNewBanner(index)}
+                        className="absolute right-2 top-2 rounded-full bg-red-500 px-2 py-0.5 text-[10px] font-bold text-white"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="rounded-lg border-2 border-dashed border-gray-300 p-6 text-center">
                 <Input
                   type="file"
                   accept=".png,.jpg,.jpeg"
+                  multiple
                   onChange={handleImageUpload}
                   className="hidden"
                   id="banner-upload"
                 />
-                <Label htmlFor="banner-upload" className="cursor-pointer block">
-                  {imagePreview ? (
-                    <div className="relative">
-                      <img
-                        src={imagePreview}
-                        alt="Banner preview"
-                        className="max-h-48 mx-auto rounded-lg"
+                <Label htmlFor="banner-upload" className="block cursor-pointer">
+                  <div>
+                    <svg
+                      className="mx-auto h-12 w-12 text-gray-400"
+                      stroke="currentColor"
+                      fill="none"
+                      viewBox="0 0 48 48"
+                    >
+                      <path
+                        d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
                       />
-                      <p className="mt-2 text-sm text-gray-600">
-                        Click to change image
-                      </p>
-                    </div>
-                  ) : (
-                    <div>
-                      <svg
-                        className="mx-auto h-12 w-12 text-gray-400"
-                        stroke="currentColor"
-                        fill="none"
-                        viewBox="0 0 48 48"
-                      >
-                        <path
-                          d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                      </svg>
-                      <p className="mt-1 text-sm text-gray-600">
-                        Drag and drop or click to upload a new banner (PNG, JPG,
-                        JPEG)
-                      </p>
-                      <p className="mt-1 text-xs text-gray-500">
-                        Maximum file size: 5MB (Leave empty to keep existing
-                        image)
-                      </p>
-                    </div>
-                  )}
+                    </svg>
+                    <p className="mt-1 text-sm text-gray-600">
+                      Click to add more banner images (multiple allowed)
+                    </p>
+                    <p className="mt-1 text-xs text-gray-500">
+                      Max 5MB each · up to 12 total
+                    </p>
+                  </div>
                 </Label>
               </div>
-              {touched.file && errors.file && (
+              {errors.file && (
                 <p className="mt-2 text-sm text-red-500">{errors.file}</p>
               )}
             </div>
