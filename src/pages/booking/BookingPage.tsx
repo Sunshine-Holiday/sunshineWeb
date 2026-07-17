@@ -2823,13 +2823,14 @@ const BookingSummary = ({
             of Sunshine Holiday Packages.
           </span>
         </label>
-        <button
-          type="button"
-          onClick={() => setShowTermsModal(true)}
-          className="mt-3 w-full rounded-xl border border-orange-200 bg-orange-50 py-2 text-sm font-semibold text-orange-700 hover:bg-orange-100"
+        <a
+          href="/privacy-policy"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-3 block w-full rounded-xl border border-orange-200 bg-orange-50 py-2 text-center text-sm font-semibold text-orange-700 hover:bg-orange-100"
         >
           Cancellation Policy
-        </button>
+        </a>
       </div>
 
       {/* Need help */}
