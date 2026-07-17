@@ -23,6 +23,7 @@ import { toast } from "react-toastify";
 import { useCreatebookingMutation } from "@/store/api/booking";
 import {
   useCreatePaymentIntentMutation,
+  useGetPrivacyQuery,
   useGetTermsQuery,
 } from "@/store/api/terms";
 import { RAZORPAY_API_KEY } from "@/store/store";
@@ -181,11 +182,16 @@ interface BookingSummaryProps {
   showTermsModal: boolean;
   setShowTermsModal: (value: boolean) => void;
   termsContent: string;
+  showCancellationModal: boolean;
+  setShowCancellationModal: (value: boolean) => void;
+  cancellationContent: string;
+  cancellationLoading?: boolean;
 }
 
 const BookingPage = () => {
   const { t } = useTranslation();
   const { data: termsData, isLoading } = useGetTermsQuery();
+  const { data: privacyData, isLoading: privacyLoading } = useGetPrivacyQuery();
   console.log("Terms Data:", termsData);
   const location = useLocation();
   const tripId = location.state?.tripId;
@@ -195,6 +201,7 @@ const BookingPage = () => {
   const navigate = useNavigate();
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [showTermsModal, setShowTermsModal] = useState(false);
+  const [showCancellationModal, setShowCancellationModal] = useState(false);
 
   // State variables
   const [selectedSeats, setSelectedSeats] = useState<string[]>([]);
@@ -1868,6 +1875,12 @@ const handleProceed = async () => {
               showTermsModal={showTermsModal}
               setShowTermsModal={setShowTermsModal}
               termsContent={termsData?.terms?.content || ""}
+              showCancellationModal={showCancellationModal}
+              setShowCancellationModal={setShowCancellationModal}
+              cancellationContent={
+                (privacyData as any)?.privacy?.content || ""
+              }
+              cancellationLoading={privacyLoading}
             />
           </div>
         </div>
@@ -2505,6 +2518,10 @@ const BookingSummary = ({
   showTermsModal,
   setShowTermsModal,
   termsContent,
+  showCancellationModal,
+  setShowCancellationModal,
+  cancellationContent,
+  cancellationLoading = false,
 }: BookingSummaryProps) => {
   const totalSeats = selectedDate?.seats || 0;
   console.log("Booked Seats:", selectedDate);
@@ -2903,14 +2920,13 @@ const BookingSummary = ({
             of Sunshine Holiday Packages.
           </span>
         </label>
-        <a
-          href="/privacy-policy"
-          target="_blank"
-          rel="noopener noreferrer"
+        <button
+          type="button"
+          onClick={() => setShowCancellationModal(true)}
           className="mt-3 block w-full rounded-xl border border-orange-200 bg-orange-50 py-2 text-center text-sm font-semibold text-orange-700 hover:bg-orange-100"
         >
           Cancellation Policy
-        </a>
+        </button>
       </div>
 
       {/* Need help */}
@@ -2960,6 +2976,14 @@ const BookingSummary = ({
         open={showTermsModal}
         onClose={() => setShowTermsModal(false)}
         content={termsContent}
+        title="Terms & Conditions"
+      />
+      <TermsModal
+        open={showCancellationModal}
+        onClose={() => setShowCancellationModal(false)}
+        content={cancellationContent}
+        title="Cancellation Policy"
+        loading={cancellationLoading}
       />
     </motion.div>
   );
