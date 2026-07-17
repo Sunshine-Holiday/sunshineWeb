@@ -8,6 +8,7 @@ export const FooterLinks = () => {
   const links = {
     [t("footer.company")]: [
       { name: t("footer.aboutUs"), path: "/about-us" },
+      { name: "Testimonials", path: "/testimonials" },
       { name: t("footer.contact"), path: "/contact" },
     ],
     [t("footer.support")]: [

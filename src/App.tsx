@@ -34,6 +34,9 @@ const About = React.lazy(() => import("./pages/about/About"));
 const PrivacyPolicy = React.lazy(
   () => import("./pages/privacy/privacy-policy")
 );
+const TestimonialsPage = React.lazy(
+  () => import("./pages/testimonials/TestimonialsPage")
+);
 const Booked = React.lazy(() => import("./pages/booked/Booked"));
 const VerifyEmailOTP = React.lazy(() => import("./pages/auth/VerifyEmailOTP"));
 const TermsAndCondition = React.lazy(
@@ -139,6 +142,7 @@ export const AppContent = () => {
           <Route path="/gallery" element={<GalleryPage />} />
           <Route path="/privacy-policy" element={<PrivacyPolicy />} />
           <Route path="/terms-condition" element={<TermsAndCondition />} />
+          <Route path="/testimonials" element={<TestimonialsPage />} />
           <Route path="/contact" element={<ContactPage />} />
           <Route path="/admin" element={<Navigate to="/admin/dashboard" />} />
           <Route

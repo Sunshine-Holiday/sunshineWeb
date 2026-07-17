@@ -79,9 +79,12 @@ const GlobalTraveler = () => {
       {/* Testimonials */}
       <div
         id="testimonials"
-        className="scroll-mt-36 border-t border-slate-100 bg-slate-50/80 py-16 sm:py-20"
+        className="scroll-mt-36 relative overflow-hidden border-t border-orange-100/60 bg-gradient-to-b from-orange-50/90 via-slate-50 to-white py-16 sm:py-24"
       >
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="pointer-events-none absolute -left-20 top-20 h-56 w-56 rounded-full bg-orange-200/30 blur-3xl" />
+        <div className="pointer-events-none absolute -right-16 bottom-10 h-48 w-48 rounded-full bg-amber-200/40 blur-3xl" />
+
+        <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0, y: 16 }}
             whileInView={{ opacity: 1, y: 0 }}

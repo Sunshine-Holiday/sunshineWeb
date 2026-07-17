@@ -535,7 +535,7 @@ export const Navbar: React.FC = () => {
             <div className="absolute left-0 right-0 top-full z-50 border-b border-slate-200 bg-white shadow-xl">
               <div className="mx-auto flex max-w-7xl flex-wrap gap-2 px-4 py-4 sm:px-6 lg:px-8">
                 {[
-                  { label: "Testimonial", to: "/#testimonials" },
+                  { label: "Testimonials", to: "/testimonials" },
                   { label: "About Us", to: "/about-us" },
                   { label: "Privacy Policy", to: "/privacy-policy" },
                   { label: "Terms & Conditions", to: "/terms-condition" },
@@ -652,8 +652,23 @@ export const Navbar: React.FC = () => {
               <MobileLink to="/contact" onClick={() => setIsDrawerOpen(false)}>
                 {t("nav.contact")}
               </MobileLink>
+              <MobileLink to="/testimonials" onClick={() => setIsDrawerOpen(false)}>
+                Testimonials
+              </MobileLink>
               <MobileLink to="/about-us" onClick={() => setIsDrawerOpen(false)}>
                 About Us
+              </MobileLink>
+              <MobileLink
+                to="/privacy-policy"
+                onClick={() => setIsDrawerOpen(false)}
+              >
+                Privacy Policy
+              </MobileLink>
+              <MobileLink
+                to="/terms-condition"
+                onClick={() => setIsDrawerOpen(false)}
+              >
+                Terms & Conditions
               </MobileLink>
               {user?.role === "admin" && (
                 <MobileLink

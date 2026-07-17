@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { testimonials } from '../constants/testimonials';
+import { useState, useEffect } from "react";
+import { ChevronLeft, ChevronRight, Quote, Star } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Link } from "react-router-dom";
+import { testimonials } from "../constants/testimonials";
 
 export default function TestimonialsCarousel() {
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -9,8 +10,9 @@ export default function TestimonialsCarousel() {
 
   useEffect(() => {
     const timer = setInterval(() => {
-      nextTestimonial();
-    }, 5000);
+      setDirection(1);
+      setCurrentIndex((prev) => (prev + 1) % testimonials.length);
+    }, 5500);
     return () => clearInterval(timer);
   }, [currentIndex]);
 
@@ -21,40 +23,38 @@ export default function TestimonialsCarousel() {
 
   const previousTestimonial = () => {
     setDirection(-1);
-    setCurrentIndex((prev) => (prev === 0 ? testimonials.length - 1 : prev - 1));
+    setCurrentIndex((prev) =>
+      prev === 0 ? testimonials.length - 1 : prev - 1,
+    );
   };
 
   const slideVariants = {
-    enter: (direction: number) => ({
-      x: direction > 0 ? 1000 : -1000,
-      opacity: 0
+    enter: (dir: number) => ({
+      x: dir > 0 ? 80 : -80,
+      opacity: 0,
     }),
-    center: {
-      zIndex: 1,
-      x: 0,
-      opacity: 1
-    },
-    exit: (direction: number) => ({
-      zIndex: 0,
-      x: direction < 0 ? 1000 : -1000,
-      opacity: 0
-    })
+    center: { x: 0, opacity: 1 },
+    exit: (dir: number) => ({
+      x: dir < 0 ? 80 : -80,
+      opacity: 0,
+    }),
   };
 
+  const t = testimonials[currentIndex];
+
   return (
-    <div className="relative overflow-hidden bg-white border border-slate-100 p-8 md:p-12 rounded-3xl shadow-sm hover:shadow-lg transition-shadow duration-300">
-      {/* Decorative elements */}
-      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-orange-400 to-amber-500"></div>
-      
-      {/* Quote icon */}
-      <div className="absolute top-6 right-6 text-orange-100">
-        <svg className="w-12 h-12" fill="currentColor" viewBox="0 0 24 24">
-          <path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h4v10h-10z"/>
-        </svg>
+    <div className="relative overflow-hidden rounded-3xl border border-orange-100/80 bg-gradient-to-br from-white via-white to-orange-50/60 p-8 shadow-xl shadow-orange-100/50 md:p-12">
+      <div className="absolute left-0 top-0 h-1.5 w-full bg-gradient-to-r from-orange-400 via-amber-400 to-orange-500" />
+      <Quote className="absolute right-6 top-6 h-14 w-14 text-orange-100 md:h-16 md:w-16" />
+
+      <div className="mb-6 flex items-center gap-1 text-amber-400">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <Star key={i} className="h-4 w-4 fill-current" />
+        ))}
       </div>
 
-      <div className="relative h-[350px] md:h-[300px]">
-        <AnimatePresence initial={false} custom={direction}>
+      <div className="relative min-h-[220px] md:min-h-[200px]">
+        <AnimatePresence initial={false} custom={direction} mode="wait">
           <motion.div
             key={currentIndex}
             custom={direction}
@@ -62,83 +62,85 @@ export default function TestimonialsCarousel() {
             initial="enter"
             animate="center"
             exit="exit"
-            transition={{
-              x: { type: "spring", stiffness: 300, damping: 30 },
-              opacity: { duration: 0.2 }
-            }}
-            className="absolute w-full"
+            transition={{ duration: 0.35 }}
+            className="w-full"
           >
-            <div className="space-y-6">
-              <div className="text-center mb-8">
-                <p className="text-gray-700 text-lg md:text-xl leading-relaxed font-medium italic">
-                  "{testimonials[currentIndex].content}"
-                </p>
+            <p className="text-center text-lg font-medium leading-relaxed text-slate-700 md:text-xl">
+              “{t.content}”
+            </p>
+            <div className="mt-8 flex items-center justify-center gap-4">
+              <div className="relative">
+                <img
+                  src={t.image}
+                  alt={t.author}
+                  className="h-16 w-16 rounded-full object-cover ring-4 ring-orange-100 shadow-md md:h-20 md:w-20"
+                />
+                <span className="absolute -bottom-0.5 -right-0.5 flex h-6 w-6 items-center justify-center rounded-full border-2 border-white bg-orange-500 text-[10px] font-bold text-white">
+                  ★
+                </span>
               </div>
-              
-              <div className="flex items-center justify-center">
-                <div className="flex items-center space-x-4">
-                  <div className="relative">
-                    <img
-                      src={testimonials[currentIndex].image}
-                      alt={testimonials[currentIndex].author}
-                      className="w-16 h-16 md:w-20 md:h-20 rounded-full object-cover border-4 border-orange-100 shadow-md"
-                    />
-                    <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-orange-500 rounded-full border-2 border-white flex items-center justify-center">
-                      <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                      </svg>
-                    </div>
-                  </div>
-                  <div className="text-left">
-                    <p className="font-bold text-xl text-gray-900">{testimonials[currentIndex].author}</p>
-                    <p className="text-orange-600 font-medium">{testimonials[currentIndex].role}</p>
-                  </div>
-                </div>
+              <div className="text-left">
+                <p className="text-lg font-bold text-slate-900">{t.author}</p>
+                <p className="font-medium text-orange-600">{t.role}</p>
               </div>
             </div>
           </motion.div>
         </AnimatePresence>
       </div>
 
-      {/* Navigation buttons */}
-      <div className="absolute top-1/2 -translate-y-1/2 left-4 right-4 flex justify-between pointer-events-none">
-        <button
-          onClick={previousTestimonial}
-          className="p-3 rounded-full bg-white border border-orange-200 text-orange-600 hover:bg-orange-50 hover:border-orange-300 hover:shadow-md transition-all duration-300 pointer-events-auto group"
-        >
-          <ChevronLeft className="w-5 h-5 group-hover:-translate-x-0.5 transition-transform" />
-        </button>
-        <button
-          onClick={nextTestimonial}
-          className="p-3 rounded-full bg-white border border-orange-200 text-orange-600 hover:bg-orange-50 hover:border-orange-300 hover:shadow-md transition-all duration-300 pointer-events-auto group"
-        >
-          <ChevronRight className="w-5 h-5 group-hover:translate-x-0.5 transition-transform" />
-        </button>
-      </div>
-
-      {/* Dots indicator */}
-      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex space-x-3">
-        {testimonials.map((_, index) => (
+      <div className="mt-8 flex items-center justify-between gap-4 border-t border-orange-100/80 pt-6">
+        <div className="flex gap-2">
           <button
-            key={index}
-            onClick={() => {
-              setDirection(index > currentIndex ? 1 : -1);
-              setCurrentIndex(index);
-            }}
-            className={`w-3 h-3 rounded-full transition-all duration-300 ${
-              index === currentIndex 
-                ? 'bg-orange-500 w-8' 
-                : 'bg-orange-200 hover:bg-orange-300'
-            }`}
-          />
-        ))}
+            type="button"
+            onClick={previousTestimonial}
+            className="rounded-full border border-orange-200 bg-white p-2.5 text-orange-600 shadow-sm transition hover:bg-orange-50 hover:shadow"
+            aria-label="Previous"
+          >
+            <ChevronLeft className="h-5 w-5" />
+          </button>
+          <button
+            type="button"
+            onClick={nextTestimonial}
+            className="rounded-full border border-orange-200 bg-white p-2.5 text-orange-600 shadow-sm transition hover:bg-orange-50 hover:shadow"
+            aria-label="Next"
+          >
+            <ChevronRight className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="flex gap-2">
+          {testimonials.map((_, index) => (
+            <button
+              key={index}
+              type="button"
+              onClick={() => {
+                setDirection(index > currentIndex ? 1 : -1);
+                setCurrentIndex(index);
+              }}
+              className={`h-2 rounded-full transition-all ${
+                index === currentIndex
+                  ? "w-7 bg-orange-500"
+                  : "w-2 bg-orange-200 hover:bg-orange-300"
+              }`}
+              aria-label={`Testimonial ${index + 1}`}
+            />
+          ))}
+        </div>
+
+        <Link
+          to="/testimonials"
+          className="hidden text-sm font-semibold text-orange-600 transition hover:text-orange-700 sm:inline"
+        >
+          View all →
+        </Link>
       </div>
 
-      {/* Progress bar */}
-      <div className="absolute bottom-0 left-0 w-full h-1 bg-orange-100">
-        <div 
-          className="h-full bg-orange-500 transition-all duration-300 ease-linear"
-          style={{ width: `${((currentIndex + 1) / testimonials.length) * 100}%` }}
+      <div className="absolute bottom-0 left-0 h-1 w-full bg-orange-100">
+        <div
+          className="h-full bg-gradient-to-r from-orange-500 to-amber-400 transition-all duration-300 ease-linear"
+          style={{
+            width: `${((currentIndex + 1) / testimonials.length) * 100}%`,
+          }}
         />
       </div>
     </div>
