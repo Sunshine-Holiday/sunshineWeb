@@ -28,6 +28,7 @@ import AdminHomeControl from "@/components/dashboard/Home/home";
 import EditReadonlyTrips from "@/pages/admin/trips/EditReadonlytrips";
 import AddReadonlyTrips from "@/pages/admin/trips/Add-readonlytrips";
 import PickupLocationsPage from "@/pages/admin/PickupLocations";
+import BrochuresPage from "@/pages/admin/Brochures";
 
 /**
  * Admin shell sits flush under the sticky dual-row navbar.
@@ -70,6 +71,7 @@ const Layout = () => {
               path="/pickup-locations"
               element={<PickupLocationsPage />}
             />
+            <Route path="/brochures" element={<BrochuresPage />} />
             <Route path="/booked" element={<BookedPage />} />
             <Route path="/block-trip/:id" element={<BlockTrip />} />
             <Route path="/booked-data/:id" element={<Booked />} />

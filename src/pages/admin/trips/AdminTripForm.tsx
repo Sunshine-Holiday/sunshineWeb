@@ -35,6 +35,8 @@ import InterconnectionEditor, {
   type InterconnectionConfig,
 } from "@/components/admin/InterconnectionEditor";
 import { getStateOptions } from "@/utils/tripDestinations";
+import { useGetBrochuresQuery } from "@/store/api/brochures";
+import { IMAGE_URL } from "@/store/store";
 
 // =====================
 // CALENDAR LOCALIZER
@@ -112,6 +114,7 @@ interface TripDetails {
   faqs: { question: string; answer: string }[];
   brochureImage?: string;
   brochureFile?: string;
+  brochureId?: string;
   interconnection: InterconnectionConfig;
 }
 
@@ -189,6 +192,8 @@ const AdminTripForm: React.FC = () => {
 
   const [createTrips] = useCreatetripsMutation();
   const { data: allTripsData } = useGettripsQuery({});
+  const { data: brochuresData } = useGetBrochuresQuery();
+  const brochures = brochuresData?.brochures ?? [];
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   /** Wizard step: 1 = Basic, 2 = Dates & packages, 3 = Amenities & pickup */
@@ -232,6 +237,7 @@ const validateMinSeats = (value: number) => {
     faqs: [{ question: "", answer: "" }],
     brochureImage: "",
     brochureFile: "",
+    brochureId: "",
     interconnection: defaultInterconnection(),
   });
 
@@ -1098,6 +1104,8 @@ const validateMinSeats = (value: number) => {
         formData.append("brochureImage", tripDetails.brochureImage);
       if (tripDetails.brochureFile)
         formData.append("brochureFile", tripDetails.brochureFile);
+      if (tripDetails.brochureId)
+        formData.append("brochureId", tripDetails.brochureId);
 
       if (tripDetails.file) formData.append("file", tripDetails.file);
 
@@ -2045,36 +2053,58 @@ const validateMinSeats = (value: number) => {
               />
             </div>
 
-            {/* Brochure URLs (upload paths after manual upload, or full URL) */}
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <Label htmlFor="brochureImage">Brochure image path/URL</Label>
-                <Input
-                  id="brochureImage"
-                  placeholder="uploads/... or https://..."
-                  value={tripDetails.brochureImage || ""}
-                  onChange={(e) =>
+            {/* Select brochure from admin library */}
+            <div>
+              <Label htmlFor="brochureId">Brochure</Label>
+              <Select
+                value={tripDetails.brochureId || "__none__"}
+                onValueChange={(value) => {
+                  if (value === "__none__") {
                     setTripDetails({
                       ...tripDetails,
-                      brochureImage: e.target.value,
-                    })
+                      brochureId: "",
+                      brochureImage: "",
+                      brochureFile: "",
+                    });
+                    return;
                   }
-                />
-              </div>
-              <div>
-                <Label htmlFor="brochureFile">Brochure download path/URL</Label>
-                <Input
-                  id="brochureFile"
-                  placeholder="uploads/brochure.pdf"
-                  value={tripDetails.brochureFile || ""}
-                  onChange={(e) =>
-                    setTripDetails({
-                      ...tripDetails,
-                      brochureFile: e.target.value,
-                    })
-                  }
-                />
-              </div>
+                  const selected = brochures.find((b) => b._id === value);
+                  setTripDetails({
+                    ...tripDetails,
+                    brochureId: value,
+                    brochureImage: selected?.image || "",
+                    brochureFile: selected?.image || "",
+                  });
+                }}
+              >
+                <SelectTrigger id="brochureId" className="mt-1">
+                  <SelectValue placeholder="Select a brochure (optional)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">No brochure</SelectItem>
+                  {brochures.map((b) => (
+                    <SelectItem key={b._id} value={b._id}>
+                      {b.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="mt-1 text-xs text-slate-500">
+                Upload brochures under Admin → Brochures, then select one here.
+              </p>
+              {tripDetails.brochureImage && (
+                <div className="mt-3 overflow-hidden rounded-xl border border-slate-200 bg-slate-50 p-2">
+                  <img
+                    src={
+                      /^https?:\/\//i.test(tripDetails.brochureImage)
+                        ? tripDetails.brochureImage
+                        : `${IMAGE_URL.replace(/\/?$/, "/")}${tripDetails.brochureImage.replace(/^\//, "")}`
+                    }
+                    alt="Selected brochure"
+                    className="mx-auto max-h-40 object-contain"
+                  />
+                </div>
+              )}
             </div>
             </>
             )}

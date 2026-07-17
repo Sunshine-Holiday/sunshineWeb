@@ -41,6 +41,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import BoardingPointsEditor from "@/components/admin/BoardingPointsEditor";
+import { useGetBrochuresQuery } from "@/store/api/brochures";
 import InterconnectionEditor, {
   defaultInterconnection,
   type InterconnectionConfig,
@@ -109,6 +110,9 @@ interface TripDetails {
   file?: File | null;
   advancePaymentPercentage?: number;
   discountPercentage?: number;
+  brochureImage?: string;
+  brochureFile?: string;
+  brochureId?: string;
   interconnection: InterconnectionConfig;
 }
 
@@ -149,6 +153,8 @@ const EditTrips: React.FC = () => {
     { skip: !id },
   );
   const { data: allTripsData } = useGettripsQuery({});
+  const { data: brochuresData } = useGetBrochuresQuery();
+  const brochures = brochuresData?.brochures ?? [];
 
   const [editTrips] = useEditTripsMutation();
   const [loading, setLoading] = useState(false);
@@ -179,6 +185,9 @@ const EditTrips: React.FC = () => {
     file: null,
     advancePaymentPercentage: undefined,
     discountPercentage: undefined,
+    brochureImage: "",
+    brochureFile: "",
+    brochureId: "",
     interconnection: defaultInterconnection(),
   });
 
@@ -456,6 +465,11 @@ const EditTrips: React.FC = () => {
         advancePaymentPercentage:
           data.trip.advancePaymentPercentage ?? undefined,
         discountPercentage: data.trip.discountPercentage ?? undefined,
+        brochureImage: data.trip.brochureImage || "",
+        brochureFile: data.trip.brochureFile || "",
+        brochureId: data.trip.brochureId
+          ? String(data.trip.brochureId._id || data.trip.brochureId)
+          : "",
       };
 
       setTripDetails(updatedDetails);
@@ -1108,6 +1122,10 @@ const EditTrips: React.FC = () => {
       formData.append("packages", JSON.stringify(tripDetails.packages));
       formData.append("roomChoices", JSON.stringify(tripDetails.roomChoices));
 
+      formData.append("brochureImage", tripDetails.brochureImage || "");
+      formData.append("brochureFile", tripDetails.brochureFile || "");
+      formData.append("brochureId", tripDetails.brochureId || "");
+
       if (tripDetails.file) formData.append("file", tripDetails.file);
 
       if (tripDetails.advancePaymentPercentage !== undefined) {
@@ -1133,7 +1151,14 @@ const EditTrips: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [tripDetails, editTrips, navigate, validateForm]);
+  }, [
+    tripDetails,
+    editTrips,
+    navigate,
+    validateForm,
+    stateSelectValue,
+    customState,
+  ]);
 
   // =========================
   // UI HELPERS
@@ -1818,6 +1843,61 @@ const EditTrips: React.FC = () => {
               onChange={handleBoardingPointsChange}
               error={errors.boardingPoints}
             />
+
+            {/* Brochure from library */}
+            <div>
+              <h2 className="mb-4 text-xl font-semibold">Brochure</h2>
+              <Label htmlFor="edit-brochureId">Select brochure</Label>
+              <Select
+                value={tripDetails.brochureId || "__none__"}
+                onValueChange={(value) => {
+                  if (value === "__none__") {
+                    setTripDetails((prev) => ({
+                      ...prev,
+                      brochureId: "",
+                      brochureImage: "",
+                      brochureFile: "",
+                    }));
+                    return;
+                  }
+                  const selected = brochures.find((b) => b._id === value);
+                  setTripDetails((prev) => ({
+                    ...prev,
+                    brochureId: value,
+                    brochureImage: selected?.image || "",
+                    brochureFile: selected?.image || "",
+                  }));
+                }}
+              >
+                <SelectTrigger id="edit-brochureId" className="mt-1">
+                  <SelectValue placeholder="Select a brochure (optional)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">No brochure</SelectItem>
+                  {brochures.map((b) => (
+                    <SelectItem key={b._id} value={b._id}>
+                      {b.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="mt-1 text-xs text-slate-500">
+                Manage brochures under Admin → Brochures.
+              </p>
+              {tripDetails.brochureImage && (
+                <div className="mt-3 overflow-hidden rounded-xl border border-slate-200 bg-slate-50 p-2">
+                  <img
+                    src={
+                      /^https?:\/\//i.test(tripDetails.brochureImage)
+                        ? tripDetails.brochureImage
+                        : `${IMAGE_URL.replace(/\/?$/, "/")}${String(tripDetails.brochureImage).replace(/^\//, "")}`
+                    }
+                    alt="Selected brochure"
+                    className="mx-auto max-h-40 object-contain"
+                  />
+                </div>
+              )}
+            </div>
 
             {/* Save */}
             <Button

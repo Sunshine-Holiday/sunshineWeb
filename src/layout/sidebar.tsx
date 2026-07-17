@@ -13,6 +13,7 @@ import {
   Navigation,
   X,
   Layers,
+  FileImage,
 } from "lucide-react";
 
 function SidebarHeader({ onClose }: { onClose?: () => void }) {
@@ -73,6 +74,11 @@ const navigationItems = [
     name: "Gallery",
     href: "/admin/gallery",
     icon: Image,
+  },
+  {
+    name: "Brochures",
+    href: "/admin/brochures",
+    icon: FileImage,
   },
   {
     name: "Terms & Conditions",
