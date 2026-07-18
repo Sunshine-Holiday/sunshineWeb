@@ -1,12 +1,22 @@
-import React from "react";
+import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { FaTrash } from "react-icons/fa";
-import { MapPin, Plus } from "lucide-react";
+import { MapPin, Plus, Loader2 } from "lucide-react";
+import { toast } from "react-toastify";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   useGetPickupLocationsQuery,
+  useCreatePickupLocationMutation,
   type PickupLocation,
 } from "@/store/api/pickupLocations";
 
@@ -33,11 +43,24 @@ const emptyPoint = (): BoardingPoint => ({
   pickupLocationId: "",
 });
 
+type CreateForm = {
+  name: string;
+  maplink: string;
+  details: string;
+};
+
+const emptyCreateForm = (): CreateForm => ({
+  name: "",
+  maplink: "",
+  details: "",
+});
+
 /**
  * Trip boarding points editor.
  * Shows all 4 schema fields: location, time, details, maplink.
  * Select a saved master location to fill location / details / maplink;
- * set time for this trip.
+ * or create a new pickup location inline without leaving this form.
+ * Set time for this trip.
  */
 export default function BoardingPointsEditor({
   boardingPoints,
@@ -45,13 +68,38 @@ export default function BoardingPointsEditor({
   error,
 }: Props) {
   const { data, isLoading } = useGetPickupLocationsQuery();
+  const [createPickup, { isLoading: isCreating }] =
+    useCreatePickupLocationMutation();
   const locations: PickupLocation[] = data?.locations ?? [];
+
+  const [createOpen, setCreateOpen] = useState(false);
+  /** Which boarding point index to auto-select after create (null = none) */
+  const [createForIndex, setCreateForIndex] = useState<number | null>(null);
+  const [createForm, setCreateForm] = useState<CreateForm>(emptyCreateForm());
 
   const updatePoint = (index: number, patch: Partial<BoardingPoint>) => {
     const next = boardingPoints.map((p, i) =>
       i === index ? { ...p, ...patch } : p
     );
     onChange(next);
+  };
+
+  const applyLocationToPoint = (
+    index: number,
+    loc: PickupLocation,
+    points: BoardingPoint[] = boardingPoints
+  ) => {
+    return points.map((p, i) =>
+      i === index
+        ? {
+            ...p,
+            pickupLocationId: loc._id,
+            location: loc.name || "",
+            maplink: loc.maplink || "",
+            details: loc.details || "",
+          }
+        : p
+    );
   };
 
   const handleSelectLocation = (index: number, locationId: string) => {
@@ -66,12 +114,7 @@ export default function BoardingPointsEditor({
     }
     const loc = locations.find((l) => l._id === locationId);
     if (!loc) return;
-    updatePoint(index, {
-      pickupLocationId: loc._id,
-      location: loc.name || "",
-      maplink: loc.maplink || "",
-      details: loc.details || "",
-    });
+    onChange(applyLocationToPoint(index, loc));
   };
 
   const resolveSelectedId = (point: BoardingPoint): string => {
@@ -96,6 +139,46 @@ export default function BoardingPointsEditor({
     onChange(boardingPoints.filter((_, i) => i !== index));
   };
 
+  const openCreateDialog = (index: number | null = null) => {
+    setCreateForIndex(index);
+    setCreateForm(emptyCreateForm());
+    setCreateOpen(true);
+  };
+
+  const handleCreatePickup = async () => {
+    if (!createForm.name.trim()) {
+      toast.error("Pickup location name is required");
+      return;
+    }
+    try {
+      const res = await createPickup({
+        name: createForm.name.trim(),
+        maplink: createForm.maplink.trim(),
+        details: createForm.details.trim(),
+      }).unwrap();
+
+      const newLoc: PickupLocation | undefined =
+        res?.location || res?.data?.location;
+
+      if (newLoc?._id && createForIndex !== null) {
+        onChange(applyLocationToPoint(createForIndex, newLoc));
+      }
+
+      toast.success(
+        newLoc?.name
+          ? `Pickup “${newLoc.name}” created and selected`
+          : "Pickup location created"
+      );
+      setCreateOpen(false);
+      setCreateForm(emptyCreateForm());
+      setCreateForIndex(null);
+    } catch (err: any) {
+      toast.error(
+        err?.data?.message || "Failed to create pickup location"
+      );
+    }
+  };
+
   return (
     <div>
       <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -109,15 +192,27 @@ export default function BoardingPointsEditor({
             <span className="font-medium text-slate-700">details</span> &{" "}
             <span className="font-medium text-slate-700">maplink</span>. Set{" "}
             <span className="font-medium text-slate-700">time</span> for this
-            trip.
+            trip. Create a new pickup here if it is not in the list yet.
           </p>
         </div>
-        <Link
-          to="/admin/pickup-locations"
-          className="text-sm font-medium text-orange-600 hover:underline"
-        >
-          Manage locations →
-        </Link>
+        <div className="flex flex-wrap items-center gap-3">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="border-orange-200 text-orange-700 hover:bg-orange-50"
+            onClick={() => openCreateDialog(null)}
+          >
+            <Plus className="mr-1.5 h-4 w-4" />
+            New pickup location
+          </Button>
+          <Link
+            to="/admin/pickup-locations"
+            className="text-sm font-medium text-orange-600 hover:underline"
+          >
+            Manage locations →
+          </Link>
+        </div>
       </div>
 
       {isLoading && (
@@ -127,14 +222,21 @@ export default function BoardingPointsEditor({
       {!isLoading && locations.length === 0 && (
         <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
           No saved pickup locations yet.{" "}
+          <button
+            type="button"
+            className="font-semibold underline"
+            onClick={() => openCreateDialog(0)}
+          >
+            Create one here
+          </button>{" "}
+          or{" "}
           <Link
             to="/admin/pickup-locations"
             className="font-semibold underline"
           >
-            Add locations
-          </Link>{" "}
-          first (location, details, maplink), then select them here and add
-          time.
+            manage all locations
+          </Link>
+          , then set the pickup time for this trip.
         </div>
       )}
 
@@ -153,9 +255,18 @@ export default function BoardingPointsEditor({
 
             {/* Select master location */}
             <div className="mb-4">
-              <Label htmlFor={`pickup-select-${index}`}>
-                Select saved location
-              </Label>
+              <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+                <Label htmlFor={`pickup-select-${index}`}>
+                  Select saved location
+                </Label>
+                <button
+                  type="button"
+                  onClick={() => openCreateDialog(index)}
+                  className="text-xs font-semibold text-orange-600 hover:underline"
+                >
+                  + Create new pickup
+                </button>
+              </div>
               <select
                 id={`pickup-select-${index}`}
                 value={selectedId}
@@ -172,7 +283,7 @@ export default function BoardingPointsEditor({
               {!selectedId && point.location && (
                 <p className="mt-1 text-xs text-amber-700">
                   “{point.location}” is not in the master list — select a saved
-                  location or keep these values.
+                  location, create a new one, or keep these values.
                 </p>
               )}
             </div>
@@ -281,6 +392,97 @@ export default function BoardingPointsEditor({
         <Plus className="mr-2 h-4 w-4" />
         Add Boarding Point
       </Button>
+
+      {/* Inline create pickup location */}
+      <Dialog
+        open={createOpen}
+        onOpenChange={(open) => {
+          setCreateOpen(open);
+          if (!open) {
+            setCreateForm(emptyCreateForm());
+            setCreateForIndex(null);
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Create pickup location</DialogTitle>
+            <DialogDescription>
+              Save a new master pickup (name, map link, details). It will be
+              available for all trips
+              {createForIndex !== null
+                ? ` and selected for Pickup #${createForIndex + 1}`
+                : ""}
+              .
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-1">
+            <div>
+              <Label htmlFor="new-pickup-name">
+                Location name <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="new-pickup-name"
+                className="mt-1"
+                placeholder="e.g. Swargate Bus Stand"
+                value={createForm.name}
+                onChange={(e) =>
+                  setCreateForm((f) => ({ ...f, name: e.target.value }))
+                }
+              />
+            </div>
+            <div>
+              <Label htmlFor="new-pickup-details">Details</Label>
+              <Input
+                id="new-pickup-details"
+                className="mt-1"
+                placeholder="Landmark / meeting notes"
+                value={createForm.details}
+                onChange={(e) =>
+                  setCreateForm((f) => ({ ...f, details: e.target.value }))
+                }
+              />
+            </div>
+            <div>
+              <Label htmlFor="new-pickup-maplink">Map link</Label>
+              <Input
+                id="new-pickup-maplink"
+                className="mt-1"
+                placeholder="https://maps.google.com/..."
+                value={createForm.maplink}
+                onChange={(e) =>
+                  setCreateForm((f) => ({ ...f, maplink: e.target.value }))
+                }
+              />
+            </div>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setCreateOpen(false)}
+              disabled={isCreating}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={handleCreatePickup}
+              disabled={isCreating}
+              className="bg-orange-500 hover:bg-orange-600"
+            >
+              {isCreating ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                "Create & use"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

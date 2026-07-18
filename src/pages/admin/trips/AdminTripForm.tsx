@@ -271,6 +271,7 @@ const validateMinSeats = (value: number) => {
     toolbar: [
       [{ header: [1, 2, 3, false] }],
       ["bold", "italic", "underline", "strike"],
+      [{ color: [] }, { background: [] }],
       [{ list: "ordered" }, { list: "bullet" }],
       ["link"],
       ["clean"],
@@ -283,6 +284,8 @@ const validateMinSeats = (value: number) => {
     "italic",
     "underline",
     "strike",
+    "color",
+    "background",
     "list",
     "bullet",
     "link",
@@ -1538,6 +1541,10 @@ const validateMinSeats = (value: number) => {
             {/* ===================== DESCRIPTION ===================== */}
             <div>
               <h2 className="text-xl font-semibold mb-2">Trip Description *</h2>
+              <p className="mb-2 text-sm text-slate-500">
+                Use the toolbar to style text — including text color and
+                highlight (background) color.
+              </p>
               <ReactQuill
                 theme="snow"
                 value={tripDetails.description}
@@ -2095,18 +2102,22 @@ const validateMinSeats = (value: number) => {
             {/* Cancellation */}
             <div>
               <Label htmlFor="cancellationPolicy">Cancellation Policy</Label>
-              <textarea
-                id="cancellationPolicy"
-                rows={3}
-                className="mt-1 w-full rounded-md border border-input px-3 py-2 text-sm"
-                placeholder="Cancellation and refund rules..."
+              <p className="mb-2 mt-1 text-sm text-slate-500">
+                Style text with color or background highlight as needed.
+              </p>
+              <ReactQuill
+                theme="snow"
                 value={tripDetails.cancellationPolicy}
-                onChange={(e) =>
+                onChange={(value) =>
                   setTripDetails({
                     ...tripDetails,
-                    cancellationPolicy: e.target.value,
+                    cancellationPolicy: value,
                   })
                 }
+                modules={quillModules}
+                formats={quillFormats}
+                className="rounded-lg border border-gray-300"
+                style={{ height: "160px", marginBottom: "40px" }}
               />
             </div>
 

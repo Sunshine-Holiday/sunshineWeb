@@ -48,6 +48,34 @@ export const Navbar: React.FC = () => {
   const [tourType, setTourType] = useState<string>("");
   const [hoverState, setHoverState] = useState<string | null>(null);
   const navRef = useRef<HTMLDivElement>(null);
+  /** Delay closing so pointer can move from nav item into the dropdown panel */
+  const closeMenuTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearCloseMenuTimer = () => {
+    if (closeMenuTimer.current) {
+      clearTimeout(closeMenuTimer.current);
+      closeMenuTimer.current = null;
+    }
+  };
+
+  /** Open a desktop nav dropdown on hover */
+  const openNavMenu = (m: OpenMenu) => {
+    clearCloseMenuTimer();
+    setOpenMenu(m);
+  };
+
+  /** Schedule close when leaving nav item / panel (desktop hover UX) */
+  const scheduleCloseNavMenu = () => {
+    clearCloseMenuTimer();
+    closeMenuTimer.current = setTimeout(() => {
+      setOpenMenu(null);
+      closeMenuTimer.current = null;
+    }, 120);
+  };
+
+  useEffect(() => {
+    return () => clearCloseMenuTimer();
+  }, []);
 
   const { data: tripsData } = useGettripsQuery({});
   const { data: specialSections = [] } = useSpecial_sectionsQuery({});
@@ -116,10 +144,6 @@ export const Navbar: React.FC = () => {
     dispatch(logout());
     setIsLogoutModalOpen(false);
     navigate("/");
-  };
-
-  const toggleMenu = (m: OpenMenu) => {
-    setOpenMenu((prev) => (prev === m ? null : m));
   };
 
   return (
@@ -238,14 +262,18 @@ export const Navbar: React.FC = () => {
           </div>
         </div>
 
-        {/* ========== BOTTOM NAV (desktop) ========== */}
-        <div className="relative hidden border-b border-slate-100 bg-slate-50/80 lg:block">
+        {/* ========== BOTTOM NAV (desktop) — expand on hover ========== */}
+        <div
+          className="relative hidden border-b border-slate-100 bg-slate-50/80 lg:block"
+          onMouseLeave={scheduleCloseNavMenu}
+          onMouseEnter={clearCloseMenuTimer}
+        >
           <div className="mx-auto flex max-w-7xl items-center gap-1 px-4 sm:px-6 lg:px-8">
             {user?.role === "admin" && (
               <NavItem
                 label={t("nav.admin")}
                 active={openMenu === "admin"}
-                onClick={() => toggleMenu("admin")}
+                onMouseEnter={() => openNavMenu("admin")}
                 hasDropdown
               />
             )}
@@ -253,20 +281,21 @@ export const Navbar: React.FC = () => {
             <NavItem
               label="Tour"
               active={openMenu === "tour"}
-              onClick={() => toggleMenu("tour")}
+              onMouseEnter={() => openNavMenu("tour")}
               hasDropdown
             />
 
             <NavItem
               label="Special trips"
               active={openMenu === "special"}
-              onClick={() => toggleMenu("special")}
+              onMouseEnter={() => openNavMenu("special")}
               hasDropdown
             />
 
             <Link
               to="/gallery"
               className="px-4 py-3 text-sm font-semibold text-slate-700 transition hover:text-orange-600"
+              onMouseEnter={() => setOpenMenu(null)}
               onClick={() => setOpenMenu(null)}
             >
               {t("nav.gallery")}
@@ -275,6 +304,7 @@ export const Navbar: React.FC = () => {
             <Link
               to="/contact"
               className="px-4 py-3 text-sm font-semibold text-slate-700 transition hover:text-orange-600"
+              onMouseEnter={() => setOpenMenu(null)}
               onClick={() => setOpenMenu(null)}
             >
               {t("nav.contact")}
@@ -283,7 +313,7 @@ export const Navbar: React.FC = () => {
             <NavItem
               label="More"
               active={openMenu === "more"}
-              onClick={() => toggleMenu("more")}
+              onMouseEnter={() => openNavMenu("more")}
               hasDropdown
             />
 
@@ -291,6 +321,7 @@ export const Navbar: React.FC = () => {
               <Link
                 to="/profile"
                 className="ml-auto px-4 py-3 text-sm font-semibold text-slate-700 hover:text-orange-600"
+                onMouseEnter={() => setOpenMenu(null)}
                 onClick={() => setOpenMenu(null)}
               >
                 {t("nav.profile")}
@@ -300,7 +331,10 @@ export const Navbar: React.FC = () => {
 
           {/* ---- Tour mega menu ---- */}
           {openMenu === "tour" && (
-            <div className="absolute left-0 right-0 top-full z-50 border-b border-slate-200 bg-white shadow-2xl">
+            <div
+              className="absolute left-0 right-0 top-full z-50 border-b border-slate-200 bg-white shadow-2xl"
+              onMouseEnter={clearCloseMenuTimer}
+            >
               <div className="mx-auto grid max-w-7xl grid-cols-12 gap-0 px-4 py-5 sm:px-6 lg:px-8">
                 {/* Tour types */}
                 <div className="col-span-3 border-r border-slate-100 pr-4">
@@ -480,7 +514,10 @@ export const Navbar: React.FC = () => {
 
           {/* ---- Special trips dropdown ---- */}
           {openMenu === "special" && (
-            <div className="absolute left-0 right-0 top-full z-50 border-b border-slate-200 bg-white shadow-xl">
+            <div
+              className="absolute left-0 right-0 top-full z-50 border-b border-slate-200 bg-white shadow-xl"
+              onMouseEnter={clearCloseMenuTimer}
+            >
               <div className="mx-auto flex max-w-7xl flex-wrap gap-4 px-4 py-5 sm:px-6 lg:px-8">
                 <Link
                   to="/#special-trips"
@@ -532,7 +569,10 @@ export const Navbar: React.FC = () => {
 
           {/* ---- More dropdown ---- */}
           {openMenu === "more" && (
-            <div className="absolute left-0 right-0 top-full z-50 border-b border-slate-200 bg-white shadow-xl">
+            <div
+              className="absolute left-0 right-0 top-full z-50 border-b border-slate-200 bg-white shadow-xl"
+              onMouseEnter={clearCloseMenuTimer}
+            >
               <div className="mx-auto flex max-w-7xl flex-wrap gap-2 px-4 py-4 sm:px-6 lg:px-8">
                 {[
                   { label: "Testimonials", to: "/testimonials" },
@@ -555,7 +595,10 @@ export const Navbar: React.FC = () => {
 
           {/* ---- Admin dropdown ---- */}
           {openMenu === "admin" && user?.role === "admin" && (
-            <div className="absolute left-0 top-full z-50 min-w-[240px] rounded-b-xl border border-t-0 border-slate-200 bg-white py-2 shadow-xl sm:left-4 lg:left-[max(1rem,calc((100%-80rem)/2+1rem))]">
+            <div
+              className="absolute left-0 top-full z-50 min-w-[240px] rounded-b-xl border border-t-0 border-slate-200 bg-white py-2 shadow-xl sm:left-4 lg:left-[max(1rem,calc((100%-80rem)/2+1rem))]"
+              onMouseEnter={clearCloseMenuTimer}
+            >
               <div className="flex flex-col">
                 {[
                   { label: "Home Layout", to: "/admin/dashboard" },
@@ -717,18 +760,18 @@ export const Navbar: React.FC = () => {
 function NavItem({
   label,
   active,
-  onClick,
+  onMouseEnter,
   hasDropdown,
 }: {
   label: string;
   active?: boolean;
-  onClick: () => void;
+  onMouseEnter?: () => void;
   hasDropdown?: boolean;
 }) {
   return (
     <button
       type="button"
-      onClick={onClick}
+      onMouseEnter={onMouseEnter}
       className={cn(
         "inline-flex items-center gap-1 px-4 py-3 text-sm font-semibold transition",
         active

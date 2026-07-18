@@ -85,17 +85,16 @@ const EXPORT_HEADERS = [
   "Name",
   "Phone No",
   "Pickup Point",
-  "Total Amount",
-  "Paid Amount",
   "Remaining Amount",
 ] as const;
 
 /** Amount columns (0-based index in sheet row) */
-const AMOUNT_COLUMNS = [4, 5, 6]; // Total, Paid, Remaining
+const AMOUNT_COLUMNS = [4]; // Remaining only (total / advance paid omitted)
 
 /**
  * Build one Excel row per passenger with THEIR individual seat:
- * Seat No | Name | Phone No | Pickup Point | Total | Paid | Remaining
+ * Seat No | Name | Phone No | Pickup Point | Remaining Amount
+ * (Total amount and advance/paid amount are not exported.)
  */
 export function buildBookingExportRows(passengerHistory: PassengerHistoryRow[]) {
   const passengerIndexByBooking: Record<string, number> = {};
@@ -119,8 +118,6 @@ export function buildBookingExportRows(passengerHistory: PassengerHistoryRow[]) 
       Name: row.passenger?.name?.trim() || "—",
       "Phone No": row.passenger?.phoneNumber?.trim() || "—",
       "Pickup Point": row.passenger?.address?.trim() || "—",
-      "Total Amount": totalAmount,
-      "Paid Amount": paidAmount,
       "Remaining Amount": remainingAmount,
     };
   });
@@ -151,8 +148,6 @@ export function exportTripBookingsToExcel({
     { wch: 24 }, // Name
     { wch: 16 }, // Phone No
     { wch: 28 }, // Pickup Point
-    { wch: 16 }, // Total Amount
-    { wch: 16 }, // Paid Amount
     { wch: 18 }, // Remaining Amount
   ];
 
@@ -172,9 +167,7 @@ export function exportTripBookingsToExcel({
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, "Bookings");
 
-  // Summary sheet with payment totals
-  const sumTotal = rows.reduce((s, r) => s + Number(r["Total Amount"] || 0), 0);
-  const sumPaid = rows.reduce((s, r) => s + Number(r["Paid Amount"] || 0), 0);
+  // Summary sheet (no total / advance paid — remaining only)
   const sumRemaining = rows.reduce(
     (s, r) => s + Number(r["Remaining Amount"] || 0),
     0
@@ -186,18 +179,14 @@ export function exportTripBookingsToExcel({
     ["Exported At", new Date().toLocaleString()],
     ["Total Passengers", rows.length],
     [],
-    ["Sum Total Amount", sumTotal],
-    ["Sum Paid Amount", sumPaid],
     ["Sum Remaining Amount", sumRemaining],
   ]);
   metaSheet["!cols"] = [{ wch: 22 }, { wch: 40 }];
-  // Format summary amount cells
-  for (const addr of ["B6", "B7", "B8"]) {
-    const cell = metaSheet[addr];
-    if (cell && typeof cell.v === "number") {
-      cell.t = "n";
-      cell.z = "₹#,##0.00";
-    }
+  // Format summary amount cell
+  const remainingCell = metaSheet["B6"];
+  if (remainingCell && typeof remainingCell.v === "number") {
+    remainingCell.t = "n";
+    remainingCell.z = "₹#,##0.00";
   }
   XLSX.utils.book_append_sheet(workbook, metaSheet, "Summary");
 

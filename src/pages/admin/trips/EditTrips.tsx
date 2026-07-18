@@ -110,6 +110,12 @@ interface TripDetails {
   file?: File | null;
   advancePaymentPercentage?: number;
   discountPercentage?: number;
+  /** Details page content */
+  highlights: string[];
+  includes: string[];
+  mapLink: string;
+  cancellationPolicy: string;
+  faqs: { question: string; answer: string }[];
   brochureImage?: string;
   brochureFile?: string;
   brochureId?: string;
@@ -185,6 +191,11 @@ const EditTrips: React.FC = () => {
     file: null,
     advancePaymentPercentage: undefined,
     discountPercentage: undefined,
+    highlights: [""],
+    includes: [""],
+    mapLink: "",
+    cancellationPolicy: "",
+    faqs: [{ question: "", answer: "" }],
     brochureImage: "",
     brochureFile: "",
     brochureId: "",
@@ -468,6 +479,23 @@ const EditTrips: React.FC = () => {
         advancePaymentPercentage:
           data.trip.advancePaymentPercentage ?? undefined,
         discountPercentage: data.trip.discountPercentage ?? undefined,
+        highlights:
+          Array.isArray(data.trip.highlights) && data.trip.highlights.length > 0
+            ? data.trip.highlights.map((h: string) => String(h || ""))
+            : [""],
+        includes:
+          Array.isArray(data.trip.includes) && data.trip.includes.length > 0
+            ? data.trip.includes.map((h: string) => String(h || ""))
+            : [""],
+        mapLink: data.trip.mapLink || "",
+        cancellationPolicy: data.trip.cancellationPolicy || "",
+        faqs:
+          Array.isArray(data.trip.faqs) && data.trip.faqs.length > 0
+            ? data.trip.faqs.map((f: any) => ({
+                question: f?.question || "",
+                answer: f?.answer || "",
+              }))
+            : [{ question: "", answer: "" }],
         brochureImage: data.trip.brochureImage || "",
         brochureFile: data.trip.brochureFile || "",
         brochureId: data.trip.brochureId
@@ -494,6 +522,7 @@ const EditTrips: React.FC = () => {
     toolbar: [
       [{ header: [1, 2, 3, false] }],
       ["bold", "italic", "underline", "strike"],
+      [{ color: [] }, { background: [] }],
       [{ list: "ordered" }, { list: "bullet" }],
       ["link"],
       ["clean"],
@@ -506,6 +535,8 @@ const EditTrips: React.FC = () => {
     "italic",
     "underline",
     "strike",
+    "color",
+    "background",
     "list",
     "bullet",
     "link",
@@ -1165,6 +1196,31 @@ const EditTrips: React.FC = () => {
       formData.append("packages", JSON.stringify(tripDetails.packages));
       formData.append("roomChoices", JSON.stringify(tripDetails.roomChoices));
 
+      // Details page extras
+      formData.append(
+        "highlights",
+        JSON.stringify(
+          tripDetails.highlights.map((h) => h.trim()).filter(Boolean),
+        ),
+      );
+      formData.append(
+        "includes",
+        JSON.stringify(
+          tripDetails.includes.map((h) => h.trim()).filter(Boolean),
+        ),
+      );
+      formData.append(
+        "faqs",
+        JSON.stringify(
+          tripDetails.faqs.filter((f) => f.question.trim() && f.answer.trim()),
+        ),
+      );
+      formData.append("mapLink", tripDetails.mapLink || "");
+      formData.append(
+        "cancellationPolicy",
+        tripDetails.cancellationPolicy || "",
+      );
+
       formData.append("brochureImage", tripDetails.brochureImage || "");
       formData.append("brochureFile", tripDetails.brochureFile || "");
       formData.append("brochureId", tripDetails.brochureId || "");
@@ -1549,6 +1605,10 @@ const EditTrips: React.FC = () => {
             {/* Description */}
             <div>
               <h2 className="text-xl font-semibold mb-2">Trip Description *</h2>
+              <p className="mb-2 text-sm text-slate-500">
+                Use the toolbar to style text — including text color and
+                highlight (background) color.
+              </p>
               <ReactQuill
                 theme="snow"
                 value={tripDetails.description}
@@ -1946,6 +2006,205 @@ const EditTrips: React.FC = () => {
               onChange={handleBoardingPointsChange}
               error={errors.boardingPoints}
             />
+
+            {/* Map link */}
+            <div>
+              <Label htmlFor="mapLink">Tour map link (Google Maps)</Label>
+              <Input
+                id="mapLink"
+                placeholder="https://maps.google.com/..."
+                value={tripDetails.mapLink}
+                onChange={(e) =>
+                  setTripDetails((prev) => ({
+                    ...prev,
+                    mapLink: e.target.value,
+                  }))
+                }
+              />
+            </div>
+
+            {/* Highlights */}
+            <div>
+              <h2 className="mb-2 text-xl font-semibold">
+                Highlights of the Trip
+              </h2>
+              <p className="mb-3 text-sm text-gray-500">
+                Point-wise highlights shown on the trip details page.
+              </p>
+              {tripDetails.highlights.map((h, i) => (
+                <div key={i} className="mb-2 flex gap-2">
+                  <Input
+                    placeholder={`Highlight ${i + 1}`}
+                    value={h}
+                    onChange={(e) => {
+                      const next = [...tripDetails.highlights];
+                      next[i] = e.target.value;
+                      setTripDetails((prev) => ({
+                        ...prev,
+                        highlights: next,
+                      }));
+                    }}
+                  />
+                  {tripDetails.highlights.length > 1 && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() =>
+                        setTripDetails((prev) => ({
+                          ...prev,
+                          highlights: prev.highlights.filter(
+                            (_, j) => j !== i,
+                          ),
+                        }))
+                      }
+                    >
+                      <FaTrash className="h-3 w-3" />
+                    </Button>
+                  )}
+                </div>
+              ))}
+              <Button
+                type="button"
+                variant="outline"
+                className="mt-1"
+                onClick={() =>
+                  setTripDetails((prev) => ({
+                    ...prev,
+                    highlights: [...prev.highlights, ""],
+                  }))
+                }
+              >
+                Add highlight
+              </Button>
+            </div>
+
+            {/* Includes */}
+            <div>
+              <h2 className="mb-2 text-xl font-semibold">
+                Trip Price Includes
+              </h2>
+              {tripDetails.includes.map((h, i) => (
+                <div key={i} className="mb-2 flex gap-2">
+                  <Input
+                    placeholder={`Include ${i + 1}`}
+                    value={h}
+                    onChange={(e) => {
+                      const next = [...tripDetails.includes];
+                      next[i] = e.target.value;
+                      setTripDetails((prev) => ({ ...prev, includes: next }));
+                    }}
+                  />
+                  {tripDetails.includes.length > 1 && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() =>
+                        setTripDetails((prev) => ({
+                          ...prev,
+                          includes: prev.includes.filter((_, j) => j !== i),
+                        }))
+                      }
+                    >
+                      <FaTrash className="h-3 w-3" />
+                    </Button>
+                  )}
+                </div>
+              ))}
+              <Button
+                type="button"
+                variant="outline"
+                className="mt-1"
+                onClick={() =>
+                  setTripDetails((prev) => ({
+                    ...prev,
+                    includes: [...prev.includes, ""],
+                  }))
+                }
+              >
+                Add include item
+              </Button>
+            </div>
+
+            {/* FAQs */}
+            <div>
+              <h2 className="mb-2 text-xl font-semibold">FAQs</h2>
+              {tripDetails.faqs.map((faq, i) => (
+                <div
+                  key={i}
+                  className="relative mb-3 rounded-lg border border-gray-200 bg-gray-50 p-3"
+                >
+                  <Input
+                    className="mb-2"
+                    placeholder="Question"
+                    value={faq.question}
+                    onChange={(e) => {
+                      const next = [...tripDetails.faqs];
+                      next[i] = { ...next[i], question: e.target.value };
+                      setTripDetails((prev) => ({ ...prev, faqs: next }));
+                    }}
+                  />
+                  <Input
+                    placeholder="Answer"
+                    value={faq.answer}
+                    onChange={(e) => {
+                      const next = [...tripDetails.faqs];
+                      next[i] = { ...next[i], answer: e.target.value };
+                      setTripDetails((prev) => ({ ...prev, faqs: next }));
+                    }}
+                  />
+                  {tripDetails.faqs.length > 1 && (
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="icon"
+                      className="absolute right-2 top-2"
+                      onClick={() =>
+                        setTripDetails((prev) => ({
+                          ...prev,
+                          faqs: prev.faqs.filter((_, j) => j !== i),
+                        }))
+                      }
+                    >
+                      <FaTrash className="h-3 w-3" />
+                    </Button>
+                  )}
+                </div>
+              ))}
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() =>
+                  setTripDetails((prev) => ({
+                    ...prev,
+                    faqs: [...prev.faqs, { question: "", answer: "" }],
+                  }))
+                }
+              >
+                Add FAQ
+              </Button>
+            </div>
+
+            {/* Cancellation */}
+            <div>
+              <Label htmlFor="cancellationPolicy">Cancellation Policy</Label>
+              <p className="mb-2 mt-1 text-sm text-slate-500">
+                Style text with color or background highlight as needed.
+              </p>
+              <ReactQuill
+                theme="snow"
+                value={tripDetails.cancellationPolicy}
+                onChange={(value) =>
+                  setTripDetails((prev) => ({
+                    ...prev,
+                    cancellationPolicy: value,
+                  }))
+                }
+                modules={quillModules}
+                formats={quillFormats}
+                className="rounded-lg border border-gray-300"
+                style={{ height: "160px", marginBottom: "40px" }}
+              />
+            </div>
 
             {/* Brochure from library */}
             <div>

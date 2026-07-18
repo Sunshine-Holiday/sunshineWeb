@@ -836,13 +836,17 @@ const TripDetails = () => {
                   <Shield className="h-5 w-5 text-orange-500" />
                   Cancellation Policy
                 </h2>
-                <p className="text-sm leading-relaxed text-slate-600">
+                <div className="prose prose-slate max-w-none text-sm leading-relaxed text-slate-600">
                   {trip.cancellationPolicy ? (
-                    <TranslatedText text={trip.cancellationPolicy} as="span" />
+                    <TranslatedText
+                      text={trip.cancellationPolicy}
+                      as="div"
+                      html
+                    />
                   ) : (
                     "A transparent overview of applicable fees. Please contact our team for refund timelines based on departure date. Advance payments may be non-refundable close to travel."
                   )}
-                </p>
+                </div>
               </Card>
 
               {/* Helpline */}
