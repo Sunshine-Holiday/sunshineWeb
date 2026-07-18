@@ -254,30 +254,48 @@ const BookingPage = () => {
     );
   };
 
-  /** Rows for Bus Details table: Bus No | Vehicle No | Instructor | Contact | Seats */
+  /**
+   * Rows for Bus / Instructor Details table on invoice only:
+   * Bus No | Vehicle Number | Instructor Name | Phone Number | Seats
+   * (Instructor phone is intentionally not shown on the booking seat UI.)
+   */
   const buildBusDetailsRows = (
     seatKeys: string[],
     dateInfo: StartDate | null,
   ): string[][] => {
-    if (!dateInfo || !seatKeys.length) return [];
-    const vehicles = dateInfo.vehicles || [];
-    const grouped = groupSeatsByBus(seatKeys);
-    return Object.entries(grouped)
-      .sort(([a], [b]) => Number(a) - Number(b))
-      .map(([busIndexStr, seats]) => {
-        const busIndex = Number(busIndexStr);
-        const v = vehicles[busIndex];
-        return [
-          `Bus ${busIndex + 1}`,
-          v?.vehicleNumber || "—",
-          v?.instructorName || "—",
-          v?.phoneNumber || "—",
-          seats
-            .slice()
-            .sort((x, y) => Number(x) - Number(y))
-            .join(", ") || "—",
-        ];
-      });
+    const vehicles = dateInfo?.vehicles || [];
+    if (!vehicles.length && !seatKeys.length) return [];
+
+    // Prefer rows only for buses the user actually booked
+    if (seatKeys.length > 0) {
+      const grouped = groupSeatsByBus(seatKeys);
+      const fromSeats = Object.entries(grouped)
+        .sort(([a], [b]) => Number(a) - Number(b))
+        .map(([busIndexStr, seats]) => {
+          const busIndex = Number(busIndexStr);
+          const v = vehicles[busIndex];
+          return [
+            `Bus ${busIndex + 1}`,
+            v?.vehicleNumber || "—",
+            v?.instructorName || "—",
+            v?.phoneNumber || "—",
+            seats
+              .slice()
+              .sort((x, y) => Number(x) - Number(y))
+              .join(", ") || "—",
+          ];
+        });
+      if (fromSeats.length > 0) return fromSeats;
+    }
+
+    // Fallback: list all vehicles for the travel date (package / no seat map)
+    return vehicles.map((v, busIndex) => [
+      `Bus ${busIndex + 1}`,
+      v?.vehicleNumber || "—",
+      v?.instructorName || "—",
+      v?.phoneNumber || "—",
+      "—",
+    ]);
   };
 
   /** Simple seat list for payment summary (no bus staff details) */
@@ -394,11 +412,11 @@ const BookingPage = () => {
 
     let nextY = (doc as any).lastAutoTable.finalY + 8;
 
-    // Bus Details table (separate from payment)
+    // Instructor / Vehicle details (shown only after purchase on invoice)
     if (busDetailsRows.length > 0) {
       doc.setFontSize(11);
       doc.setFont("helvetica", "bold");
-      doc.text("Bus Details", 14, nextY);
+      doc.text("Instructor & Vehicle Details", 14, nextY);
       doc.setFont("helvetica", "normal");
       nextY += 3;
 
@@ -407,9 +425,9 @@ const BookingPage = () => {
         head: [
           [
             "Bus No",
-            "Vehicle No",
+            "Vehicle Number",
             "Instructor Name",
-            "Instructor Contact",
+            "Phone Number",
             "Seat(s)",
           ],
         ],
@@ -1136,15 +1154,21 @@ const BookingPage = () => {
             setInvoiceError(null);
 
             try {
-              // Seats summary (payment table) + full bus staff table separately
+              // Seats summary (payment table) + instructor/vehicle table on invoice only
               const isSeatLayout =
                 selectedDate?.seats === 20 || selectedDate?.seats === 32;
-              const selectedSeatsFormatted = isSeatLayout
-                ? buildSeatsOnlySummary(selectedSeats)
-                : "N/A";
-              const busDetailsRows = isSeatLayout
-                ? buildBusDetailsRows(selectedSeats, selectedDate)
-                : [];
+              const invoiceSeatKeys = isStayInterconnected
+                ? [...selectedGoingSeats, ...selectedComingSeats]
+                : selectedSeats;
+              const selectedSeatsFormatted =
+                isSeatLayout || isStayInterconnected
+                  ? buildSeatsOnlySummary(invoiceSeatKeys)
+                  : "N/A";
+              // Always include instructor name, phone & vehicle number on invoice
+              const busDetailsRows = buildBusDetailsRows(
+                invoiceSeatKeys,
+                selectedDate,
+              );
 
               // payment numbers
               const advancePaid =
@@ -2101,8 +2125,8 @@ const SeatLayout = ({
       <span className="font-semibold">
         Bus {currentBus + 1} of {busesCount}
         <span className="ml-2 text-sm text-gray-600">
-          (Instructor: {v?.instructorName || "—"} • {v?.vehicleNumber || "—"} •{" "}
-          {v?.phoneNumber || "—"})
+          (Instructor: {v?.instructorName || "—"} • Vehicle:{" "}
+          {v?.vehicleNumber || "—"})
         </span>
       </span>
 
@@ -2537,15 +2561,6 @@ const BookingSummary = ({
     selectedRoomCount,
     numPassengers,
   });
-  const getBusVehicle = (busIndex: number) => {
-    const v = selectedDate?.vehicles?.[busIndex];
-    return {
-      instructorName: v?.instructorName || "—",
-      vehicleNumber: v?.vehicleNumber || "—",
-      phoneNumber: v?.phoneNumber || "—", // ✅ NEW
-    };
-  };
-
   let basePrice = selectedPackage
     ? selectedPackage.price
     : (tripDetails.baseSeatPrice || 1000) * numPassengers;
