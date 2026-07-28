@@ -9,12 +9,12 @@ import {
   Snowflake,
   Power,
   Music2,
-  CheckCircle2,
   MessageCircle,
   FileText,
   Armchair,
   ChevronLeft,
   ChevronRight,
+  type LucideIcon,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { parse, isValid, format } from "date-fns";
@@ -62,7 +62,8 @@ interface TripCardProps {
   className?: string;
 }
 
-const amenityIcon = (name: string) => {
+/** Map ticked amenity names to icons. Returns null when no specific icon (no generic tick). */
+const amenityIcon = (name: string): LucideIcon | null => {
   const n = name.toLowerCase();
   if (n.includes("wifi")) return Wifi;
   if (n.includes("refresh") || n.includes("food") || n.includes("meal"))
@@ -71,7 +72,7 @@ const amenityIcon = (name: string) => {
   if (n.includes("charg")) return Power;
   if (n.includes("music") || n.includes("fun")) return Music2;
   if (n.includes("seat")) return Armchair;
-  return CheckCircle2;
+  return null;
 };
 
 const isValidStartDate = (
@@ -155,13 +156,16 @@ export const TripCard = ({ trip, className = "" }: TripCardProps) => {
     ? priceNum * (1 - (trip.discountPercentage as number) / 100)
     : null;
 
-  const includes = (
-    trip.includes?.length
-      ? trip.includes
-      : trip.amenities?.length
-        ? trip.amenities
-        : []
-  ).slice(0, 5);
+  // Only ticked amenities that have a real icon (skip generic tick fallback)
+  const tickedAmenities = (trip.amenities || [])
+    .map((name) => {
+      const Icon = amenityIcon(name);
+      return Icon ? { name, Icon } : null;
+    })
+    .filter(
+      (item): item is { name: string; Icon: LucideIcon } => item !== null
+    )
+    .slice(0, 5);
 
   const highlight =
     trip.highlights?.[0] ||
@@ -344,25 +348,22 @@ export const TripCard = ({ trip, className = "" }: TripCardProps) => {
           </p>
         )}
 
-        {/* Trip Includes */}
-        {includes.length > 0 && (
+        {/* Amenities — only ticked ones with their specific icons */}
+        {tickedAmenities.length > 0 && (
           <div className="mt-3 flex items-center justify-between gap-2 rounded-xl border border-slate-100 bg-slate-50/80 px-3 py-2">
             <span className="text-[11px] font-bold uppercase tracking-wide text-slate-500">
-              Trip Includes
+              Amenities
             </span>
             <div className="flex items-center -space-x-1.5">
-              {includes.map((item, i) => {
-                const Icon = amenityIcon(item);
-                return (
-                  <span
-                    key={i}
-                    title={item}
-                    className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-orange-100 text-orange-600 shadow-sm"
-                  >
-                    <Icon className="h-3.5 w-3.5" />
-                  </span>
-                );
-              })}
+              {tickedAmenities.map(({ name, Icon }, i) => (
+                <span
+                  key={`${name}-${i}`}
+                  title={name}
+                  className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-orange-100 text-orange-600 shadow-sm"
+                >
+                  <Icon className="h-3.5 w-3.5" />
+                </span>
+              ))}
             </div>
           </div>
         )}
