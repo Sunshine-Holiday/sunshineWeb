@@ -41,6 +41,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import BoardingPointsEditor from "@/components/admin/BoardingPointsEditor";
+import DropPointsEditor, {
+  type DropPoint,
+} from "@/components/admin/DropPointsEditor";
 import { useGetBrochuresQuery } from "@/store/api/brochures";
 import InterconnectionEditor, {
   defaultInterconnection,
@@ -59,7 +62,14 @@ const localizer = dateFnsLocalizer({
 
 interface BoardingPoint {
   location: string;
+  date?: string;
   time: string;
+  details: string;
+  maplink: string;
+}
+
+interface DropPoint {
+  location: string;
   details: string;
   maplink: string;
 }
@@ -105,6 +115,7 @@ interface TripDetails {
   category: string;
   amenities: string[];
   boardingPoints: BoardingPoint[];
+  dropPoints: DropPoint[];
   packages: Package[];
   roomChoices: RoomChoice[];
   file?: File | null;
@@ -185,7 +196,8 @@ const EditTrips: React.FC = () => {
     startDates: [],
     category: "",
     amenities: [],
-    boardingPoints: [{ location: "", time: "", details: "", maplink: "" }],
+    boardingPoints: [{ location: "", date: "", time: "", details: "", maplink: "" }],
+    dropPoints: [],
     packages: [],
     roomChoices: [],
     file: null,
@@ -455,7 +467,11 @@ const EditTrips: React.FC = () => {
           Array.isArray(data.trip.boardingPoints) &&
           data.trip.boardingPoints.length > 0
             ? data.trip.boardingPoints
-            : [{ location: "", time: "", details: "", maplink: "" }],
+            : [{ location: "", date: "", time: "", details: "", maplink: "" }],
+        dropPoints:
+          Array.isArray(data.trip.dropPoints) && data.trip.dropPoints.length > 0
+            ? data.trip.dropPoints
+            : [],
         packages:
           Array.isArray(data.trip.packages) && data.trip.packages.length > 0
             ? data.trip.packages.map((pkg: any) => ({
@@ -763,6 +779,10 @@ const EditTrips: React.FC = () => {
     if (points.length > 0) {
       setErrors((prev) => ({ ...prev, boardingPoints: "" }));
     }
+  }, []);
+
+  const handleDropPointsChange = useCallback((points: DropPoint[]) => {
+    setTripDetails((prev) => ({ ...prev, dropPoints: points }));
   }, []);
 
   const handleAddPackage = useCallback(() => {
@@ -1192,6 +1212,10 @@ const EditTrips: React.FC = () => {
       formData.append(
         "boardingPoints",
         JSON.stringify(tripDetails.boardingPoints),
+      );
+      formData.append(
+        "dropPoints",
+        JSON.stringify(tripDetails.dropPoints),
       );
       formData.append("packages", JSON.stringify(tripDetails.packages));
       formData.append("roomChoices", JSON.stringify(tripDetails.roomChoices));
@@ -2005,6 +2029,12 @@ const EditTrips: React.FC = () => {
               boardingPoints={tripDetails.boardingPoints}
               onChange={handleBoardingPointsChange}
               error={errors.boardingPoints}
+            />
+
+            {/* Drop Points */}
+            <DropPointsEditor
+              dropPoints={tripDetails.dropPoints}
+              onChange={handleDropPointsChange}
             />
 
             {/* Map link */}

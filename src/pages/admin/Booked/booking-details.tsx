@@ -254,9 +254,15 @@ const BookingDetails = () => {
         : "—";
 
     const pickupAddress = String(passenger?.address || "").trim();
+    const dropAddress = String(passenger?.dropLocation || "").trim();
     const mapUrl = pickupAddress
       ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
           pickupAddress,
+        )}`
+      : "";
+    const dropMapUrl = dropAddress
+      ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+          dropAddress,
         )}`
       : "";
 
@@ -284,7 +290,9 @@ const BookingDetails = () => {
         ["ID Proof", passenger?.idProof || "N/A"],
         ["ID Number", passenger?.idProofNumber || "N/A"],
         ["Pickup Location", pickupAddress || "—"],
+        ["Drop Location", dropAddress || "—"],
         ["Google Maps (Pickup)", mapUrl || "—"],
+        ...(dropMapUrl ? [["Google Maps (Drop)", dropMapUrl]] : []),
       ],
       theme: "grid",
       styles: { fontSize: 10, cellPadding: 3, valign: "middle" },
@@ -297,7 +305,6 @@ const BookingDetails = () => {
         if (
           data.section === "body" &&
           data.column.index === 1 &&
-          data.row.index === 8 &&
           typeof data.cell.raw === "string" &&
           data.cell.raw.startsWith("http")
         ) {
@@ -599,6 +606,7 @@ const BookingDetails = () => {
                         <TableHead className="w-[120px]">Booking</TableHead>
                         <TableHead>Passenger</TableHead>
                         <TableHead>Phone</TableHead>
+                        <TableHead>Pickup & Drop</TableHead>
                         <TableHead className="text-center">Seats</TableHead>
                         <TableHead className="text-right">Payment</TableHead>
                         <TableHead className="text-center">Actions</TableHead>
@@ -642,6 +650,19 @@ const BookingDetails = () => {
 
                           <TableCell>
                             {row.passenger?.phoneNumber || "—"}
+                          </TableCell>
+
+                          <TableCell>
+                            <div className="flex flex-col gap-0.5 text-xs">
+                              <span className="text-orange-700">
+                                <span className="font-semibold">Pick:</span>{" "}
+                                {row.passenger?.address || "—"}
+                              </span>
+                              <span className="text-sky-700">
+                                <span className="font-semibold">Drop:</span>{" "}
+                                {row.passenger?.dropLocation || "—"}
+                              </span>
+                            </div>
                           </TableCell>
 
                           <TableCell>

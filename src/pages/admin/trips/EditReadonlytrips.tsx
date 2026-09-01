@@ -30,11 +30,22 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import BoardingPointsEditor from "@/components/admin/BoardingPointsEditor";
+import DropPointsEditor, {
+  type DropPoint,
+} from "@/components/admin/DropPointsEditor";
 import { getStateOptions } from "@/utils/tripDestinations";
 
 interface BoardingPoint {
   location: string;
+  date?: string;
   time: string;
+  details: string;
+  maplink: string;
+  pickupLocationId?: string;
+}
+
+interface DropPoint {
+  location: string;
   details: string;
   maplink: string;
   pickupLocationId?: string;
@@ -50,6 +61,7 @@ interface TripDetails {
   category: string;
   amenities: string[];
   boardingPoints: BoardingPoint[];
+  dropPoints: DropPoint[];
   file?: File | null;
   readonly: boolean;
 }
@@ -93,7 +105,8 @@ const EditReadonlyTrips: React.FC = () => {
     description: "",
     category: "",
     amenities: [],
-    boardingPoints: [{ location: "", time: "", details: "", maplink: "" }],
+    boardingPoints: [{ location: "", date: "", time: "", details: "", maplink: "" }],
+    dropPoints: [],
     file: null,
     readonly: true,
   });
@@ -127,7 +140,10 @@ const EditReadonlyTrips: React.FC = () => {
           : [],
         boardingPoints: Array.isArray(data?.trip.boardingPoints) && data?.trip.boardingPoints.length > 0
           ? data?.trip.boardingPoints
-          : [{ location: "", time: "", details: "", maplink: "" }],
+          : [{ location: "", date: "", time: "", details: "", maplink: "" }],
+        dropPoints: Array.isArray(data?.trip.dropPoints) && data?.trip.dropPoints.length > 0
+          ? data?.trip.dropPoints
+          : [],
         file: null,
         readonly: true,
       };
@@ -214,6 +230,10 @@ const EditReadonlyTrips: React.FC = () => {
     }
   }, []);
 
+  const handleDropPointsChange = useCallback((points: DropPoint[]) => {
+    setTripDetails((prev) => ({ ...prev, dropPoints: points }));
+  }, []);
+
   const validateForm = useCallback(() => {
     const requiredFields = ["title", "location", "state", "description", "category"];
     let newErrors: FormErrors = {};
@@ -270,6 +290,7 @@ const EditReadonlyTrips: React.FC = () => {
       formData.append("category", tripDetails.category);
       formData.append("amenities", JSON.stringify(tripDetails.amenities));
       formData.append("boardingPoints", JSON.stringify(tripDetails.boardingPoints));
+      formData.append("dropPoints", JSON.stringify(tripDetails.dropPoints));
       if (tripDetails.file) formData.append("file", tripDetails.file);
       formData.append("readonly", "true");
 
@@ -474,6 +495,11 @@ const EditReadonlyTrips: React.FC = () => {
               boardingPoints={tripDetails.boardingPoints}
               onChange={handleBoardingPointsChange}
               error={errors.boardingPoints}
+            />
+
+            <DropPointsEditor
+              dropPoints={tripDetails.dropPoints}
+              onChange={handleDropPointsChange}
             />
 
             <Button

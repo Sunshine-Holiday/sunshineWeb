@@ -8,6 +8,7 @@ export type PassengerHistoryRow = {
     name?: string;
     phoneNumber?: string;
     address?: string;
+    dropLocation?: string;
     email?: string;
   };
   /** Individual seat assigned to this passenger (preferred) */
@@ -85,15 +86,16 @@ const EXPORT_HEADERS = [
   "Name",
   "Phone No",
   "Pickup Point",
+  "Drop Point",
   "Remaining Amount",
 ] as const;
 
 /** Amount columns (0-based index in sheet row) */
-const AMOUNT_COLUMNS = [4]; // Remaining only (total / advance paid omitted)
+const AMOUNT_COLUMNS = [5]; // Remaining only (total / advance paid omitted)
 
 /**
  * Build one Excel row per passenger with THEIR individual seat:
- * Seat No | Name | Phone No | Pickup Point | Remaining Amount
+ * Seat No | Name | Phone No | Pickup Point | Drop Point | Remaining Amount
  * (Total amount and advance/paid amount are not exported.)
  */
 export function buildBookingExportRows(passengerHistory: PassengerHistoryRow[]) {
@@ -118,6 +120,7 @@ export function buildBookingExportRows(passengerHistory: PassengerHistoryRow[]) 
       Name: row.passenger?.name?.trim() || "—",
       "Phone No": row.passenger?.phoneNumber?.trim() || "—",
       "Pickup Point": row.passenger?.address?.trim() || "—",
+      "Drop Point": row.passenger?.dropLocation?.trim() || "—",
       "Remaining Amount": remainingAmount,
     };
   });

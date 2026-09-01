@@ -6,11 +6,17 @@ interface PassengerFormProps {
   seatNumber: string;
   index: number;
   tripDetails: {
-    boardingPoints: {
-      details: string;
+    boardingPoints?: {
+      details?: string;
       location: string;
-      time: string;
-      _id: string;
+      date?: string;
+      time?: string;
+      _id?: string;
+    }[];
+    dropPoints?: {
+      details?: string;
+      location: string;
+      _id?: string;
     }[];
   };
   onChange: (index: number, data: PassengerData) => void;
@@ -24,6 +30,7 @@ export interface PassengerData {
   idProof: "aadhar" | "pan";
   idProofNumber: string;
   address: string;
+  dropLocation?: string;
 }
 
 export const PassengerForm = ({
@@ -216,13 +223,45 @@ export const PassengerForm = ({
               required
             >
               <option value="">Select Pickup Location</option>
-              {tripDetails.boardingPoints.map((point) => (
-                <option key={point._id} value={point.location}>
-                  {point.location} - {point.time}
+              {(tripDetails.boardingPoints || []).map((point, i) => (
+                <option key={point._id || i} value={point.location}>
+                  {point.location}{point.date ? ` [${point.date}]` : ""}{point.time ? ` (${point.time})` : ""}
                 </option>
               ))}
             </select>
             {errors.address && <p className="text-red-500 text-xs">{errorMessages.address}</p>}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Drop Location
+            </label>
+            {tripDetails.dropPoints && tripDetails.dropPoints.length > 0 ? (
+              <select
+                name="dropLocation"
+                value={passengers[index]?.dropLocation || ""}
+                onChange={handleChange}
+                className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              >
+                <option value="">Select Drop Location</option>
+                {tripDetails.dropPoints.map((point, i) => (
+                  <option key={point._id || i} value={point.location}>
+                    {point.location}{point.details ? ` (${point.details})` : ""}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <input
+                type="text"
+                name="dropLocation"
+                placeholder="Drop location / landmark"
+                value={passengers[index]?.dropLocation || ""}
+                onChange={handleChange}
+                className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              />
+            )}
           </div>
         </div>
     

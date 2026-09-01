@@ -85,7 +85,14 @@ interface Trip {
   boardingPoints: {
     _id: string;
     location: string;
+    date?: string;
     time: string;
+    details: string;
+    maplink?: string;
+  }[];
+  dropPoints?: {
+    _id: string;
+    location: string;
     details: string;
     maplink?: string;
   }[];
@@ -99,6 +106,7 @@ const resolvePickupMapInfo = (
   address: string | undefined,
   boardingPoints: {
     location?: string;
+    date?: string;
     time?: string;
     details?: string;
     maplink?: string;
@@ -120,6 +128,7 @@ const resolvePickupMapInfo = (
   if (!point && points.length === 1) point = points[0];
 
   const location = point?.location || addr || "";
+  const date = point?.date || "";
   const time = point?.time || "";
   const details = point?.details || "";
   let mapUrl = String(point?.maplink || "").trim();
@@ -128,7 +137,44 @@ const resolvePickupMapInfo = (
       location,
     )}`;
   }
-  return { location, time, details, mapUrl };
+  return { location, date, time, details, mapUrl };
+};
+
+/** Match passenger.dropLocation to trip drop point and build Maps URL */
+const resolveDropMapInfo = (
+  dropLocation: string | undefined,
+  dropPoints: {
+    location?: string;
+    details?: string;
+    maplink?: string;
+  }[] = [],
+) => {
+  const dropLoc = String(dropLocation || "").trim();
+  const points = dropPoints || [];
+  let point =
+    points.find((p) => String(p?.location || "").trim() === dropLoc) || null;
+  if (!point && dropLoc) {
+    point =
+      points.find((p) => {
+        const loc = String(p?.location || "").trim();
+        return (
+          dropLoc.startsWith(loc) ||
+          dropLoc.includes(loc) ||
+          loc.includes(dropLoc)
+        );
+      }) || null;
+  }
+  if (!point && points.length === 1 && !dropLoc) point = points[0];
+
+  const location = point?.location || dropLoc || "";
+  const details = point?.details || "";
+  let mapUrl = String(point?.maplink || "").trim();
+  if (!mapUrl && location) {
+    mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+      location,
+    )}`;
+  }
+  return { location, details, mapUrl };
 };
 
 interface BookingSummaryProps {
@@ -455,22 +501,29 @@ const BookingPage = () => {
       nextY = (doc as any).lastAutoTable.finalY + 8;
     }
 
-    // Pickup locations + Google Maps links (per passenger)
+    // Pickup & Drop locations + Google Maps links (per passenger)
     const boardingPoints = trip?.boardingPoints || [];
+    const dropPoints = trip?.dropPoints || [];
     const pickupBody = passengers.map((p) => {
-      const info = resolvePickupMapInfo(p?.address, boardingPoints);
+      const pInfo = resolvePickupMapInfo(p?.address, boardingPoints);
+      const dInfo = resolveDropMapInfo(p?.dropLocation, dropPoints);
+      const pickupText = pInfo.location
+        ? `${pInfo.location}${pInfo.date ? ` [${pInfo.date}]` : ""}${
+            pInfo.time ? ` (${pInfo.time})` : ""
+          }`
+        : p?.address || "—";
+      const dropText = dInfo.location || p?.dropLocation || "—";
       return [
         p?.name || "—",
-        info.location
-          ? `${info.location}${info.time ? ` (${info.time})` : ""}`
-          : p?.address || "—",
-        info.mapUrl || "—",
+        pickupText,
+        dropText,
+        pInfo.mapUrl || dInfo.mapUrl || "—",
       ];
     });
 
     autoTable(doc, {
       startY: nextY,
-      head: [["Passenger", "Pickup Location", "Google Maps Link"]],
+      head: [["Passenger", "Pickup Point", "Drop Location", "Map Link"]],
       body: pickupBody,
       theme: "grid",
       styles: {
@@ -479,16 +532,22 @@ const BookingPage = () => {
         valign: "middle",
         overflow: "linebreak",
       },
+      headStyles: {
+        fillColor: [249, 115, 22],
+        textColor: 255,
+        fontStyle: "bold",
+      },
       columnStyles: {
-        0: { cellWidth: 40 },
-        1: { cellWidth: 55 },
-        2: { cellWidth: 80 },
+        0: { cellWidth: 35 },
+        1: { cellWidth: 50 },
+        2: { cellWidth: 45 },
+        3: { cellWidth: 45 },
       },
       didDrawCell: (data: any) => {
         // Make Maps URL clickable in the PDF
         if (
           data.section === "body" &&
-          data.column.index === 2 &&
+          data.column.index === 3 &&
           typeof data.cell.raw === "string" &&
           data.cell.raw.startsWith("http")
         ) {
@@ -506,25 +565,44 @@ const BookingPage = () => {
 
     const afterPickupY = (doc as any).lastAutoTable.finalY + 6;
 
-    // Highlight primary map link for easy tap on mobile PDF readers
+    // Primary pickup & drop info
     const primaryPickup = resolvePickupMapInfo(
       passengers[0]?.address,
       boardingPoints,
     );
+    const primaryDrop = resolveDropMapInfo(
+      passengers[0]?.dropLocation,
+      dropPoints,
+    );
+
     let paymentStartY = afterPickupY;
-    if (primaryPickup.mapUrl) {
+    if (primaryPickup.mapUrl || primaryDrop.mapUrl) {
       doc.setFontSize(10);
       doc.setTextColor(194, 65, 12);
-      doc.text("Open primary pickup in Google Maps:", 14, afterPickupY + 4);
-      doc.setTextColor(37, 99, 235);
-      doc.textWithLink("Tap / click here →", 14, afterPickupY + 10, {
-        url: primaryPickup.mapUrl,
-      });
+      let mapY = afterPickupY + 4;
+      if (primaryPickup.mapUrl) {
+        doc.text("Open pickup point in Maps:", 14, mapY);
+        doc.setTextColor(37, 99, 235);
+        doc.textWithLink("Tap for Pickup Maps →", 65, mapY, {
+          url: primaryPickup.mapUrl,
+        });
+        doc.setTextColor(194, 65, 12);
+        mapY += 6;
+      }
+      if (primaryDrop.mapUrl) {
+        doc.text("Open drop point in Maps:", 14, mapY);
+        doc.setTextColor(37, 99, 235);
+        doc.textWithLink("Tap for Drop Maps →", 65, mapY, {
+          url: primaryDrop.mapUrl,
+        });
+        doc.setTextColor(194, 65, 12);
+        mapY += 6;
+      }
       doc.setTextColor(0, 0, 0);
-      paymentStartY = afterPickupY + 16;
+      paymentStartY = mapY + 4;
     }
 
-    // Payment info table (bus staff details live in Bus Details table above)
+    // Payment info table
     autoTable(doc, {
       startY: paymentStartY,
       head: [["Payment Info", "Value"]],
@@ -534,11 +612,18 @@ const BookingPage = () => {
           "Pickup Location",
           primaryPickup.location
             ? `${primaryPickup.location}${
-                primaryPickup.time ? ` (${primaryPickup.time})` : ""
-              }`
+                primaryPickup.date ? ` [${primaryPickup.date}]` : ""
+              }${primaryPickup.time ? ` (${primaryPickup.time})` : ""}`
             : passengers[0]?.address || "—",
         ],
+        [
+          "Drop Location",
+          primaryDrop.location || passengers[0]?.dropLocation || "—",
+        ],
         ["Google Maps (Pickup)", primaryPickup.mapUrl || "—"],
+        ...(primaryDrop.mapUrl
+          ? [["Google Maps (Drop)", primaryDrop.mapUrl]]
+          : []),
         [
           "Total Amount",
           `rs ${Number(totalAmount || 0).toLocaleString("en-IN")}`,
@@ -557,11 +642,9 @@ const BookingPage = () => {
       },
       columnStyles: { 0: { cellWidth: 55 }, 1: { cellWidth: 120 } },
       didDrawCell: (data: any) => {
-        // Google Maps row is now index 2 (0=seats, 1=pickup, 2=maps)
         if (
           data.section === "body" &&
           data.column.index === 1 &&
-          data.row.index === 2 &&
           typeof data.cell.raw === "string" &&
           data.cell.raw.startsWith("http")
         ) {
@@ -1798,40 +1881,88 @@ const handleProceed = async () => {
                   ))}
                 </div>
 
-                {/* Shared pickup address card (seat booking) */}
+                {/* Shared pickup & drop address card (seat booking) */}
                 {step === "passenger-details" &&
                   (totalSeats === 20 || totalSeats === 32) &&
-                  tripDetails.boardingPoints?.length > 0 && (
+                  (tripDetails.boardingPoints?.length > 0 ||
+                    (tripDetails.dropPoints && tripDetails.dropPoints.length > 0)) && (
                     <div className="rounded-2xl border border-orange-100 bg-white p-5 shadow-sm">
                       <h3 className="text-lg font-bold text-slate-900">
-                        Passenger Address
+                        Pickup & Drop Location
                       </h3>
                       <p className="mt-1 text-xs text-slate-500">
-                        Select pickup location for all passengers (you can
-                        change per passenger if needed below).
+                        Select pickup and drop locations for all passengers (you
+                        can change per passenger if needed below).
                       </p>
-                      <div className="mt-4">
-                        <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                          Select pickup location *
-                        </label>
-                        <select
-                          className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm shadow-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-200"
-                          value={passengers[0]?.address || ""}
-                          onChange={(e) => {
-                            const loc = e.target.value;
-                            setPassengers((prev) =>
-                              prev.map((p) => ({ ...p, address: loc })),
-                            );
-                          }}
-                          disabled={isSubmitting}
-                        >
-                          <option value="">Select Pickup Location</option>
-                          {tripDetails.boardingPoints.map((point) => (
-                            <option key={point._id} value={point.location}>
-                              {point.location} - {point.time}
-                            </option>
-                          ))}
-                        </select>
+                      <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        {tripDetails.boardingPoints?.length > 0 && (
+                          <div>
+                            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+                              Pickup Location *
+                            </label>
+                            <select
+                              className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm shadow-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-200"
+                              value={passengers[0]?.address || ""}
+                              onChange={(e) => {
+                                const loc = e.target.value;
+                                setPassengers((prev) =>
+                                  prev.map((p) => ({ ...p, address: loc })),
+                                );
+                              }}
+                              disabled={isSubmitting}
+                            >
+                              <option value="">Select Pickup Location</option>
+                              {tripDetails.boardingPoints.map((point, i) => (
+                                <option key={point._id || i} value={point.location}>
+                                  {point.location}
+                                  {point.date ? ` [${point.date}]` : ""}
+                                  {point.time ? ` (${point.time})` : ""}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        )}
+
+                        <div>
+                          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+                            Drop Location
+                          </label>
+                          {tripDetails.dropPoints && tripDetails.dropPoints.length > 0 ? (
+                            <select
+                              className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm shadow-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-200"
+                              value={passengers[0]?.dropLocation || ""}
+                              onChange={(e) => {
+                                const dropLoc = e.target.value;
+                                setPassengers((prev) =>
+                                  prev.map((p) => ({ ...p, dropLocation: dropLoc })),
+                                );
+                              }}
+                              disabled={isSubmitting}
+                            >
+                              <option value="">Select Drop Location</option>
+                              {tripDetails.dropPoints.map((point, i) => (
+                                <option key={point._id || i} value={point.location}>
+                                  {point.location}
+                                  {point.details ? ` (${point.details})` : ""}
+                                </option>
+                              ))}
+                            </select>
+                          ) : (
+                            <input
+                              type="text"
+                              placeholder="Drop location / landmark"
+                              className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm shadow-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-200"
+                              value={passengers[0]?.dropLocation || ""}
+                              onChange={(e) => {
+                                const dropLoc = e.target.value;
+                                setPassengers((prev) =>
+                                  prev.map((p) => ({ ...p, dropLocation: dropLoc })),
+                                );
+                              }}
+                              disabled={isSubmitting}
+                            />
+                          )}
+                        </div>
                       </div>
                     </div>
                   )}

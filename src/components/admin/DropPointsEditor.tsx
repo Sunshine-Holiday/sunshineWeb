@@ -20,26 +20,22 @@ import {
   type PickupLocation,
 } from "@/store/api/pickupLocations";
 
-/** Matches trip boardingPoint schema */
-export type BoardingPoint = {
+/** Matches trip dropPoint schema (location, details, maplink — NO date, NO time) */
+export type DropPoint = {
   location: string;
-  date?: string;
-  time: string;
   details: string;
   maplink: string;
   pickupLocationId?: string;
 };
 
 type Props = {
-  boardingPoints: BoardingPoint[];
-  onChange: (points: BoardingPoint[]) => void;
+  dropPoints: DropPoint[];
+  onChange: (points: DropPoint[]) => void;
   error?: string;
 };
 
-const emptyPoint = (): BoardingPoint => ({
+export const emptyDropPoint = (): DropPoint => ({
   location: "",
-  date: "",
-  time: "",
   details: "",
   maplink: "",
   pickupLocationId: "",
@@ -58,14 +54,13 @@ const emptyCreateForm = (): CreateForm => ({
 });
 
 /**
- * Trip boarding points editor.
- * Shows all 4 schema fields: location, time, details, maplink.
+ * Trip drop points editor.
+ * Shows schema fields: location, details, maplink (without time or date).
  * Select a saved master location to fill location / details / maplink;
- * or create a new pickup location inline without leaving this form.
- * Set time for this trip.
+ * or create a new location inline without leaving this form.
  */
-export default function BoardingPointsEditor({
-  boardingPoints,
+export default function DropPointsEditor({
+  dropPoints,
   onChange,
   error,
 }: Props) {
@@ -75,12 +70,12 @@ export default function BoardingPointsEditor({
   const locations: PickupLocation[] = data?.locations ?? [];
 
   const [createOpen, setCreateOpen] = useState(false);
-  /** Which boarding point index to auto-select after create (null = none) */
+  /** Which drop point index to auto-select after create (null = none) */
   const [createForIndex, setCreateForIndex] = useState<number | null>(null);
   const [createForm, setCreateForm] = useState<CreateForm>(emptyCreateForm());
 
-  const updatePoint = (index: number, patch: Partial<BoardingPoint>) => {
-    const next = boardingPoints.map((p, i) =>
+  const updatePoint = (index: number, patch: Partial<DropPoint>) => {
+    const next = dropPoints.map((p, i) =>
       i === index ? { ...p, ...patch } : p
     );
     onChange(next);
@@ -89,7 +84,7 @@ export default function BoardingPointsEditor({
   const applyLocationToPoint = (
     index: number,
     loc: PickupLocation,
-    points: BoardingPoint[] = boardingPoints
+    points: DropPoint[] = dropPoints
   ) => {
     return points.map((p, i) =>
       i === index
@@ -119,7 +114,7 @@ export default function BoardingPointsEditor({
     onChange(applyLocationToPoint(index, loc));
   };
 
-  const resolveSelectedId = (point: BoardingPoint): string => {
+  const resolveSelectedId = (point: DropPoint): string => {
     if (point.pickupLocationId) {
       const byId = locations.find((l) => l._id === point.pickupLocationId);
       if (byId) return byId._id;
@@ -134,11 +129,10 @@ export default function BoardingPointsEditor({
     return "";
   };
 
-  const addPoint = () => onChange([...boardingPoints, emptyPoint()]);
+  const addPoint = () => onChange([...dropPoints, emptyDropPoint()]);
 
   const removePoint = (index: number) => {
-    if (boardingPoints.length <= 1) return;
-    onChange(boardingPoints.filter((_, i) => i !== index));
+    onChange(dropPoints.filter((_, i) => i !== index));
   };
 
   const openCreateDialog = (index: number | null = null) => {
@@ -149,7 +143,7 @@ export default function BoardingPointsEditor({
 
   const handleCreatePickup = async () => {
     if (!createForm.name.trim()) {
-      toast.error("Pickup location name is required");
+      toast.error("Location name is required");
       return;
     }
     try {
@@ -168,15 +162,15 @@ export default function BoardingPointsEditor({
 
       toast.success(
         newLoc?.name
-          ? `Pickup “${newLoc.name}” created and selected`
-          : "Pickup location created"
+          ? `Location “${newLoc.name}” created and selected`
+          : "Location created"
       );
       setCreateOpen(false);
       setCreateForm(emptyCreateForm());
       setCreateForIndex(null);
     } catch (err: any) {
       toast.error(
-        err?.data?.message || "Failed to create pickup location"
+        err?.data?.message || "Failed to create location"
       );
     }
   };
@@ -186,15 +180,14 @@ export default function BoardingPointsEditor({
       <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-xl font-semibold text-slate-900">
-            Boarding Points *
+            Drop Locations
           </h2>
           <p className="mt-0.5 text-sm text-slate-500">
-            Select a saved pickup for{" "}
+            Add dropping points for this trip with{" "}
             <span className="font-medium text-slate-700">location</span>,{" "}
             <span className="font-medium text-slate-700">details</span> &{" "}
-            <span className="font-medium text-slate-700">maplink</span>. Set{" "}
-            <span className="font-medium text-slate-700">date & time</span> for
-            this trip. Create a new pickup here if it is not in the list yet.
+            <span className="font-medium text-slate-700">maplink</span> (no date
+            or time needed).
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
@@ -202,15 +195,15 @@ export default function BoardingPointsEditor({
             type="button"
             variant="outline"
             size="sm"
-            className="border-orange-200 text-orange-700 hover:bg-orange-50"
+            className="border-sky-200 text-sky-700 hover:bg-sky-50"
             onClick={() => openCreateDialog(null)}
           >
             <Plus className="mr-1.5 h-4 w-4" />
-            New pickup location
+            New drop location
           </Button>
           <Link
             to="/admin/pickup-locations"
-            className="text-sm font-medium text-orange-600 hover:underline"
+            className="text-sm font-medium text-sky-600 hover:underline"
           >
             Manage locations →
           </Link>
@@ -221,59 +214,54 @@ export default function BoardingPointsEditor({
         <p className="mb-3 text-sm text-slate-500">Loading locations...</p>
       )}
 
-      {!isLoading && locations.length === 0 && (
-        <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-          No saved pickup locations yet.{" "}
-          <button
+      {dropPoints.length === 0 && (
+        <div className="mb-4 rounded-xl border border-dashed border-slate-300 bg-slate-50/50 p-6 text-center">
+          <p className="text-sm text-slate-600">No drop locations added yet.</p>
+          <Button
             type="button"
-            className="font-semibold underline"
-            onClick={() => openCreateDialog(0)}
+            onClick={addPoint}
+            variant="outline"
+            size="sm"
+            className="mt-3 border-sky-200 text-sky-700 hover:bg-sky-50"
           >
-            Create one here
-          </button>{" "}
-          or{" "}
-          <Link
-            to="/admin/pickup-locations"
-            className="font-semibold underline"
-          >
-            manage all locations
-          </Link>
-          , then set the pickup time for this trip.
+            <Plus className="mr-1.5 h-4 w-4" />
+            Add Drop Location
+          </Button>
         </div>
       )}
 
-      {boardingPoints.map((point, index) => {
+      {dropPoints.map((point, index) => {
         const selectedId = resolveSelectedId(point);
 
         return (
           <div
             key={index}
-            className="relative mb-6 rounded-xl border border-orange-100 bg-orange-50/30 p-4"
+            className="relative mb-6 rounded-xl border border-sky-100 bg-sky-50/30 p-4"
           >
-            <div className="mb-4 flex items-center gap-2 text-sm font-semibold text-orange-800">
-              <MapPin className="h-4 w-4" />
-              Pickup #{index + 1}
+            <div className="mb-4 flex items-center gap-2 text-sm font-semibold text-sky-800">
+              <MapPin className="h-4 w-4 text-sky-600" />
+              Drop Location #{index + 1}
             </div>
 
             {/* Select master location */}
             <div className="mb-4">
               <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
-                <Label htmlFor={`pickup-select-${index}`}>
+                <Label htmlFor={`drop-select-${index}`}>
                   Select saved location
                 </Label>
                 <button
                   type="button"
                   onClick={() => openCreateDialog(index)}
-                  className="text-xs font-semibold text-orange-600 hover:underline"
+                  className="text-xs font-semibold text-sky-600 hover:underline"
                 >
-                  + Create new pickup
+                  + Create new location
                 </button>
               </div>
               <select
-                id={`pickup-select-${index}`}
+                id={`drop-select-${index}`}
                 value={selectedId}
                 onChange={(e) => handleSelectLocation(index, e.target.value)}
-                className="mt-1 w-full rounded-md border border-input bg-white px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-orange-300"
+                className="mt-1 w-full rounded-md border border-input bg-white px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-300"
               >
                 <option value="">Select location by name...</option>
                 {locations.map((loc) => (
@@ -285,84 +273,48 @@ export default function BoardingPointsEditor({
               {!selectedId && point.location && (
                 <p className="mt-1 text-xs text-amber-700">
                   “{point.location}” is not in the master list — select a saved
-                  location, create a new one, or keep these values.
+                  location or keep these values.
                 </p>
               )}
             </div>
 
-            {/* Schema fields: location, date, time, details, maplink */}
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {/* Fields: location, details, maplink (NO time, NO date) */}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               {/* location */}
               <div>
-                <Label htmlFor={`location-${index}`}>Location</Label>
+                <Label htmlFor={`drop-location-${index}`}>Location</Label>
                 <Input
-                  id={`location-${index}`}
-                  placeholder="Location name"
+                  id={`drop-location-${index}`}
+                  placeholder="Drop location name"
                   value={point.location}
                   readOnly
                   className="mt-1 bg-slate-50 text-slate-800"
                 />
                 <p className="mt-0.5 text-[11px] text-slate-400">
-                  Filled from selected pickup location
-                </p>
-              </div>
-
-              {/* date */}
-              <div>
-                <Label htmlFor={`date-${index}`}>Pickup Date</Label>
-                <Input
-                  id={`date-${index}`}
-                  type="date"
-                  value={point.date || ""}
-                  onChange={(e) =>
-                    updatePoint(index, { date: e.target.value })
-                  }
-                  className="mt-1 bg-white"
-                />
-                <p className="mt-0.5 text-[11px] text-slate-400">
-                  Pickup date (optional / specific date)
-                </p>
-              </div>
-
-              {/* time */}
-              <div>
-                <Label htmlFor={`time-${index}`}>
-                  Pickup Time <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  id={`time-${index}`}
-                  type="time"
-                  value={point.time}
-                  onChange={(e) =>
-                    updatePoint(index, { time: e.target.value })
-                  }
-                  className="mt-1 bg-white"
-                />
-                <p className="mt-0.5 text-[11px] text-slate-400">
-                  Set pickup time for this trip
+                  Filled from selected location
                 </p>
               </div>
 
               {/* details */}
               <div>
-                <Label htmlFor={`details-${index}`}>Details</Label>
+                <Label htmlFor={`drop-details-${index}`}>Details</Label>
                 <Input
-                  id={`details-${index}`}
-                  placeholder="Pickup details / landmark"
+                  id={`drop-details-${index}`}
+                  placeholder="Drop details / landmark"
                   value={point.details}
                   readOnly
                   className="mt-1 bg-slate-50 text-slate-800"
                 />
                 <p className="mt-0.5 text-[11px] text-slate-400">
-                  Filled from selected pickup location
+                  Filled from selected location
                 </p>
               </div>
 
               {/* maplink */}
-              <div className="sm:col-span-2 lg:col-span-2">
-                <Label htmlFor={`maplink-${index}`}>Map Link</Label>
+              <div className="sm:col-span-2">
+                <Label htmlFor={`drop-maplink-${index}`}>Map Link</Label>
                 <Input
-                  id={`maplink-${index}`}
+                  id={`drop-maplink-${index}`}
                   placeholder="Google Map link"
                   value={point.maplink}
                   readOnly
@@ -373,46 +325,46 @@ export default function BoardingPointsEditor({
                     href={point.maplink}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="mt-0.5 inline-block text-[11px] font-medium text-orange-600 hover:underline"
+                    className="mt-0.5 inline-block text-[11px] font-medium text-sky-600 hover:underline"
                   >
                     Open map link →
                   </a>
                 ) : (
                   <p className="mt-0.5 text-[11px] text-slate-400">
-                    Filled from selected pickup location
+                    Filled from selected location
                   </p>
                 )}
               </div>
             </div>
 
-            {boardingPoints.length > 1 && (
-              <Button
-                type="button"
-                variant="destructive"
-                size="icon"
-                className="absolute top-3 right-3"
-                onClick={() => removePoint(index)}
-              >
-                <FaTrash className="h-3.5 w-3.5" />
-              </Button>
-            )}
+            <Button
+              type="button"
+              variant="destructive"
+              size="icon"
+              className="absolute top-3 right-3"
+              onClick={() => removePoint(index)}
+            >
+              <FaTrash className="h-3.5 w-3.5" />
+            </Button>
           </div>
         );
       })}
 
       {error && <p className="mt-1 text-sm text-red-500">{error}</p>}
 
-      <Button
-        type="button"
-        onClick={addPoint}
-        variant="outline"
-        className="mt-1 border-orange-200 text-orange-700 hover:bg-orange-50"
-      >
-        <Plus className="mr-2 h-4 w-4" />
-        Add Boarding Point
-      </Button>
+      {dropPoints.length > 0 && (
+        <Button
+          type="button"
+          onClick={addPoint}
+          variant="outline"
+          className="mt-1 border-sky-200 text-sky-700 hover:bg-sky-50"
+        >
+          <Plus className="mr-2 h-4 w-4" />
+          Add Drop Location
+        </Button>
+      )}
 
-      {/* Inline create pickup location */}
+      {/* Inline create location */}
       <Dialog
         open={createOpen}
         onOpenChange={(open) => {
@@ -425,25 +377,25 @@ export default function BoardingPointsEditor({
       >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Create pickup location</DialogTitle>
+            <DialogTitle>Create drop location</DialogTitle>
             <DialogDescription>
-              Save a new master pickup (name, map link, details). It will be
+              Save a new master location (name, map link, details). It will be
               available for all trips
               {createForIndex !== null
-                ? ` and selected for Pickup #${createForIndex + 1}`
+                ? ` and selected for Drop Location #${createForIndex + 1}`
                 : ""}
               .
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3 py-1">
             <div>
-              <Label htmlFor="new-pickup-name">
+              <Label htmlFor="new-drop-name">
                 Location name <span className="text-red-500">*</span>
               </Label>
               <Input
-                id="new-pickup-name"
+                id="new-drop-name"
                 className="mt-1"
-                placeholder="e.g. Swargate Bus Stand"
+                placeholder="e.g. Katraj Bus Stand / Deccan Gymkhana"
                 value={createForm.name}
                 onChange={(e) =>
                   setCreateForm((f) => ({ ...f, name: e.target.value }))
@@ -451,11 +403,11 @@ export default function BoardingPointsEditor({
               />
             </div>
             <div>
-              <Label htmlFor="new-pickup-details">Details</Label>
+              <Label htmlFor="new-drop-details">Details</Label>
               <Input
-                id="new-pickup-details"
+                id="new-drop-details"
                 className="mt-1"
-                placeholder="Landmark / meeting notes"
+                placeholder="Landmark / arrival notes"
                 value={createForm.details}
                 onChange={(e) =>
                   setCreateForm((f) => ({ ...f, details: e.target.value }))
@@ -463,9 +415,9 @@ export default function BoardingPointsEditor({
               />
             </div>
             <div>
-              <Label htmlFor="new-pickup-maplink">Map link</Label>
+              <Label htmlFor="new-drop-maplink">Map link</Label>
               <Input
-                id="new-pickup-maplink"
+                id="new-drop-maplink"
                 className="mt-1"
                 placeholder="https://maps.google.com/..."
                 value={createForm.maplink}
@@ -488,7 +440,7 @@ export default function BoardingPointsEditor({
               type="button"
               onClick={handleCreatePickup}
               disabled={isCreating}
-              className="bg-orange-500 hover:bg-orange-600"
+              className="bg-sky-600 hover:bg-sky-700 text-white"
             >
               {isCreating ? (
                 <>

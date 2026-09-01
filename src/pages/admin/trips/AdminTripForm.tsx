@@ -30,6 +30,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import BoardingPointsEditor from "@/components/admin/BoardingPointsEditor";
+import DropPointsEditor, {
+  type DropPoint,
+} from "@/components/admin/DropPointsEditor";
 import InterconnectionEditor, {
   defaultInterconnection,
   type InterconnectionConfig,
@@ -56,7 +59,14 @@ const localizer = dateFnsLocalizer({
 // =====================
 interface BoardingPoint {
   location: string;
+  date?: string;
   time: string;
+  details: string;
+  maplink: string;
+}
+
+interface DropPoint {
+  location: string;
   details: string;
   maplink: string;
 }
@@ -101,6 +111,7 @@ interface TripDetails {
   category: string;
   amenities: string[];
   boardingPoints: BoardingPoint[];
+  dropPoints: DropPoint[];
   packages: Package[];
   roomChoices: RoomChoice[];
   file?: File | null;
@@ -224,7 +235,8 @@ const validateMinSeats = (value: number) => {
     price: 0,
     category: "",
     amenities: [],
-    boardingPoints: [{ location: "", time: "", details: "", maplink: "" }],
+    boardingPoints: [{ location: "", date: "", time: "", details: "", maplink: "" }],
+    dropPoints: [],
     packages: [],
     roomChoices: [],
     file: null,
@@ -447,6 +459,10 @@ const validateMinSeats = (value: number) => {
     if (points.length > 0 && points.some((p) => p.location && p.time)) {
       setErrors({ ...errors, boardingPoints: "" });
     }
+  };
+
+  const handleDropPointsChange = (points: DropPoint[]) => {
+    setTripDetails({ ...tripDetails, dropPoints: points });
   };
 
   const handleAddPackage = () => {
@@ -1107,6 +1123,10 @@ const validateMinSeats = (value: number) => {
       formData.append(
         "boardingPoints",
         JSON.stringify(tripDetails.boardingPoints),
+      );
+      formData.append(
+        "dropPoints",
+        JSON.stringify(tripDetails.dropPoints),
       );
       formData.append("packages", JSON.stringify(tripDetails.packages));
       formData.append("roomChoices", JSON.stringify(tripDetails.roomChoices));
@@ -1921,6 +1941,12 @@ const validateMinSeats = (value: number) => {
               boardingPoints={tripDetails.boardingPoints}
               onChange={handleBoardingPointsChange}
               error={errors.boardingPoints}
+            />
+
+            {/* ===================== DROP POINTS ===================== */}
+            <DropPointsEditor
+              dropPoints={tripDetails.dropPoints}
+              onChange={handleDropPointsChange}
             />
 
             {/* Map link for details page */}

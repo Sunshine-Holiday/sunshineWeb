@@ -79,9 +79,16 @@ interface Trip {
   boardingPoints: {
     _id: string;
     location: string;
+    date?: string;
     time: string;
     details: string;
     maplink: string;
+  }[];
+  dropPoints?: {
+    _id?: string;
+    location: string;
+    details?: string;
+    maplink?: string;
   }[];
   packages?: TripPackage[];
   highlights?: string[];
@@ -526,6 +533,7 @@ const TripDetails = () => {
                             <TranslatedText text={point.location} as="span" />
                           </p>
                           <p className="text-xs text-slate-500">
+                            {point.date ? `${point.date} · ` : ""}
                             {point.time}
                             {point.details ? (
                               <>
@@ -535,6 +543,42 @@ const TripDetails = () => {
                             ) : null}
                           </p>
                           <span className="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold text-orange-600">
+                            Open in Google Maps
+                            <ExternalLink className="h-3 w-3" />
+                          </span>
+                        </div>
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Dropping locations → open Google Maps (no date/time) */}
+              {trip.dropPoints && trip.dropPoints.length > 0 && (
+                <div className="mt-5 border-t border-slate-100 pt-4">
+                  <h3 className="mb-3 text-sm font-bold uppercase tracking-wide text-slate-500">
+                    Dropping locations
+                  </h3>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {trip.dropPoints.map((point, idx) => (
+                      <a
+                        key={point._id || idx}
+                        href={stopGoogleMapsUrl(point)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="group flex items-start gap-2 rounded-xl border border-transparent bg-sky-50/60 px-3 py-2.5 transition hover:border-sky-200 hover:bg-sky-50 hover:shadow-sm"
+                      >
+                        <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-sky-500" />
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-semibold text-slate-800 group-hover:text-sky-700">
+                            <TranslatedText text={point.location} as="span" />
+                          </p>
+                          {point.details ? (
+                            <p className="text-xs text-slate-500">
+                              <TranslatedText text={point.details} as="span" />
+                            </p>
+                          ) : null}
+                          <span className="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold text-sky-600">
                             Open in Google Maps
                             <ExternalLink className="h-3 w-3" />
                           </span>

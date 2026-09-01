@@ -189,16 +189,17 @@ const BookingDetail = () => {
 
         // Boarding Points Table
         const boardingStartY = doc.autoTable.previous.finalY + 10;
-        doc.text("Boarding Points:", 10, boardingStartY);
+        doc.text("Boarding Points (Pickup):", 10, boardingStartY);
 
         if (booking.trip?.boardingPoints && booking.trip.boardingPoints.length > 0) {
           doc.autoTable({
             startY: boardingStartY + 5,
-            head: [["Location", "Time", "Details"]],
+            head: [["Location", "Date", "Time", "Details"]],
             body: booking.trip.boardingPoints.map((point: any) => [
               point.location || "N/A",
+              point.date || "—",
               point.time || "N/A",
-              point.details || "N/A",
+              point.details || "—",
             ]),
             theme: "grid",
             styles: { fontSize: 10 },
@@ -206,39 +207,57 @@ const BookingDetail = () => {
         } else {
           doc.autoTable({
             startY: boardingStartY + 5,
-            head: [["Location", "Time", "Details"]],
-            body: [["No boarding points available", "", ""]],
+            head: [["Location", "Date", "Time", "Details"]],
+            body: [["No boarding points available", "", "", ""]],
             theme: "grid",
             styles: { fontSize: 10 },
           });
         }
 
+        // Drop Points Table
+        let currentY = doc.autoTable.previous.finalY + 10;
+        if (booking.trip?.dropPoints && booking.trip.dropPoints.length > 0) {
+          doc.text("Drop Locations:", 10, currentY);
+          doc.autoTable({
+            startY: currentY + 5,
+            head: [["Location", "Details"]],
+            body: booking.trip.dropPoints.map((point: any) => [
+              point.location || "N/A",
+              point.details || "—",
+            ]),
+            theme: "grid",
+            styles: { fontSize: 10 },
+          });
+          currentY = doc.autoTable.previous.finalY + 10;
+        }
+
         // Passengers Table
-        const passengersStartY = doc.autoTable.previous.finalY + 10;
+        const passengersStartY = currentY;
         doc.text("Passengers:", 10, passengersStartY);
 
         if (booking.passengers && booking.passengers.length > 0) {
           doc.autoTable({
             startY: passengersStartY + 5,
-            head: [["Name", "Age", "Gender", "Boarding Point", "ID Proof", "Phone Number"]],
+            head: [["Name", "Age", "Gender", "Boarding Point", "Drop Location", "ID Proof", "Phone Number"]],
             body: booking.passengers.map((passenger: any) => [
               passenger.name || "Unnamed",
               passenger.age || "N/A",
               passenger.gender || "N/A",
               passenger.address || "N/A",
+              passenger.dropLocation || "—",
               `${passenger.idProof || "N/A"} (${passenger.idProofNumber || "N/A"})`,
               passenger.phoneNumber || "N/A",
             ]),
             theme: "grid",
-            styles: { fontSize: 10 },
+            styles: { fontSize: 9 },
           });
         } else {
           doc.autoTable({
             startY: passengersStartY + 5,
-            head: [["Name", "Age", "Gender", "Boarding Point", "ID Proof", "Phone Number"]],
-            body: [["No passenger details available", "", "", "", "", ""]],
+            head: [["Name", "Age", "Gender", "Boarding Point", "Drop Location", "ID Proof", "Phone Number"]],
+            body: [["No passenger details available", "", "", "", "", "", ""]],
             theme: "grid",
-            styles: { fontSize: 10 },
+            styles: { fontSize: 9 },
           });
         }
 
@@ -437,12 +456,13 @@ const BookingDetail = () => {
         </div>
 
         {/* Boarding Points Section */}
-        <h3 className="text-xl font-semibold mb-4">Boarding Points</h3>
+        <h3 className="text-xl font-semibold mb-4">Boarding Points (Pickup)</h3>
         <div className="overflow-x-auto mb-6">
           <table className="w-full border-collapse border border-gray-300 text-sm">
             <thead>
               <tr className="bg-gray-200">
                 <th className="border border-gray-300 px-4 py-2">Location</th>
+                <th className="border border-gray-300 px-4 py-2">Date</th>
                 <th className="border border-gray-300 px-4 py-2">Time</th>
                 <th className="border border-gray-300 px-4 py-2">Details</th>
               </tr>
@@ -455,16 +475,19 @@ const BookingDetail = () => {
                       {point.location || "N/A"}
                     </td>
                     <td className="border border-gray-300 px-4 py-2">
+                      {point.date || "—"}
+                    </td>
+                    <td className="border border-gray-300 px-4 py-2">
                       {point.time || "N/A"}
                     </td>
                     <td className="border border-gray-300 px-4 py-2">
-                      {point.details || "N/A"}
+                      {point.details || "—"}
                     </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={3} className="border border-gray-300 px-4 py-2 text-center">
+                  <td colSpan={4} className="border border-gray-300 px-4 py-2 text-center">
                     No boarding points available
                   </td>
                 </tr>
@@ -472,6 +495,35 @@ const BookingDetail = () => {
             </tbody>
           </table>
         </div>
+
+        {/* Drop Locations Section */}
+        {booking.trip.dropPoints && booking.trip.dropPoints.length > 0 && (
+          <>
+            <h3 className="text-xl font-semibold mb-4">Drop Locations</h3>
+            <div className="overflow-x-auto mb-6">
+              <table className="w-full border-collapse border border-gray-300 text-sm">
+                <thead>
+                  <tr className="bg-gray-200">
+                    <th className="border border-gray-300 px-4 py-2">Location</th>
+                    <th className="border border-gray-300 px-4 py-2">Details</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {booking.trip.dropPoints.map((point: any, index: number) => (
+                    <tr key={index}>
+                      <td className="border border-gray-300 px-4 py-2">
+                        {point.location || "N/A"}
+                      </td>
+                      <td className="border border-gray-300 px-4 py-2">
+                        {point.details || "—"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
 
         {/* Passengers Section */}
         <h3 className="text-xl font-semibold mb-4">Passengers</h3>
@@ -483,6 +535,7 @@ const BookingDetail = () => {
                 <th className="border border-gray-300 px-4 py-2">Age</th>
                 <th className="border border-gray-300 px-4 py-2">Gender</th>
                 <th className="border border-gray-300 px-4 py-2">Boarding Point</th>
+                <th className="border border-gray-300 px-4 py-2">Drop Location</th>
                 <th className="border border-gray-300 px-4 py-2">ID Proof</th>
                 <th className="border border-gray-300 px-4 py-2">Phone Number</th>
               </tr>
@@ -504,6 +557,9 @@ const BookingDetail = () => {
                       {passenger.address || "N/A"}
                     </td>
                     <td className="border border-gray-300 px-4 py-2">
+                      {passenger.dropLocation || "—"}
+                    </td>
+                    <td className="border border-gray-300 px-4 py-2">
                       {passenger.idProof || "N/A"} - {passenger.idProofNumber || "N/A"}
                     </td>
                     <td className="border border-gray-300 px-4 py-2">
@@ -513,7 +569,7 @@ const BookingDetail = () => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={6} className="border border-gray-300 px-4 py-2 text-center">
+                  <td colSpan={7} className="border border-gray-300 px-4 py-2 text-center">
                     No passenger details available
                   </td>
                 </tr>
