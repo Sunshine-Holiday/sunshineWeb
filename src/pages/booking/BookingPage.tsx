@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { PassengerData } from "./components/PassengerForm";
+import PassengerForm, { PassengerData } from "./components/PassengerForm";
 import { fadeInUp } from "../../utils/animations";
 import { useLocation, useNavigate } from "react-router-dom";
 import jsPDF from "jspdf";
@@ -198,6 +198,21 @@ interface BookingSummaryProps {
     baseSeatPrice: number;
     discountPercentage?: number;
     advancePaymentPercentage?: number;
+    boardingPoints?: {
+      _id: string;
+      location: string;
+      date?: string;
+      time: string;
+      details: string;
+      maplink?: string;
+    }[];
+    dropPoints?: {
+      _id: string;
+      location: string;
+      details: string;
+      maplink?: string;
+    }[];
+    busSize?: string;
   };
 
   selectedDate: StartDate | null;
@@ -1051,8 +1066,11 @@ const BookingPage = () => {
 
   const validatePassengerDetails = () => {
     return passengers.every((p) => {
-      const fullName = (p.name || "").trim() ||
+      const fullName =
+        (p.name || "").trim() ||
         [p.title, p.firstName, p.lastName].filter(Boolean).join(" ").trim();
+      const hasPickup =
+        !tripDetails.boardingPoints?.length || !!(p.address || "").trim();
       return (
         !!fullName &&
         p.age &&
@@ -1060,7 +1078,8 @@ const BookingPage = () => {
         ["aadhar", "pan"].includes(p.idProof as string) &&
         (p.idProofNumber || "").trim() &&
         (p.phoneNumber || "").trim() &&
-        /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(p.email || "")
+        /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(p.email || "") &&
+        hasPickup
       );
     });
   };
@@ -1572,6 +1591,7 @@ const handleProceed = async () => {
     packages: trip.packages || [],
     roomChoices: trip.roomChoices || [],
     boardingPoints: trip.boardingPoints || [],
+    dropPoints: trip.dropPoints || [],
     busSize: trip.busSize || "20",
     baseSeatPrice: parseInt(trip.price) || 1000,
     discountPercentage: trip.discountPercentage,
@@ -1851,13 +1871,6 @@ const handleProceed = async () => {
                         index={index}
                         onChange={handlePassengerChange}
                         passengers={passengers}
-                        hideAddress={
-                          !!(
-                            step === "passenger-details" &&
-                            (totalSeats === 20 || totalSeats === 32) &&
-                            tripDetails.boardingPoints?.length
-                          )
-                        }
                         showSeatBadge={
                           !!(
                             selectedSeats[index] ||
@@ -1880,92 +1893,6 @@ const handleProceed = async () => {
                     </div>
                   ))}
                 </div>
-
-                {/* Shared pickup & drop address card (seat booking) */}
-                {step === "passenger-details" &&
-                  (totalSeats === 20 || totalSeats === 32) &&
-                  (tripDetails.boardingPoints?.length > 0 ||
-                    (tripDetails.dropPoints && tripDetails.dropPoints.length > 0)) && (
-                    <div className="rounded-2xl border border-orange-100 bg-white p-5 shadow-sm">
-                      <h3 className="text-lg font-bold text-slate-900">
-                        Pickup & Drop Location
-                      </h3>
-                      <p className="mt-1 text-xs text-slate-500">
-                        Select pickup and drop locations for all passengers (you
-                        can change per passenger if needed below).
-                      </p>
-                      <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-                        {tripDetails.boardingPoints?.length > 0 && (
-                          <div>
-                            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                              Pickup Location *
-                            </label>
-                            <select
-                              className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm shadow-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-200"
-                              value={passengers[0]?.address || ""}
-                              onChange={(e) => {
-                                const loc = e.target.value;
-                                setPassengers((prev) =>
-                                  prev.map((p) => ({ ...p, address: loc })),
-                                );
-                              }}
-                              disabled={isSubmitting}
-                            >
-                              <option value="">Select Pickup Location</option>
-                              {tripDetails.boardingPoints.map((point, i) => (
-                                <option key={point._id || i} value={point.location}>
-                                  {point.location}
-                                  {point.date ? ` [${point.date}]` : ""}
-                                  {point.time ? ` (${point.time})` : ""}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                        )}
-
-                        <div>
-                          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                            Drop Location
-                          </label>
-                          {tripDetails.dropPoints && tripDetails.dropPoints.length > 0 ? (
-                            <select
-                              className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm shadow-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-200"
-                              value={passengers[0]?.dropLocation || ""}
-                              onChange={(e) => {
-                                const dropLoc = e.target.value;
-                                setPassengers((prev) =>
-                                  prev.map((p) => ({ ...p, dropLocation: dropLoc })),
-                                );
-                              }}
-                              disabled={isSubmitting}
-                            >
-                              <option value="">Select Drop Location</option>
-                              {tripDetails.dropPoints.map((point, i) => (
-                                <option key={point._id || i} value={point.location}>
-                                  {point.location}
-                                  {point.details ? ` (${point.details})` : ""}
-                                </option>
-                              ))}
-                            </select>
-                          ) : (
-                            <input
-                              type="text"
-                              placeholder="Drop location / landmark"
-                              className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm shadow-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-200"
-                              value={passengers[0]?.dropLocation || ""}
-                              onChange={(e) => {
-                                const dropLoc = e.target.value;
-                                setPassengers((prev) =>
-                                  prev.map((p) => ({ ...p, dropLocation: dropLoc })),
-                                );
-                              }}
-                              disabled={isSubmitting}
-                            />
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  )}
 
                 {!(totalSeats === 20 || totalSeats === 32) &&
                   maxAvailableSeats > passengers.length && (
@@ -2328,321 +2255,6 @@ const SeatLayout = ({
   );
 };
 
-// PassengerForm Component
-interface PassengerFormProps {
-  seatNumber: string;
-  index: number;
-  tripDetails: {
-    boardingPoints: {
-      details: string;
-      location: string;
-      time: string;
-      _id: string;
-    }[];
-  };
-  onChange: (index: number, data: PassengerData) => void;
-  passengers: PassengerData[];
-}
-
-const PassengerForm = ({
-  seatNumber,
-  tripDetails,
-  index,
-  onChange,
-  passengers,
-}: PassengerFormProps) => {
-  const [errors, setErrors] = useState({
-    name: false,
-    age: false,
-    gender: false,
-    idProof: false,
-    idProofNumber: false,
-    phoneNumber: false,
-    email: false,
-  });
-
-  const [errorMessages, setErrorMessages] = useState({
-    name: "",
-    age: "",
-    gender: "",
-    idProof: "",
-    idProofNumber: "",
-    phoneNumber: "",
-    email: "",
-  });
-
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
-  ) => {
-    const { name, value } = e.target;
-
-    const trimmedValue = value.trim();
-
-    const updatedData: PassengerData = {
-      ...passengers[index],
-      [name]: trimmedValue,
-    };
-
-    onChange(index, updatedData);
-
-    // ---------------------------
-    // 🧪 VALIDATIONS
-    // ---------------------------
-    let hasError = false;
-    let errorMessage = "";
-
-    // Empty check
-    if (trimmedValue === "") {
-      hasError = true;
-      errorMessage = `Please enter ${name.replace(/([A-Z])/g, " $1")}`;
-    }
-
-    // Gender validation
-    if (
-      name === "gender" &&
-      trimmedValue &&
-      !["male", "female", "other"].includes(trimmedValue)
-    ) {
-      hasError = true;
-      errorMessage = "Please select a valid gender";
-    }
-
-    // ID proof validation
-    if (
-      name === "idProof" &&
-      trimmedValue &&
-      !["aadhar", "pan"].includes(trimmedValue)
-    ) {
-      hasError = true;
-      errorMessage = "Please select a valid ID proof type";
-    }
-
-    // Age validation
-    if (name === "age" && trimmedValue) {
-      const ageNumber = Number(trimmedValue);
-      if (isNaN(ageNumber) || ageNumber <= 0 || ageNumber > 150) {
-        hasError = true;
-        errorMessage = "Please enter a valid age";
-      }
-    }
-
-    // Phone number validation (10–15 digits)
-    if (name === "phoneNumber" && trimmedValue) {
-      if (!/^\d{10,15}$/.test(trimmedValue)) {
-        hasError = true;
-        errorMessage = "Please enter a valid phone number";
-      }
-    }
-
-    // Email validation
-    if (name === "email" && trimmedValue) {
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedValue)) {
-        hasError = true;
-        errorMessage = "Please enter a valid email address";
-      }
-    }
-
-    // ---------------------------
-    // 🛑 SET ERRORS
-    // ---------------------------
-    setErrors((prev) => ({
-      ...prev,
-      [name]: hasError,
-    }));
-
-    setErrorMessages((prev) => ({
-      ...prev,
-      [name]: errorMessage,
-    }));
-  };
-
-  const hasBoardingPoints =
-    tripDetails.boardingPoints && tripDetails.boardingPoints.length > 0;
-
-  return (
-    <motion.div
-      variants={fadeInUp}
-      className="bg-white p-6 rounded-lg shadow-sm mb-4"
-    >
-      <h3 className="font-medium mb-4">
-        Passenger {index + 1} - Seat {seatNumber}
-      </h3>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Full Name
-          </label>
-          <input
-            type="text"
-            name="name"
-            value={passengers[index]?.name || ""}
-            onChange={handleChange}
-            className={`w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${
-              errors.name ? "border-red-500" : ""
-            }`}
-            aria-invalid={errors.name ? "true" : "false"}
-            required
-          />
-          {errors.name && (
-            <p className="text-red-500 text-xs">{errorMessages.name}</p>
-          )}
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Age
-          </label>
-          <input
-            type="text"
-            name="age"
-            value={passengers[index]?.age || ""}
-            onChange={handleChange}
-            className={`w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${
-              errors.age ? "border-red-500" : ""
-            }`}
-            aria-invalid={errors.age ? "true" : "false"}
-            required
-          />
-          {errors.age && (
-            <p className="text-red-500 text-xs">{errorMessages.age}</p>
-          )}
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Gender
-          </label>
-          <select
-            name="gender"
-            value={passengers[index]?.gender || ""}
-            onChange={handleChange}
-            className={`w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${
-              errors.gender ? "border-red-500" : ""
-            }`}
-            aria-invalid={errors.gender ? "true" : "false"}
-            required
-          >
-            <option value="">Select Gender</option>
-            <option value="male">Male</option>
-            <option value="female">Female</option>
-            <option value="other">Other</option>
-          </select>
-          {errors.gender && (
-            <p className="text-red-500 text-xs">{errorMessages.gender}</p>
-          )}
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            ID Proof Type
-          </label>
-          <select
-            name="idProof"
-            value={passengers[index]?.idProof || ""}
-            onChange={handleChange}
-            className={`w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${
-              errors.idProof ? "border-red-500" : ""
-            }`}
-            required
-          >
-            <option value="">Select ID Proof</option>
-            <option value="aadhar">Aadhar</option>
-            <option value="pan">PAN</option>
-          </select>
-          {errors.idProof && (
-            <p className="text-red-500 text-xs">{errorMessages.idProof}</p>
-          )}
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            ID Proof Number
-          </label>
-          <input
-            type="text"
-            name="idProofNumber"
-            value={passengers[index]?.idProofNumber || ""}
-            onChange={handleChange}
-            className={`w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${
-              errors.idProofNumber ? "border-red-500" : ""
-            }`}
-            aria-invalid={errors.idProofNumber ? "true" : "false"}
-            required
-          />
-          {errors.idProofNumber && (
-            <p className="text-red-500 text-xs">
-              {errorMessages.idProofNumber}
-            </p>
-          )}
-        </div>
-
-        {hasBoardingPoints && (
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Pickup Location
-            </label>
-            <select
-              name="address"
-              value={passengers[index]?.address || ""}
-              onChange={handleChange}
-              className={`w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500`}
-            >
-              <option value="">Select Pickup Location</option>
-              {tripDetails.boardingPoints.map((point) => (
-                <option key={point._id} value={point.location}>
-                  {point.location} - {point.time}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Phone Number
-          </label>
-          <input
-            type="text"
-            name="phoneNumber"
-            value={passengers[index]?.phoneNumber || ""}
-            onChange={handleChange}
-            className={`w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${
-              errors.phoneNumber ? "border-red-500" : ""
-            }`}
-            aria-invalid={errors.phoneNumber ? "true" : "false"}
-            required
-          />
-          {errors.phoneNumber && (
-            <p className="text-red-500 text-xs">{errorMessages.phoneNumber}</p>
-          )}
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Email Address
-          </label>
-          <input
-            type="email"
-            name="email"
-            value={passengers[index]?.email || ""}
-            onChange={handleChange}
-            className={`w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${
-              errors.email ? "border-red-500" : ""
-            }`}
-            required
-          />
-          {errors.email && (
-            <p className="text-red-500 text-xs">{errorMessages.email}</p>
-          )}
-        </div>
-      </div>
-    </motion.div>
-  );
-};
 
 // BookingSummary Component
 const BookingSummary = ({

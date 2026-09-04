@@ -21,6 +21,7 @@ interface PassengerFormProps {
       maplink?: string;
       _id?: string;
     }[];
+    to?: string;
   };
   onChange: (index: number, data: PassengerData) => void;
   passengers: PassengerData[];
@@ -75,11 +76,11 @@ export const PassengerForm = ({
 
   // Derive first/last from existing full name if missing
   const firstName =
-    p.firstName ??
+    p.firstName ||
     (p.name && !p.lastName ? p.name.split(/\s+/).slice(0, -1).join(" ") || p.name : p.firstName) ||
     "";
   const lastName =
-    p.lastName ??
+    p.lastName ||
     (p.name && p.name.includes(" ")
       ? p.name.split(/\s+/).slice(-1).join(" ")
       : "") ||
@@ -117,6 +118,8 @@ export const PassengerForm = ({
 
   const hasBoarding =
     tripDetails.boardingPoints && tripDetails.boardingPoints.length > 0;
+  const hasDropPoints =
+    Boolean(tripDetails.dropPoints && tripDetails.dropPoints.length > 0);
 
   return (
     <motion.div
@@ -308,67 +311,71 @@ export const PassengerForm = ({
         </div>
 
         {/* Address / pickup & Drop location */}
-        {!hideAddress && (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {hasBoarding && (
-              <div>
-                <label className={labelClass}>
-                  {t("booking.pickupLocation")} *
-                </label>
-                <select
-                  name="address"
-                  value={p.address || ""}
-                  onChange={handleField}
-                  className={inputClass}
-                  required
-                >
-                  <option value="">{t("booking.selectPickup")}</option>
-                  {tripDetails.boardingPoints!.map((point, i) => {
-                    const datePart = point.date ? ` [${point.date}]` : "";
-                    const timePart = point.time ? ` (${point.time})` : "";
-                    return (
-                      <option key={point._id || i} value={point.location}>
-                        {point.location}{datePart}{timePart}
-                      </option>
-                    );
-                  })}
-                </select>
-              </div>
-            )}
-
-            {tripDetails.dropPoints && tripDetails.dropPoints.length > 0 ? (
-              <div>
-                <label className={labelClass}>Drop Location</label>
-                <select
-                  name="dropLocation"
-                  value={p.dropLocation || ""}
-                  onChange={handleField}
-                  className={inputClass}
-                >
-                  <option value="">Select Drop Location</option>
-                  {tripDetails.dropPoints.map((point, i) => (
+        <div
+          className={`grid grid-cols-1 gap-3 ${
+            hasDropPoints ? "sm:grid-cols-2" : ""
+          }`}
+        >
+          {hasBoarding ? (
+            <div>
+              <label className={labelClass}>
+                {t("booking.pickupLocation")} *
+              </label>
+              <select
+                name="address"
+                value={p.address || ""}
+                onChange={handleField}
+                className={inputClass}
+                required
+              >
+                <option value="">{t("booking.selectPickup")}</option>
+                {tripDetails.boardingPoints!.map((point, i) => {
+                  const datePart = point.date ? ` [${point.date}]` : "";
+                  const timePart = point.time ? ` (${point.time})` : "";
+                  return (
                     <option key={point._id || i} value={point.location}>
-                      {point.location}
-                      {point.details ? ` (${point.details})` : ""}
+                      {point.location}{datePart}{timePart}
                     </option>
-                  ))}
-                </select>
-              </div>
-            ) : (
-              <div>
-                <label className={labelClass}>Drop Location</label>
-                <input
-                  type="text"
-                  name="dropLocation"
-                  placeholder="Drop location / landmark"
-                  value={p.dropLocation || ""}
-                  onChange={handleField}
-                  className={inputClass}
-                />
-              </div>
-            )}
-          </div>
-        )}
+                  );
+                })}
+              </select>
+            </div>
+          ) : (
+            <div>
+              <label className={labelClass}>
+                {t("booking.pickupLocation")}
+              </label>
+              <select
+                name="address"
+                value={p.address || ""}
+                onChange={handleField}
+                className={inputClass}
+              >
+                <option value="">{t("booking.selectPickup")}</option>
+              </select>
+            </div>
+          )}
+
+          {hasDropPoints && (
+            <div>
+              <label className={labelClass}>Drop Location</label>
+              <select
+                name="dropLocation"
+                value={p.dropLocation || ""}
+                onChange={handleField}
+                className={inputClass}
+              >
+                <option value="">Select Drop Location</option>
+                {tripDetails.dropPoints!.map((point, i) => (
+                  <option key={point._id || i} value={point.location}>
+                    {point.location}
+                    {point.details ? ` (${point.details})` : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+        </div>
       </div>
     </motion.div>
   );

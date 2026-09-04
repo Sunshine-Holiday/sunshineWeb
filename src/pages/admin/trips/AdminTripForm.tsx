@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Calendar as BigCalendar, dateFnsLocalizer } from "react-big-calendar";
 import { format as formatDate, parse, startOfWeek, getDay } from "date-fns";
 import "react-big-calendar/lib/css/react-big-calendar.css";
-import { Wifi, Coffee, Snowflake, Power, AudioLines } from "lucide-react";
+import { Wifi, Coffee, Snowflake, Power, AudioLines, Copy, CheckCircle2 } from "lucide-react";
 import { enUS } from "date-fns/locale";
 import { useCreatetripsMutation, useGettripsQuery } from "@/store/api/trips";
 import { toast } from "react-toastify";
@@ -16,6 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -258,6 +259,10 @@ const validateMinSeats = (value: number) => {
   /** Multiple banner images (create) */
   const [bannerFiles, setBannerFiles] = useState<File[]>([]);
   const [bannerPreviews, setBannerPreviews] = useState<string[]>([]);
+
+  // duplicate trip state
+  const [duplicateModalOpen, setDuplicateModalOpen] = useState(false);
+  const [isDuplicating, setIsDuplicating] = useState(false);
 
   // modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -1184,13 +1189,66 @@ const validateMinSeats = (value: number) => {
 
       await createTrips(formData).unwrap();
       toast.success("Trip created successfully!");
-      navigate("/admin/trips");
+      setDuplicateModalOpen(true);
     } catch (error) {
       toast.error("Unable to create trip.");
       console.error(error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleConfirmDuplicate = () => {
+    setDuplicateModalOpen(false);
+    setIsDuplicating(true);
+    setCurrentStep(1);
+    setErrors({});
+    setTouched({});
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    toast.info(
+      "Trip duplicated! All details are pre-filled. Update the title, dates, or other info and click Save Trip when ready.",
+    );
+  };
+
+  const handleResetForm = () => {
+    setTripDetails({
+      title: "",
+      location: "",
+      state: "",
+      duration: "",
+      description: "",
+      startDates: [],
+      price: 0,
+      category: "",
+      amenities: [],
+      boardingPoints: [
+        { location: "", date: "", time: "", details: "", maplink: "" },
+      ],
+      dropPoints: [],
+      packages: [],
+      roomChoices: [],
+      file: null,
+      advancePaymentPercentage: undefined,
+      discountPercentage: undefined,
+      highlights: [""],
+      includes: [""],
+      mapLink: "",
+      cancellationPolicy: "",
+      faqs: [{ question: "", answer: "" }],
+      brochureImage: "",
+      brochureFile: "",
+      brochureId: "",
+      interconnection: defaultInterconnection(),
+    });
+    setBannerFiles([]);
+    setBannerPreviews([]);
+    setStateSelectValue("");
+    setCustomState("");
+    setIsDuplicating(false);
+    setCurrentStep(1);
+    setErrors({});
+    setTouched({});
+    toast.info("Form reset to blank.");
   };
 
   const today = new Date();
@@ -1226,12 +1284,54 @@ const validateMinSeats = (value: number) => {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="bg-white rounded-xl shadow-lg p-6">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Create New Trip
+            {isDuplicating ? "Create Duplicate Trip" : "Create New Trip"}
           </h1>
           <p className="text-sm text-gray-500 mb-6">
-            Complete all 3 steps. You can go back anytime to edit previous
-            steps.
+            {isDuplicating
+              ? "All details from the previous trip are pre-filled below. Adjust the title, dates, or any details, then proceed to save."
+              : "Complete all 3 steps. You can go back anytime to edit previous steps."}
           </p>
+
+          {/* ===================== DUPLICATION MODE BANNER ===================== */}
+          {isDuplicating && (
+            <div className="mb-6 rounded-xl border border-orange-200 bg-orange-50 p-4 shadow-sm">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div className="flex items-start sm:items-center gap-3">
+                  <div className="p-2 bg-orange-100 rounded-lg text-orange-600 shrink-0">
+                    <Copy className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h2 className="text-sm font-bold text-orange-950">
+                      Duplicate Mode Active
+                    </h2>
+                    <p className="text-xs text-orange-800">
+                      Previous trip details (banners, pricing, packages, boarding/drop points, amenities) are retained. Update what you need (e.g. title: Saturday vs Sunday departure, date, time) and click "Save Trip" in Step 3.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleResetForm}
+                    className="text-xs border-orange-300 text-orange-800 hover:bg-orange-100 bg-white"
+                  >
+                    Reset to Blank
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => navigate("/admin/trips")}
+                    className="text-xs border-gray-300 text-gray-700 hover:bg-gray-100 bg-white"
+                  >
+                    Go to Trips
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* ===================== STEP INDICATOR ===================== */}
           <div className="mb-8">
@@ -2513,6 +2613,62 @@ const validateMinSeats = (value: number) => {
                 }
               >
                 {isEditingExistingDate ? "Save changes" : "Confirm"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* ===================== DUPLICATE TRIP MODAL ===================== */}
+        <Dialog
+          open={duplicateModalOpen}
+          onOpenChange={(open) => {
+            if (!open) {
+              setDuplicateModalOpen(false);
+              navigate("/admin/trips");
+            }
+          }}
+        >
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-green-100 text-green-600 mb-2">
+                <CheckCircle2 className="h-6 w-6" />
+              </div>
+              <DialogTitle className="text-center text-xl font-bold text-gray-900">
+                Trip Created Successfully!
+              </DialogTitle>
+              <DialogDescription className="text-center text-sm text-gray-600 pt-1">
+                Do you want to duplicate this trip to quickly create another departure or variation?
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="my-3 rounded-lg border border-slate-200 bg-slate-50 p-3.5 text-xs text-slate-700">
+              <p className="font-semibold text-slate-900 mb-1">
+                Trip: <span className="font-medium text-orange-600">{tripDetails.title || "Untitled Trip"}</span>
+              </p>
+              <p className="text-slate-600">
+                Duplicating keeps all current details (destination, duration, boarding/drop points, amenities, pricing, packages, images) filled so you can easily modify dates, times, title (e.g., Saturday vs Sunday departure), or description.
+              </p>
+            </div>
+
+            <DialogFooter className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-2 sm:justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setDuplicateModalOpen(false);
+                  navigate("/admin/trips");
+                }}
+                className="w-full sm:w-auto"
+              >
+                No, Go to Trips
+              </Button>
+              <Button
+                type="button"
+                onClick={handleConfirmDuplicate}
+                className="w-full sm:w-auto bg-orange-500 hover:bg-orange-600 text-white flex items-center justify-center gap-2"
+              >
+                <Copy className="h-4 w-4" />
+                Yes, Duplicate Trip
               </Button>
             </DialogFooter>
           </DialogContent>
