@@ -385,20 +385,21 @@ const BookingDetails = () => {
     }
   };
 
-  const handleEditClick = (bookingId: string, seat: string, busIndex: number) => {
-    const key = `${bookingId}-${seat}-${busIndex}`;
+  const handleEditClick = (bookingId: string, seat: string, busIndex: number, leg = "single") => {
+    const key = `${bookingId}-${seat}-${busIndex}-${leg}`;
     setEditingBooking(key);
     setNewSeatNumber(String(seat ?? "").trim());
   };
 
   const handleSubmitEdit = async (bookingSeatId: string) => {
-    const [bookingId, oldSeat, busIndex] = bookingSeatId.split("-");
+    const [bookingId, oldSeat, busIndex, leg = "single"] = bookingSeatId.split("-");
     try {
       await updateTrip({
         bookingId,
         oldSeat,
         newSeat: newSeatNumber,
         busIndex: Number(busIndex),
+        leg,
       }).unwrap();
       toast.success(`Seat updated from ${oldSeat} to ${newSeatNumber}`);
       setEditingBooking(null);
@@ -938,7 +939,7 @@ const BookingDetails = () => {
                               </p>
                             ) : (
                               (row.selectedSeats || []).map((s: any) => {
-                                const editKey = `${row.bookingId}-${s.seat}-${s.busIndex}`;
+                                const editKey = `${row.bookingId}-${s.seat}-${s.busIndex}-${s.leg || "single"}`;
                                 return (
                                   <div key={editKey} className="flex items-center">
                                     {editingBooking === editKey ? (
@@ -980,7 +981,7 @@ const BookingDetails = () => {
                                           variant="ghost"
                                           size="icon"
                                           className="h-7 w-7 opacity-60 group-hover:opacity-100"
-                                          onClick={() => handleEditClick(row.bookingId, s.seat, s.busIndex)}
+                                          onClick={() => handleEditClick(row.bookingId, s.seat, s.busIndex, s.leg || "single")}
                                           disabled={isUpdatingTrip}
                                         >
                                           <Edit className="h-3.5 w-3.5" />

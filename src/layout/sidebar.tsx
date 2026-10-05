@@ -3,6 +3,8 @@ import { createPortal } from "react-dom";
 import { useLocation, Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import {
+  MessageSquare,
+  AlertTriangle,
   LayoutDashboard,
   Users,
   MapPin,
@@ -15,6 +17,7 @@ import {
   X,
   Layers,
   FileImage,
+  Images,
 } from "lucide-react";
 
 function SidebarHeader({ onClose }: { onClose?: () => void }) {
@@ -41,6 +44,8 @@ function SidebarHeader({ onClose }: { onClose?: () => void }) {
 }
 
 const navigationItems = [
+  { name: "WhatsApp & SMS", href: "/admin/messaging", icon: MessageSquare },
+  { name: "Refund Alerts", href: "/admin/refund-alerts", icon: AlertTriangle },
   {
     name: "Home Layout",
     href: "/admin/dashboard",
@@ -55,6 +60,11 @@ const navigationItems = [
     name: "Trips",
     href: "/admin/trips",
     icon: MapPin,
+  },
+  {
+    name: "Destination Banners",
+    href: "/admin/destination-banners",
+    icon: Images,
   },
   {
     name: "Pickup Locations",

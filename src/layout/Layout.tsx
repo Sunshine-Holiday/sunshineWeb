@@ -1,5 +1,7 @@
 // import React from "react";
 
+import Messaging from "@/pages/admin/Messaging";
+import RefundAlerts from "@/pages/admin/RefundAlerts";
 import { useState } from "react";
 import UserManagement from "@/pages/admin/userManagement";
 import { Route, Routes } from "react-router-dom";
@@ -29,6 +31,7 @@ import EditReadonlyTrips from "@/pages/admin/trips/EditReadonlytrips";
 import AddReadonlyTrips from "@/pages/admin/trips/Add-readonlytrips";
 import PickupLocationsPage from "@/pages/admin/PickupLocations";
 import BrochuresPage from "@/pages/admin/Brochures";
+import DestinationBanners from "@/pages/admin/DestinationBanners";
 
 /**
  * Admin shell sits flush under the sticky dual-row navbar.
@@ -48,6 +51,8 @@ const Layout = () => {
         <main className="min-w-0 flex-1 overflow-y-auto overscroll-contain p-4 sm:p-5 lg:p-6">
           <div className="mx-auto w-full max-w-[1400px]">
             <Routes>
+              <Route path="/messaging" element={<Messaging />} />
+              <Route path="/refund-alerts" element={<RefundAlerts />} />
               <Route path="/dashboard" element={<AdminHomeControl />} />
               <Route path="/special_sections" element={<Special_sections />} />
               <Route
@@ -67,6 +72,7 @@ const Layout = () => {
               <Route path="/about" element={<AboutPage />} />
               <Route path="/privacy-policy" element={<EditPrivacy />} />
               <Route path="/trips" element={<Trips />} />
+              <Route path="/destination-banners" element={<DestinationBanners />} />
               <Route path="/trips/add-trips" element={<AddTrips />} />
               <Route path="/trips/edit" element={<EditTrips />} />
               <Route

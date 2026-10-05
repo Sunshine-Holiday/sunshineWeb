@@ -449,26 +449,47 @@ const BookingPage = () => {
     doc.text(`Travel Date: ${travelDatePDF}`, 14, y);
     y += 10;
 
-    // Passenger summary table
+    // Passenger summary table with Pickup & Drop Location
+    const boardingPoints = trip?.boardingPoints || [];
+    const dropPoints = trip?.dropPoints || [];
+
     autoTable(doc, {
       startY: y,
-      head: [["Passenger", "Phone", "Email", "Seat(s)"]],
-      body: passengers.map((p, idx) => [
-        p?.name || "—",
-        p?.phoneNumber || "—",
-        p?.email || "—",
-        // show seat per passenger if seat selection
-        totalSeats === 20 || totalSeats === 32
-          ? selectedSeats[idx]
-            ? (() => {
-                const [busIdx, seat] = selectedSeats[idx].split("-");
-                return `Bus ${Number(busIdx) + 1} - ${seat}`;
-              })()
-            : "—"
-          : `Passenger ${idx + 1}`,
-      ]),
+      head: [["Passenger", "Phone", "Pickup Point", "Drop Location", "Seat(s)"]],
+      body: passengers.map((p, idx) => {
+        const pInfo = resolvePickupMapInfo(p?.address, boardingPoints);
+        const dInfo = resolveDropMapInfo(p?.dropLocation, dropPoints);
+        const pickupText = pInfo.location
+          ? `${pInfo.location}${pInfo.date ? ` [${pInfo.date}]` : ""}${
+              pInfo.time ? ` (${pInfo.time})` : ""
+            }`
+          : p?.address || "—";
+        const dropText = dInfo.location || p?.dropLocation || "—";
+        const seatText =
+          totalSeats === 20 || totalSeats === 32
+            ? selectedSeats[idx]
+              ? (() => {
+                  const [busIdx, seat] = selectedSeats[idx].split("-");
+                  return `Bus ${Number(busIdx) + 1} - ${seat}`;
+                })()
+              : "—"
+            : `Passenger ${idx + 1}`;
+
+        return [
+          p?.name || "—",
+          p?.phoneNumber || "—",
+          pickupText,
+          dropText,
+          seatText,
+        ];
+      }),
       theme: "grid",
-      styles: { fontSize: 9, cellPadding: 2.5, valign: "middle" },
+      styles: { fontSize: 8.5, cellPadding: 2.5, valign: "middle" },
+      headStyles: {
+        fillColor: [249, 115, 22],
+        textColor: 255,
+        fontStyle: "bold",
+      },
     });
 
     let nextY = (doc as any).lastAutoTable.finalY + 8;
@@ -517,8 +538,6 @@ const BookingPage = () => {
     }
 
     // Pickup & Drop locations + Google Maps links (per passenger)
-    const boardingPoints = trip?.boardingPoints || [];
-    const dropPoints = trip?.dropPoints || [];
     const pickupBody = passengers.map((p) => {
       const pInfo = resolvePickupMapInfo(p?.address, boardingPoints);
       const dInfo = resolveDropMapInfo(p?.dropLocation, dropPoints);
@@ -1167,7 +1186,7 @@ const BookingPage = () => {
         }`,
         order_id: paymentDetail.id,
 
-        handler: async () => {
+        handler: async (paymentResponse: any) => {
           try {
             // -------------------------------
             // 🟢 TRANSFORM SEATS (IMPORTANT)
@@ -1225,6 +1244,7 @@ const BookingPage = () => {
             // 📦 BOOKING PAYLOAD
             // -------------------------------
             const bookingPayload = {
+              ...paymentResponse,
               tripId,
               selectedPackage: selectedPackage?._id || null,
               selectedRoomChoice: selectedRoomChoice?._id || null,
@@ -1304,7 +1324,7 @@ const BookingPage = () => {
               setInvoiceGenerating(false);
             }
             // navigate("/trips");
-            // resolve();
+            resolve();
           } catch (err: any) {
             console.error("Booking creation failed:", err);
             toast.error(
@@ -1527,13 +1547,6 @@ const handleProceed = async () => {
     const totalGst = totalPrice * 0.05;
     const finalAmount = totalPrice + totalGst;
 
-    const advancePaymentPercentage = trip?.advancePaymentPercentage || 50;
-
-    const amountToPay =
-      paymentOption === "advance"
-        ? finalAmount * (advancePaymentPercentage / 100)
-        : finalAmount;
-
     if (isNaN(totalPrice) || isNaN(totalGst) || isNaN(finalAmount)) {
       throw new Error("Invalid amount calculation");
     }
@@ -1541,15 +1554,30 @@ const handleProceed = async () => {
     // ---------------------------
     // CREATE PAYMENT ORDER
     // ---------------------------
+    const mapSeats = (seats: string[], leg: "single" | "going" | "coming") => seats.map(s => {
+      const [busIndex, seat] = s.split("-");
+      return { seat, busIndex: Number(busIndex), leg };
+    });
+    const checkoutSeats = isStayInterconnected
+      ? [...mapSeats(selectedGoingSeats, "going"), ...mapSeats(selectedComingSeats, "coming")]
+      : isSeatTrip ? mapSeats(selectedSeats, "single")
+      : passengers.map(() => ({ seat: "N/A", busIndex: 0, leg: "single" }));
     const respPayment = await createPayment({
-      amount: amountToPay,
+      booking: {
+        tripId, selectedDate: formatDateToString(selectedDate),
+        selectedSeats: checkoutSeats, passengers,
+        selectedPackage: selectedPackage?._id || null,
+        selectedRoomChoice: selectedRoomChoice?._id || null,
+        roomCount: selectedRoomChoice ? selectedRoomCount : 0,
+        paymentOption,
+      },
     }).unwrap();
 
     if (respPayment.success) {
       await handlePayment(
         respPayment.paymentDetail,
-        amountToPay,
-        finalAmount,
+        respPayment.amountToPay,
+        respPayment.totalAmount,
       );
     }
   } catch (error: any) {
@@ -1684,12 +1712,36 @@ const handleProceed = async () => {
                   ? "Generating Invoice..."
                   : "Invoice Ready ✅"}
               </DialogTitle>
-              <DialogDescription>
-                {invoiceGenerating
-                  ? "Please stay on this screen until your invoice is generated and downloaded."
-                  : "Your invoice has been generated. If auto-download didn’t work, use the manual download button."}
-              </DialogDescription>
             </DialogHeader>
+
+            <div className="rounded-xl border border-orange-100 bg-orange-50/50 p-3.5 text-xs text-slate-700 space-y-2">
+              <div className="flex justify-between">
+                <span className="font-semibold text-slate-500">Trip:</span>
+                <span className="font-bold text-slate-900 truncate max-w-[240px]">
+                  {(trip as any)?.title || tripData?.trip?.title || trip?.location || "Trip"}
+                </span>
+              </div>
+              {selectedDate && (
+                <div className="flex justify-between">
+                  <span className="font-semibold text-slate-500">Travel Date:</span>
+                  <span className="font-medium text-slate-800">
+                    {formatDateToString(selectedDate)}
+                  </span>
+                </div>
+              )}
+              <div className="flex justify-between">
+                <span className="font-semibold text-slate-500">Pickup:</span>
+                <span className="font-medium text-orange-800 text-right max-w-[220px]">
+                  {passengers[0]?.address || "—"}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="font-semibold text-slate-500">Drop:</span>
+                <span className="font-medium text-sky-800 text-right max-w-[220px]">
+                  {passengers[0]?.dropLocation || "—"}
+                </span>
+              </div>
+            </div>
 
             {invoiceError && (
               <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md p-3">
@@ -1857,6 +1909,93 @@ const handleProceed = async () => {
                     </div>
                   )}
 
+                {/* Shared pickup & drop address card (Quick selector for all passengers) */}
+                {step === "passenger-details" &&
+                  (tripDetails.boardingPoints?.length > 0 ||
+                    (tripDetails.dropPoints && tripDetails.dropPoints.length > 0)) && (
+                    <div className="rounded-2xl border border-orange-100 bg-orange-50/40 p-4 sm:p-5 shadow-sm">
+                      <div className="flex items-center justify-between gap-2">
+                        <div>
+                          <h3 className="text-base sm:text-lg font-bold text-slate-900">
+                            Quick Select for All Passengers
+                          </h3>
+                          <p className="mt-0.5 text-xs text-slate-500">
+                            Set default pickup and drop locations for all passengers below (you can also customize each passenger individually).
+                          </p>
+                        </div>
+                      </div>
+                      <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        {tripDetails.boardingPoints?.length > 0 && (
+                          <div>
+                            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-600">
+                              Default Pickup Location
+                            </label>
+                            <select
+                              className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm shadow-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-200"
+                              value={passengers[0]?.address || ""}
+                              onChange={(e) => {
+                                const loc = e.target.value;
+                                setPassengers((prev) =>
+                                  prev.map((p) => ({ ...p, address: loc })),
+                                );
+                              }}
+                              disabled={isSubmitting}
+                            >
+                              <option value="">Select Pickup Location</option>
+                              {tripDetails.boardingPoints.map((point, i) => (
+                                <option key={point._id || i} value={point.location}>
+                                  {point.location}
+                                  {point.date ? ` [${point.date}]` : ""}
+                                  {point.time ? ` (${point.time})` : ""}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        )}
+
+                        <div>
+                          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-600">
+                            Default Drop Location
+                          </label>
+                          {tripDetails.dropPoints && tripDetails.dropPoints.length > 0 ? (
+                            <select
+                              className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm shadow-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-200"
+                              value={passengers[0]?.dropLocation || ""}
+                              onChange={(e) => {
+                                const dropLoc = e.target.value;
+                                setPassengers((prev) =>
+                                  prev.map((p) => ({ ...p, dropLocation: dropLoc })),
+                                );
+                              }}
+                              disabled={isSubmitting}
+                            >
+                              <option value="">Select Drop Location</option>
+                              {tripDetails.dropPoints.map((point, i) => (
+                                <option key={point._id || i} value={point.location}>
+                                  {point.location}
+                                  {point.details ? ` (${point.details})` : ""}
+                                </option>
+                              ))}
+                            </select>
+                          ) : (
+                            <input
+                              type="text"
+                              placeholder="Drop location / landmark"
+                              className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm shadow-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-200"
+                              value={passengers[0]?.dropLocation || ""}
+                              onChange={(e) => {
+                                const dropLoc = e.target.value;
+                                setPassengers((prev) =>
+                                  prev.map((p) => ({ ...p, dropLocation: dropLoc })),
+                                );
+                              }}
+                              disabled={isSubmitting}
+                            />
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 {/* Passenger cards */}
                 <div className="space-y-4">
                   {passengers.map((_, index) => (
@@ -1871,6 +2010,7 @@ const handleProceed = async () => {
                         index={index}
                         onChange={handlePassengerChange}
                         passengers={passengers}
+                        hideAddress={false}
                         showSeatBadge={
                           !!(
                             selectedSeats[index] ||
@@ -2254,7 +2394,6 @@ const SeatLayout = ({
     </div>
   );
 };
-
 
 // BookingSummary Component
 const BookingSummary = ({

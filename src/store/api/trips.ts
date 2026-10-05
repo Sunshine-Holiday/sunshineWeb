@@ -5,6 +5,10 @@ const apiWithTag = apiSlice.enhanceEndpoints({
 });
 export const TripsApiSlice = apiWithTag.injectEndpoints({
   endpoints: (builder) => ({
+    duplicateTrip: builder.mutation<any, string>({
+      query: (id) => ({ url: `/api/v1/trips/${id}/duplicate`, method: "POST" }),
+      invalidatesTags: ["trips"],
+    }),
     createtrips: builder.mutation<any, any>({
       query: (credentials) => ({
         url: "/api/v1/trips",
@@ -133,6 +137,7 @@ export const TripsApiSlice = apiWithTag.injectEndpoints({
 });
 
 export const {
+  useDuplicateTripMutation,
   useCreatetripsMutation,
   useGettripsQuery,
   useGettripsIDQuery,

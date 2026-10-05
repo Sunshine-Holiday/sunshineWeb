@@ -5,6 +5,7 @@ import { fadeInUp, staggerChildren } from "../../utils/animations";
 import { TripFilters } from "../trips/TripFilters";
 import { useNavigate } from "react-router-dom";
 import {
+  useDuplicateTripMutation,
   useDeleteTripsMutation,
   useGettripsQuery,
   useUpdateTripDisplayIndexMutation,
@@ -17,6 +18,7 @@ const TripsPage = () => {
   const navigate = useNavigate();
 
   const { data = [], isLoading, error } = useGettripsQuery({});
+  const [duplicateTrip, { isLoading: isDuplicating }] = useDuplicateTripMutation();
   const [deleteTrips] = useDeleteTripsMutation();
   const [updateDisplayIndex, { isLoading: isUpdatingIndex }] =
     useUpdateTripDisplayIndexMutation();
@@ -91,6 +93,14 @@ const TripsPage = () => {
     } finally {
       cancelDelete();
     }
+  };
+
+  const handleDuplicate = async (id: string | number) => {
+    try {
+      const result = await duplicateTrip(String(id)).unwrap();
+      toast.success("Trip duplicated. Review dates, vehicles and linked trips before using it.");
+      onEdit(result.trip);
+    } catch (error: any) { toast.error(error?.data?.message || "Unable to duplicate trip"); }
   };
 
   const onEdit = (trip: any) => {
@@ -190,6 +200,8 @@ const TripsPage = () => {
                   updatingIndex={
                     isUpdatingIndex && updatingTripId === String(trip._id)
                   }
+                  onDuplicate={handleDuplicate}
+                  duplicating={isDuplicating}
                   onDelete={() => confirmDelete(trip)}
                   onEdit={() => onEdit(trip)}
                   onDisplayIndexChange={handleDisplayIndexChange}

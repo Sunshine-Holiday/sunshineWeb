@@ -29,6 +29,8 @@ interface TripCardProps {
   /** Total trips — options for preference select (1..total) */
   totalTrips?: number;
   updatingIndex?: boolean;
+  onDuplicate?: (id: string | number) => void;
+  duplicating?: boolean;
   onDelete: (id: string | number) => void;
   onEdit: (id: string | number) => void;
   onDisplayIndexChange?: (id: string | number, displayIndex: number) => void;
@@ -78,6 +80,8 @@ export const TripCard = ({
   totalTrips = 1,
   updatingIndex = false,
   onDelete,
+  onDuplicate,
+  duplicating = false,
   onEdit,
   onDisplayIndexChange,
 }: TripCardProps) => {
@@ -256,7 +260,8 @@ export const TripCard = ({
                 : trip.price ?? "N/A"}
             </span>
           )}
-          <div className="flex gap-2 ml-auto">
+          <div className="flex flex-wrap gap-2 ml-auto">
+            {onDuplicate && <Button variant="outline" size="sm" disabled={duplicating} onClick={(e) => { e.stopPropagation(); onDuplicate(trip._id!); }}>{duplicating ? "Copying…" : "Duplicate"}</Button>}
             <Button
               variant="default"
               size="sm"

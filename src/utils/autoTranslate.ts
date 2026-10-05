@@ -1,18 +1,16 @@
 /**
- * Auto-translate between English and Marathi for trip titles/details.
- * Uses MyMemory free API + localStorage cache.
+ * Fast Auto-translate between English and Marathi for dynamic trip content.
+ * Uses Google Translate Free API + localStorage & memory cache.
  */
 
 export type AppLang = "en" | "mr";
 
-const CACHE_PREFIX = "sunshine_tr_v1:";
-const MAX_CHUNK = 450; // MyMemory free limit ~500 chars
+const CACHE_PREFIX = "sunshine_tr_v2:";
 const memoryCache = new Map<string, string>();
 
 const hasDevanagari = (s: string) => /[\u0900-\u097F]/.test(s);
 
 function cacheKey(text: string, target: AppLang): string {
-  // short hash-ish key
   let h = 0;
   for (let i = 0; i < text.length; i++) h = (Math.imul(31, h) + text.charCodeAt(i)) | 0;
   return `${CACHE_PREFIX}${target}:${h}:${text.length}`;
@@ -41,65 +39,107 @@ function writeCache(key: string, value: string) {
   }
 }
 
-function chunkText(text: string, size = MAX_CHUNK): string[] {
-  if (text.length <= size) return [text];
-  const chunks: string[] = [];
-  let rest = text;
-  while (rest.length > 0) {
-    if (rest.length <= size) {
-      chunks.push(rest);
-      break;
-    }
-    // break on space near limit
-    let cut = rest.lastIndexOf(" ", size);
-    if (cut < size * 0.5) cut = size;
-    chunks.push(rest.slice(0, cut));
-    rest = rest.slice(cut).trimStart();
-  }
-  return chunks;
-}
-
-/** Simple queue so many trip cards don't hammer the free API at once */
-let queue: Promise<void> = Promise.resolve();
-function enqueue<T>(fn: () => Promise<T>): Promise<T> {
-  const run = queue.then(fn, fn);
-  queue = run.then(
-    () => undefined,
-    () => undefined
-  );
-  return run;
-}
-
-async function translateChunk(
+/**
+ * Translate a single piece of text using Google Translate free endpoint.
+ */
+async function fetchGoogleTranslate(
   text: string,
   source: AppLang,
   target: AppLang
 ): Promise<string> {
-  if (!text.trim() || source === target) return text;
+  const trimmed = text.trim();
+  if (!trimmed || source === target) return text;
 
-  return enqueue(async () => {
-    const langpair = `${source}|${target}`;
-    const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(
-      text
-    )}&langpair=${langpair}`;
-
+  // Primary: Google clients5 dict-chrome-ex endpoint (blazing fast, full text)
+  try {
+    const url = `https://clients5.google.com/translate_a/t?client=dict-chrome-ex&sl=${source}&tl=${target}&q=${encodeURIComponent(
+      trimmed
+    )}`;
     const res = await fetch(url);
-    if (!res.ok) throw new Error(`Translate HTTP ${res.status}`);
-    const data = await res.json();
-    const translated = data?.responseData?.translatedText;
-    if (!translated || typeof translated !== "string") {
-      throw new Error("Empty translation");
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data) && typeof data[0] === "string" && data[0].trim()) {
+        return data[0];
+      }
+      if (typeof data === "string" && data.trim()) {
+        return data;
+      }
     }
-    // MyMemory sometimes returns "PLEASE SELECT TWO DISTINCT LANGUAGES" etc.
-    if (translated.toUpperCase().includes("PLEASE SELECT")) return text;
-    // small gap between requests
-    await new Promise((r) => setTimeout(r, 80));
-    return translated;
+  } catch {
+    /* try secondary */
+  }
+
+  // Secondary: Google Translate GTX endpoint
+  try {
+    const gtxUrl = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${source}&tl=${target}&dt=t&q=${encodeURIComponent(
+      trimmed
+    )}`;
+    const res = await fetch(gtxUrl);
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data) && Array.isArray(data[0])) {
+        const translated = data[0]
+          .map((item: any) =>
+            Array.isArray(item) && typeof item[0] === "string" ? item[0] : ""
+          )
+          .join("");
+        if (translated.trim()) return translated;
+      }
+    }
+  } catch {
+    /* try fallback */
+  }
+
+  // Fallback: MyMemory translated.net
+  try {
+    const memUrl = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(
+      trimmed.slice(0, 450)
+    )}&langpair=${source}|${target}`;
+    const res = await fetch(memUrl);
+    if (res.ok) {
+      const data = await res.json();
+      const translated = data?.responseData?.translatedText;
+      if (
+        translated &&
+        typeof translated === "string" &&
+        !translated.toUpperCase().includes("PLEASE SELECT")
+      ) {
+        return translated;
+      }
+    }
+  } catch {
+    /* fallback to original */
+  }
+
+  return text;
+}
+
+// Concurrency pool for smooth parallel requests
+let inflightCount = 0;
+const MAX_CONCURRENT = 6;
+const waitQueue: (() => void)[] = [];
+
+async function acquireSlot(): Promise<void> {
+  if (inflightCount < MAX_CONCURRENT) {
+    inflightCount++;
+    return;
+  }
+  return new Promise((resolve) => {
+    waitQueue.push(() => {
+      inflightCount++;
+      resolve();
+    });
   });
 }
 
+function releaseSlot() {
+  inflightCount--;
+  const next = waitQueue.shift();
+  if (next) next();
+}
+
 /**
- * Detect source language roughly, then translate to target if needed.
+ * Translate text between English and Marathi fast with caching.
  */
 export async function autoTranslate(
   text: string,
@@ -115,34 +155,27 @@ export async function autoTranslate(
   const cached = readCache(key);
   if (cached != null) return cached;
 
+  await acquireSlot();
   try {
-    const chunks = chunkText(plain);
-    const parts: string[] = [];
-    for (const chunk of chunks) {
-      // small delay between chunks to be polite to free API
-      if (parts.length > 0) {
-        await new Promise((r) => setTimeout(r, 120));
-      }
-      parts.push(await translateChunk(chunk, source, target));
-    }
-    const result = parts.join(" ");
+    const result = await fetchGoogleTranslate(plain, source, target);
     writeCache(key, result);
     return result;
   } catch (err) {
     console.warn("autoTranslate failed, using original:", err);
     return plain;
+  } finally {
+    releaseSlot();
   }
 }
 
 /**
- * Translate HTML by translating text nodes between tags (keeps markup).
+ * Translate HTML by translating text nodes between tags (keeps markup structure).
  */
 export async function autoTranslateHtml(
   html: string,
   target: AppLang
 ): Promise<string> {
   if (!html || !html.trim()) return html;
-  // If no tags, plain translate
   if (!/<[a-z][\s\S]*>/i.test(html)) {
     return autoTranslate(html, target);
   }
@@ -151,12 +184,7 @@ export async function autoTranslateHtml(
   const out: string[] = [];
   for (const part of parts) {
     if (!part) continue;
-    if (part.startsWith("<")) {
-      out.push(part);
-      continue;
-    }
-    // skip pure whitespace
-    if (!part.trim()) {
+    if (part.startsWith("<") || !part.trim()) {
       out.push(part);
       continue;
     }
@@ -168,3 +196,4 @@ export async function autoTranslateHtml(
 export function resolveAppLang(lng?: string): AppLang {
   return lng?.startsWith("mr") ? "mr" : "en";
 }
+

@@ -4,6 +4,8 @@ import { motion } from "framer-motion";
 import { MapPin, ChevronDown, Loader2 } from "lucide-react";
 import { useGettripsQuery } from "@/store/api/trips";
 import TripCard from "@/pages/trips/TripCard";
+import { useGetDestinationPageQuery } from "@/store/api/destinations";
+import { IMAGE_URL } from "@/store/store";
 import {
   filterTripsByDestination,
   findDestinationFromSlug,
@@ -44,14 +46,19 @@ const StateDetailPage = () => {
     [slug, trips]
   );
 
+  const { data: destinationPageData } = useGetDestinationPageQuery(slug, {
+    skip: !slug,
+  });
+
   const stateTrips = useMemo(() => {
     if (!destinationName) return [];
     return filterTripsByDestination(trips, destinationName);
   }, [trips, destinationName]);
 
-  const description = destinationName
-    ? getDestinationDescription(destinationName)
-    : "";
+  const destinationPage = destinationPageData?.destination;
+  const description =
+    destinationPage?.description ||
+    (destinationName ? getDestinationDescription(destinationName) : "");
 
   if (isLoading) {
     return (
@@ -80,10 +87,16 @@ const StateDetailPage = () => {
     );
   }
 
-  const heroImage =
+  const heroImagePath =
+    destinationPage?.banner ||
     stateTrips.find((t: any) => t.banner)?.banner ||
     stateTrips.find((t: any) => t.banners?.[0])?.banners?.[0] ||
     null;
+  const heroImage = heroImagePath
+    ? /^https?:\/\//i.test(heroImagePath)
+      ? heroImagePath
+      : `${IMAGE_URL.replace(/\/?$/, "/")}${heroImagePath.replace(/^\//, "")}`
+    : null;
 
   return (
     <div className="min-h-screen bg-slate-50 pb-20">

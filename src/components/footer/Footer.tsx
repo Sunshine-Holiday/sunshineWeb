@@ -3,6 +3,7 @@ import { SocialLinks } from "./SocialLinks";
 import { FooterLinks } from "./FooterLinks";
 import logo1 from "../../asserts/logo_sunshine.gif";
 import { useTranslation } from "react-i18next";
+import LanguageSwitcher from "../LanguageSwitcher";
 
 export const Footer = () => {
   const { t } = useTranslation();
@@ -40,6 +41,12 @@ export const Footer = () => {
               {t("footer.followUs")}
             </h3>
             <SocialLinks />
+            <div className="mt-6">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                {t("nav.language")}
+              </p>
+              <LanguageSwitcher variant="navbar" className="w-fit" />
+            </div>
           </div>
         </div>
 
