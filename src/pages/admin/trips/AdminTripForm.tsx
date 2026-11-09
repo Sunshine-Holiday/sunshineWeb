@@ -1151,6 +1151,15 @@ const validateMinSeats = (value: number) => {
           tripDetails.includes.map((h) => h.trim()).filter(Boolean),
         ),
       );
+      // Save Trip Price Excludes
+      formData.append(
+        "excludes",
+        JSON.stringify(
+          (tripDetails.excludes || [])
+            .map((item) => item.trim())
+            .filter(Boolean),
+        ),
+      );
       formData.append(
         "faqs",
         JSON.stringify(
@@ -1234,6 +1243,7 @@ const validateMinSeats = (value: number) => {
       discountPercentage: undefined,
       highlights: [""],
       includes: [""],
+      excludes:[""],
       mapLink: "",
       cancellationPolicy: "",
       faqs: [{ question: "", answer: "" }],
