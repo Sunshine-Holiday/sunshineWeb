@@ -2162,6 +2162,52 @@ const validateMinSeats = (value: number) => {
                 Add include item
               </Button>
             </div>
+            {/* Excludes */}
+            <div>
+              <h2 className="mb-2 text-xl font-semibold">Trip Price Excludes</h2>
+              {tripDetails.excludes.map((e, i) => (
+                <div key={i} className="mb-2 flex gap-2">
+                  <Input
+                    placeholder={`Exclude ${i + 1}`}
+                    value={e}
+                    onChange={(e) => {
+                      const next = [...tripDetails.excludes];
+                      next[i] = e.target.value;
+                      setTripDetails({ ...tripDetails, excludes: next });
+                    }}
+                  />
+                  {tripDetails.excludes.length > 1 && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() =>
+                        setTripDetails({
+                          ...tripDetails,
+                          excludes: tripDetails.excludes.filter(
+                            (_, j) => j !== i,
+                          ),
+                        })
+                      }
+                    >
+                      <FaTrash className="h-3 w-3" />
+                    </Button>
+                  )}
+                </div>
+              ))}
+              <Button
+                type="button"
+                variant="outline"
+                className="mt-1"
+                onClick={() =>
+                  setTripDetails({
+                    ...tripDetails,
+                    excludes: [...tripDetails.excludes, ""],
+                  })
+                }
+              >
+                Add exclude item
+              </Button>
+            </div>
 
             {/* FAQs */}
             <div>
