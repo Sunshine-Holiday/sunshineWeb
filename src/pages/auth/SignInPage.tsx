@@ -117,6 +117,9 @@ const SignInPage = () => {
           </div>
 
           <SubmitButton loading={loading}>{t("auth.signIn")}</SubmitButton>
+          <div className="test">
+            <p>This is a test div</p>
+          </div>
 
           {/* <div className="text-center text-sm">
             <span className="text-gray-600">Don't have an account?</span>{" "}
