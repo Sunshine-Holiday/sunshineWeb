@@ -93,6 +93,7 @@ interface Trip {
   packages?: TripPackage[];
   highlights?: string[];
   includes?: string[];
+  excludes?: string[];
   mapLink?: string;
   brochureImage?: string;
   brochureFile?: string;
@@ -238,6 +239,11 @@ const TripDetails = () => {
   const includesList = useMemo(() => {
     if (trip?.includes?.length) return trip.includes;
     return trip?.amenities || [];
+  }, [trip]);
+
+  const excludesList = useMemo(() => {
+    if (trip?.excludes?.length) return trip.excludes;
+    return trip?.excludes || [];
   }, [trip]);
 
   const faqs = useMemo(() => {
@@ -705,6 +711,32 @@ const TripDetails = () => {
                 </h2>
                 <div className="grid gap-3 sm:grid-cols-2">
                   {includesList.map((item, i) => {
+                    const Icon = amenityIcons[item] || CheckCircle2;
+                    return (
+                      <div
+                        key={i}
+                        className="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/80 px-3 py-2.5"
+                      >
+                        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-orange-100 text-orange-600">
+                          <Icon className="h-4 w-4" />
+                        </div>
+                        <span className="text-sm font-medium text-slate-700">
+                          <TranslatedText text={item} as="span" />
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </Card>
+            )}
+            {/* Card 7: What tour excludes */}
+            {excludesList.length > 0 && (
+              <Card>
+                <h2 className="mb-4 text-xl font-bold text-slate-900">
+                  Trip Price Excludes
+                </h2>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {excludesList.map((item, i) => {
                     const Icon = amenityIcons[item] || CheckCircle2;
                     return (
                       <div

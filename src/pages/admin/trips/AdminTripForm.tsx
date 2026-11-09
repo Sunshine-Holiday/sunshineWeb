@@ -121,6 +121,7 @@ interface TripDetails {
   /** Details page content */
   highlights: string[];
   includes: string[];
+  excludes: string[];
   mapLink: string;
   cancellationPolicy: string;
   faqs: { question: string; answer: string }[];
@@ -245,6 +246,7 @@ const validateMinSeats = (value: number) => {
     discountPercentage: undefined,
     highlights: [""],
     includes: [""],
+    excludes: [""],
     mapLink: "",
     cancellationPolicy: "",
     faqs: [{ question: "", answer: "" }],
@@ -2162,14 +2164,17 @@ const validateMinSeats = (value: number) => {
                 Add include item
               </Button>
             </div>
-            {/* Excludes */}
-            <div>
-              <h2 className="mb-2 text-xl font-semibold">Trip Price Excludes</h2>
-              {tripDetails.excludes.map((e, i) => (
+            
+            {/* Trip Price Excludes */}
+            <div className="mt-6">
+              <h2 className="mb-2 text-xl font-semibold">
+                Trip Price Excludes
+              </h2>
+              {tripDetails.excludes.map((h, i) => (
                 <div key={i} className="mb-2 flex gap-2">
                   <Input
                     placeholder={`Exclude ${i + 1}`}
-                    value={e}
+                    value={h}
                     onChange={(e) => {
                       const next = [...tripDetails.excludes];
                       next[i] = e.target.value;
@@ -2208,6 +2213,7 @@ const validateMinSeats = (value: number) => {
                 Add exclude item
               </Button>
             </div>
+
 
             {/* FAQs */}
             <div>

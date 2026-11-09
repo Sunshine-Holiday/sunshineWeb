@@ -124,6 +124,7 @@ interface TripDetails {
   /** Details page content */
   highlights: string[];
   includes: string[];
+  excludes: string[];
   mapLink: string;
   cancellationPolicy: string;
   faqs: { question: string; answer: string }[];
@@ -205,6 +206,7 @@ const EditTrips: React.FC = () => {
     discountPercentage: undefined,
     highlights: [""],
     includes: [""],
+    excludes: [""],
     mapLink: "",
     cancellationPolicy: "",
     faqs: [{ question: "", answer: "" }],
@@ -502,6 +504,10 @@ const EditTrips: React.FC = () => {
         includes:
           Array.isArray(data.trip.includes) && data.trip.includes.length > 0
             ? data.trip.includes.map((h: string) => String(h || ""))
+            : [""],
+        excludes:
+          Array.isArray(data.trip.excludes) && data.trip.excludes.length > 0
+            ? data.trip.excludes.map((h: string) => String(h || ""))
             : [""],
         mapLink: data.trip.mapLink || "",
         cancellationPolicy: data.trip.cancellationPolicy || "",
@@ -1231,6 +1237,15 @@ const EditTrips: React.FC = () => {
         "includes",
         JSON.stringify(
           tripDetails.includes.map((h) => h.trim()).filter(Boolean),
+        ),
+      );
+      // Save Trip Price Excludes
+      formData.append(
+        "excludes",
+        JSON.stringify(
+          (tripDetails.excludes || [])
+            .map((h) => h.trim())
+            .filter(Boolean),
         ),
       );
       formData.append(
@@ -2152,6 +2167,61 @@ const EditTrips: React.FC = () => {
                 }
               >
                 Add include item
+              </Button>
+            </div>
+            {/* Excludes */}
+            <div>
+              <h2 className="mb-2 text-xl font-semibold">
+                Trip Price Excludes
+              </h2>
+            
+              {(tripDetails.excludes || []).map((h, i) => (
+                <div key={i} className="mb-2 flex gap-2">
+                  <Input
+                    placeholder={`Exclude ${i + 1}`}
+                    value={h}
+                    onChange={(e) => {
+                      const next = [...(tripDetails.excludes || [])];
+                      next[i] = e.target.value;
+            
+                      setTripDetails((prev) => ({
+                        ...prev,
+                        excludes: next,
+                      }));
+                    }}
+                  />
+            
+                  {tripDetails.excludes?.length > 1 && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() =>
+                        setTripDetails((prev) => ({
+                          ...prev,
+                          excludes: prev.excludes.filter(
+                            (_, j) => j !== i
+                          ),
+                        }))
+                      }
+                    >
+                      <FaTrash className="h-3 w-3" />
+                    </Button>
+                  )}
+                </div>
+              ))}
+            
+              <Button
+                type="button"
+                variant="outline"
+                className="mt-1"
+                onClick={() =>
+                  setTripDetails((prev) => ({
+                    ...prev,
+                    excludes: [...(prev.excludes || []), ""],
+                  }))
+                }
+              >
+                Add exclude item
               </Button>
             </div>
 
