@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { X, XCircle } from "lucide-react";
 import {
   MapPin,
   Calendar,
@@ -737,7 +738,7 @@ const TripDetails = () => {
                 </h2>
                 <div className="grid gap-3 sm:grid-cols-2">
                   {excludesList.map((item, i) => {
-                    const Icon = amenityIcons[item] || CheckCircle2;
+                    const Icon = amenityIcons[item] || XCircle;
                     return (
                       <div
                         key={i}
