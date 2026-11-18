@@ -25,6 +25,7 @@ import {
   Plus,
   Minus,
   Music2,
+  XCircle,
 } from "lucide-react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useGettripsIDQuery } from "@/store/api/trips";
