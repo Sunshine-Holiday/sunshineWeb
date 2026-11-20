@@ -718,7 +718,7 @@ const TripDetails = () => {
                         key={i}
                         className="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/80 px-3 py-2.5"
                       >
-                        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-orange-100 text-orange-600">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-green-100 text-green-600">
                           <Icon className="h-4 w-4" />
                         </div>
                         <span className="text-sm font-medium text-slate-700">
@@ -744,7 +744,7 @@ const TripDetails = () => {
                         key={i}
                         className="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/80 px-3 py-2.5"
                       >
-                        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-orange-100 text-orange-600">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-red-100 text-red-600">
                           <Icon className="h-4 w-4" />
                         </div>
                         <span className="text-sm font-medium text-slate-700">
